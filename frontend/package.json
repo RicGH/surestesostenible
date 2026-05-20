@@ -1,0 +1,23 @@
+{
+  "name": "adminprov-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "nuxt dev --host 0.0.0.0",
+    "build": "nuxt build",
+    "preview": "nuxt preview",
+    "generate": "nuxt generate"
+  },
+  "devDependencies": {
+    "@nuxtjs/tailwindcss": "6.12.2",
+    "@pinia/nuxt": "0.5.5",
+    "nuxt": "3.13.2",
+    "vue": "3.5.10",
+    "vue-router": "4.4.5"
+  },
+  "dependencies": {
+    "@vuepic/vue-datepicker": "9.0.3",
+    "date-fns": "3.6.0",
+    "pinia": "2.2.4"
+  }
+}
