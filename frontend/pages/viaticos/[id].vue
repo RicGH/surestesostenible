@@ -15,8 +15,12 @@
   <div v-else-if="!sol" class="card-pad text-ink-500">Cargando...</div>
 
   <div v-else class="space-y-6">
+    <NuxtLink :to="breadcrumb.to" class="inline-flex items-center gap-1.5 text-sm text-ink-500 hover:text-ink-800 transition-colors">
+      <Icon name="chevron-left" size="w-4 h-4" /> Volver a {{ breadcrumb.label }}
+    </NuxtLink>
+
     <div
-      v-if="puedeCerrar"
+      v-if="puedeCerrar || puedeSubir || puedeAprobar || puedeAbonar"
       class="sticky top-0 z-30 -mt-6 lg:-mt-8 -mx-6 lg:-mx-8 px-6 lg:px-8 py-3 bg-white/95 backdrop-blur-md border-b border-ink-200 flex items-center justify-between gap-3"
     >
       <div class="flex items-center gap-2 min-w-0 flex-wrap">
@@ -25,9 +29,23 @@
         <span class="hidden sm:inline text-xs text-ink-500">·</span>
         <span class="hidden sm:inline text-xs text-ink-500 truncate">{{ sol.destino }}</span>
       </div>
-      <button class="btn-success text-sm shrink-0" @click="abrirCerrar">
-        <Icon name="check" size="w-4 h-4" /> Cerrar viáticos
-      </button>
+      <div class="flex items-center gap-2 shrink-0">
+        <button v-if="puedeAprobar" class="btn-danger text-sm" :disabled="aprobando" @click="abrirRechazo">
+          <Icon name="x" size="w-4 h-4" /> Rechazar
+        </button>
+        <button v-if="puedeAprobar" class="btn-success text-sm" :disabled="aprobando" @click="aprobar">
+          <Icon name="check" size="w-4 h-4" /> {{ aprobando ? 'Aprobando...' : 'Aprobar' }}
+        </button>
+        <button v-if="puedeAbonar" class="btn-success text-sm" @click="abrirAbono">
+          <Icon name="wallet" size="w-4 h-4" /> Registrar abono
+        </button>
+        <button v-if="puedeSubir" class="btn-primary text-sm" @click="abrirSubir">
+          <Icon name="upload" size="w-4 h-4" /> Subir comprobante
+        </button>
+        <button v-if="puedeCerrar" class="btn-success text-sm" @click="abrirCerrar">
+          <Icon name="check" size="w-4 h-4" /> Cerrar viáticos
+        </button>
+      </div>
     </div>
 
     <section class="card-pad bg-gradient-to-br from-ink-900 via-brand-900 to-brand-700 text-white border-transparent">
@@ -40,6 +58,10 @@
             <span class="font-medium">{{ sol.destino }}</span>
             <span class="text-brand-200/60">·</span>
             <span>{{ sol.fecha_inicio }} → {{ sol.fecha_fin }}</span>
+          </div>
+          <div v-if="sol.colaborador_nombre" class="flex items-center gap-2 text-sm text-brand-100/90 mt-1">
+            <Icon name="user" size="w-4 h-4" />
+            <span>Solicitado por <span class="font-medium text-white">{{ sol.colaborador_nombre }}</span></span>
           </div>
         </div>
         <EstadoBadge :estado="sol.estado" class="!bg-white/15 !text-white !ring-white/20" />
@@ -182,97 +204,19 @@
       </table>
     </section>
 
-    <section v-if="estaActivo && (esColaborador || esAdmin)" class="card-pad relative">
-      <div v-if="subiendo" class="absolute inset-0 z-10 bg-white/85 backdrop-blur-sm rounded-xl flex flex-col items-center justify-center gap-4 p-6">
-        <div class="w-12 h-12 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin" />
-        <div class="text-center space-y-1">
-          <p class="font-semibold text-ink-900">Subiendo comprobante</p>
-          <p class="text-xs text-ink-500">No cierres esta ventana</p>
-        </div>
-        <div class="w-72 max-w-full space-y-1.5">
-          <div class="h-2 rounded-full bg-ink-100 overflow-hidden">
-            <div class="h-full bg-brand-500 transition-all duration-150" :style="{ width: `${progreso}%` }" />
-          </div>
-          <p class="text-xs text-ink-600 text-center font-medium">{{ progreso }}%</p>
-        </div>
-      </div>
-
-      <div class="flex items-center justify-between mb-5">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg bg-brand-50 text-brand-600 grid place-items-center"><Icon name="upload" /></div>
-          <div>
-            <h3 class="font-semibold text-ink-900">Subir comprobante</h3>
-            <p class="text-xs text-ink-500">Registra cada gasto con su archivo</p>
-          </div>
-        </div>
-        <div class="text-right">
-          <p class="text-xs text-ink-500">Saldo disponible</p>
-          <p class="text-lg font-semibold" :class="disponible <= 0 ? 'text-red-600' : 'text-emerald-600'">${{ disponible.toFixed(2) }}</p>
-        </div>
-      </div>
-
-      <div v-if="bloqueadaPorUso" class="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800 mb-4 flex items-start gap-2">
-        <Icon name="alert" size="w-4 h-4" class="text-amber-600 mt-0.5 shrink-0" />
-        <div class="flex-1">
-          Este viático está en cola. Tienes uno anterior abierto:
-          <NuxtLink :to="`/viaticos/${bloqueadaPorUso.id}`" class="font-semibold underline">{{ bloqueadaPorUso.folio }}</NuxtLink>
-          ({{ bloqueadaPorUso.estado }}). Ciérralo primero para registrar gastos aquí.
-        </div>
-      </div>
-
-      <div v-else-if="disponible <= 0" class="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800 mb-4 flex items-start gap-2">
-        <Icon name="alert" size="w-4 h-4" class="text-amber-600 mt-0.5 shrink-0" />
-        <div class="flex-1">
-          Sin saldo disponible. <button class="font-semibold underline" @click="abrirAjuste">Solicita un ajuste</button> para continuar.
-        </div>
-      </div>
-
-      <form class="space-y-4" :class="(disponible <= 0 || bloqueadaPorUso) ? 'opacity-50 pointer-events-none' : ''" @submit.prevent="subirGasto">
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-          <div>
-            <label class="block text-xs font-medium text-ink-600 mb-1">Monto <span class="text-red-500">*</span></label>
-            <div class="relative">
-              <span class="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400 text-sm">$</span>
-              <input v-model.number="gasto.monto" type="number" step="0.01" min="0" :max="disponible" required class="input pl-7" placeholder="0.00" />
-            </div>
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-ink-600 mb-1">Fecha <span class="text-red-500">*</span></label>
-            <DateInput v-model="gasto.fecha" />
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-ink-600 mb-1">RFC emisor</label>
-            <input v-model="gasto.rfc_emisor" class="input uppercase font-mono" placeholder="XAXX010101000" />
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-ink-600 mb-1">Emisor</label>
-            <input v-model="gasto.nombre_emisor" class="input" placeholder="Nombre del emisor" />
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-ink-600 mb-1">Concepto</label>
-            <input v-model="gasto.concepto" class="input" placeholder="Detalle del gasto" />
-          </div>
-        </div>
-
-        <FileDrop
-          v-model="archivoGasto"
-          accept="image/*,.pdf"
-          icon="receipt"
-          label="Archivo del comprobante"
-          hint="PDF, JPG o PNG · arrastra o haz clic para seleccionar"
-        />
-
-        <div class="flex items-center justify-between pt-1">
-          <p v-if="errorGasto" class="text-sm text-red-600">{{ errorGasto }}</p>
-          <p v-else class="text-xs text-ink-500">El monto descontará del saldo disponible.</p>
-          <button class="btn-primary" :disabled="subiendo || !archivoGasto || disponible <= 0 || !!bloqueadaPorUso">
-            <Icon name="upload" size="w-4 h-4" /> {{ subiendo ? `Subiendo... ${progreso}%` : 'Subir comprobante' }}
-          </button>
-        </div>
-      </form>
-    </section>
-
     <section class="card overflow-hidden">
+      <div v-if="estaActivo" class="px-5 pt-5">
+        <div class="relative">
+          <div class="absolute inset-0 flex items-center" aria-hidden="true">
+            <div class="w-full border-t border-ink-200"></div>
+          </div>
+          <div class="relative flex justify-center">
+            <span class="bg-white px-3 text-xs font-semibold uppercase tracking-wider text-ink-500">
+              {{ comprobantesLabel }}
+            </span>
+          </div>
+        </div>
+      </div>
       <div class="px-5 py-4 border-b border-ink-100 flex items-center justify-between">
         <h3 class="text-base font-semibold text-ink-900">Comprobantes</h3>
         <span class="text-sm text-ink-500">{{ sol.gastos?.length || 0 }} registro(s)</span>
@@ -308,6 +252,148 @@
       :download-name="visor.downloadName"
       @close="visor.abierto = false"
     />
+
+    <Modal v-if="subirModal.abierto" :title="`Subir comprobante · ${sol.folio}`" @close="cerrarSubir">
+      <div class="relative">
+        <div v-if="subiendo" class="absolute inset-0 z-10 bg-white/85 backdrop-blur-sm rounded-xl flex flex-col items-center justify-center gap-4 p-6">
+          <div class="w-12 h-12 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin" />
+          <div class="text-center space-y-1">
+            <p class="font-semibold text-ink-900">Subiendo comprobante</p>
+            <p class="text-xs text-ink-500">No cierres esta ventana</p>
+          </div>
+          <div class="w-72 max-w-full space-y-1.5">
+            <div class="h-2 rounded-full bg-ink-100 overflow-hidden">
+              <div class="h-full bg-brand-500 transition-all duration-150" :style="{ width: `${progreso}%` }" />
+            </div>
+            <p class="text-xs text-ink-600 text-center font-medium">{{ progreso }}%</p>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between mb-4 pb-3 border-b border-ink-100">
+          <p class="text-sm text-ink-600">Registra cada gasto con su archivo</p>
+          <div class="text-right">
+            <p class="text-xs text-ink-500">Saldo disponible</p>
+            <p class="text-lg font-semibold" :class="disponible <= 0 ? 'text-red-600' : 'text-emerald-600'">${{ disponible.toFixed(2) }}</p>
+          </div>
+        </div>
+
+        <div v-if="bloqueadaPorUso" class="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800 mb-4 flex items-start gap-2">
+          <Icon name="alert" size="w-4 h-4" class="text-amber-600 mt-0.5 shrink-0" />
+          <div class="flex-1">
+            Este viático está en cola. Tienes uno anterior abierto:
+            <NuxtLink :to="`/viaticos/${bloqueadaPorUso.id}`" class="font-semibold underline">{{ bloqueadaPorUso.folio }}</NuxtLink>
+            ({{ bloqueadaPorUso.estado }}). Ciérralo primero para registrar gastos aquí.
+          </div>
+        </div>
+
+        <div v-else-if="disponible <= 0" class="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800 mb-4 flex items-start gap-2">
+          <Icon name="alert" size="w-4 h-4" class="text-amber-600 mt-0.5 shrink-0" />
+          <div class="flex-1">
+            Sin saldo disponible.
+            <button class="font-semibold underline" @click="subirModal.abierto = false; abrirAjuste()">Solicita un ajuste</button>
+            para continuar.
+          </div>
+        </div>
+
+        <form id="subir-comprobante-form" class="space-y-4" :class="(disponible <= 0 || bloqueadaPorUso) ? 'opacity-50 pointer-events-none' : ''" @submit.prevent="subirGasto">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-ink-600 mb-1">Monto <span class="text-red-500">*</span></label>
+              <div class="relative">
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400 text-sm">$</span>
+                <input v-model.number="gasto.monto" type="number" step="0.01" min="0" :max="disponible" required class="input pl-7" placeholder="0.00" />
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-ink-600 mb-1">Fecha <span class="text-red-500">*</span></label>
+              <DateInput v-model="gasto.fecha" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-ink-600 mb-1">RFC emisor</label>
+              <input v-model="gasto.rfc_emisor" class="input uppercase font-mono" placeholder="XAXX010101000" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-ink-600 mb-1">Emisor</label>
+              <input v-model="gasto.nombre_emisor" class="input" placeholder="Nombre del emisor" />
+            </div>
+            <div class="sm:col-span-2">
+              <label class="block text-xs font-medium text-ink-600 mb-1">Concepto</label>
+              <input v-model="gasto.concepto" class="input" placeholder="Detalle del gasto" />
+            </div>
+          </div>
+
+          <FileDrop
+            v-model="archivoGasto"
+            accept="image/*,.pdf"
+            icon="receipt"
+            label="Archivo del comprobante"
+            hint="PDF, JPG o PNG · arrastra o haz clic para seleccionar"
+          />
+
+          <p v-if="errorGasto" class="text-sm text-red-600">{{ errorGasto }}</p>
+          <p v-else class="text-xs text-ink-500">El monto descontará del saldo disponible.</p>
+        </form>
+      </div>
+      <template #footer>
+        <button class="btn-secondary" :disabled="subiendo" @click="cerrarSubir">Cancelar</button>
+        <button form="subir-comprobante-form" type="submit" class="btn-primary" :disabled="subiendo || !archivoGasto || disponible <= 0 || !!bloqueadaPorUso">
+          <Icon name="upload" size="w-4 h-4" /> {{ subiendo ? `Subiendo... ${progreso}%` : 'Subir comprobante' }}
+        </button>
+      </template>
+    </Modal>
+
+    <Modal v-if="abonoModal.abierto" :title="`Registrar abono · ${sol.folio}`" @close="cerrarAbono">
+      <div class="space-y-4">
+        <div class="rounded-lg bg-ink-50 border border-ink-200 p-3 text-sm space-y-1">
+          <div class="flex justify-between"><span class="text-ink-500">Colaborador</span><span class="font-medium">{{ sol.colaborador_nombre }}</span></div>
+          <div class="flex justify-between"><span class="text-ink-500">Destino</span><span class="font-medium">{{ sol.destino }}</span></div>
+          <div class="flex justify-between border-t border-ink-200 pt-1 mt-1">
+            <span class="text-ink-500">Monto a abonar</span>
+            <strong class="text-ink-900">${{ Number(sol.monto_total).toFixed(2) }}</strong>
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-ink-700 mb-1.5">Referencia <span class="text-ink-400 text-xs font-normal">(opcional)</span></label>
+          <input v-model="abonoModal.referencia" placeholder="Folio bancario, SPEI, etc." class="input" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-ink-700 mb-1.5">Comprobante de transferencia <span class="text-ink-400 text-xs font-normal">(opcional)</span></label>
+          <FileDrop
+            v-model="abonoModal.comprobante"
+            accept=".pdf,image/*"
+            icon="receipt"
+            label="Subir comprobante"
+            hint="PDF o imagen del recibo bancario · arrastra o haz clic"
+          />
+        </div>
+        <p class="text-xs text-ink-500">Puedes registrar el abono sin comprobante ni referencia si aún no los tienes.</p>
+        <p v-if="abonoModal.error" class="text-sm text-red-600">{{ abonoModal.error }}</p>
+      </div>
+      <template #footer>
+        <button class="btn-secondary" :disabled="abonoModal.enviando" @click="cerrarAbono">Cancelar</button>
+        <button class="btn-success" :disabled="abonoModal.enviando" @click="confirmarAbono">
+          {{ abonoModal.enviando ? 'Registrando...' : 'Confirmar abono' }}
+        </button>
+      </template>
+    </Modal>
+
+    <Modal v-if="rechazoModal.abierto" :title="`Rechazar ${sol.folio}`" @close="rechazoModal.abierto = false">
+      <div class="space-y-3">
+        <p class="text-sm text-ink-700">Indica el motivo del rechazo. El colaborador verá este mensaje.</p>
+        <textarea v-model="rechazoModal.motivo" rows="3" required class="input" placeholder="Motivo del rechazo"></textarea>
+        <label class="flex items-center gap-2 text-sm">
+          <input v-model="rechazoModal.permiteEdicion" type="checkbox" class="rounded border-ink-300" />
+          Permitir corrección al colaborador (puede editar y reenviar)
+        </label>
+        <p v-if="rechazoModal.error" class="text-sm text-red-600">{{ rechazoModal.error }}</p>
+      </div>
+      <template #footer>
+        <button class="btn-secondary" :disabled="rechazoModal.enviando" @click="rechazoModal.abierto = false">Cancelar</button>
+        <button class="btn-danger" :disabled="rechazoModal.enviando || !rechazoModal.motivo.trim()" @click="confirmarRechazo">
+          {{ rechazoModal.enviando ? 'Enviando...' : 'Rechazar' }}
+        </button>
+      </template>
+    </Modal>
 
     <Modal v-if="cerrarModal.abierto" :title="`Cerrar viáticos ${sol.folio}`" @close="cerrarModal.abierto = false">
       <div class="space-y-3 text-sm">
@@ -425,9 +511,104 @@ const ajuste = reactive({
 const visor = reactive({ abierto: false, path: '', title: '', subtitle: '', downloadName: '' });
 
 const cerrarModal = reactive({ abierto: false, cerrando: false, error: '' });
+const subirModal = reactive({ abierto: false });
+const rechazoModal = reactive({ abierto: false, motivo: '', permiteEdicion: false, enviando: false, error: '' });
+const abonoModal = reactive({ abierto: false, referencia: '', comprobante: null, enviando: false, error: '' });
+const aprobando = ref(false);
+
+const BREADCRUMB_MAP = {
+  admin:     { label: 'Viáticos', to: '/admin/viaticos' },
+  finanzas:  { label: 'Pagos viáticos', to: '/finanzas/viaticos' },
+  pendientes:{ label: 'Pagos pendientes', to: '/finanzas/pendientes' },
+  historial: { label: 'Mis viáticos', to: '/viaticos/historial' },
+  actual:    { label: 'Viático actual', to: '/viaticos/actual' },
+  panel:     { label: 'Panel', to: '/panel' },
+};
+
+const breadcrumb = computed(() => {
+  const from = route.query.from;
+  if (from && BREADCRUMB_MAP[from]) return BREADCRUMB_MAP[from];
+  if (esAdmin.value)    return BREADCRUMB_MAP.admin;
+  if (auth.rol === 'finanzas') return BREADCRUMB_MAP.finanzas;
+  return BREADCRUMB_MAP.historial;
+});
 
 function abrirCerrar() {
   Object.assign(cerrarModal, { abierto: true, cerrando: false, error: '' });
+}
+
+function abrirSubir() {
+  errorGasto.value = '';
+  subirModal.abierto = true;
+}
+
+function cerrarSubir() {
+  if (subiendo.value) return;
+  subirModal.abierto = false;
+}
+
+function abrirRechazo() {
+  Object.assign(rechazoModal, { abierto: true, motivo: '', permiteEdicion: false, enviando: false, error: '' });
+}
+
+async function aprobar() {
+  if (aprobando.value) return;
+  aprobando.value = true;
+  try {
+    await api.post(`/viaticos/${route.params.id}/aprobar`);
+    toast.success('Solicitud aprobada', 'Pasa a finanzas para el pago.');
+    await cargar();
+  } catch (e) {
+    toast.error('No se pudo aprobar', e.message);
+  } finally {
+    aprobando.value = false;
+  }
+}
+
+function abrirAbono() {
+  Object.assign(abonoModal, { abierto: true, referencia: '', comprobante: null, enviando: false, error: '' });
+}
+
+function cerrarAbono() {
+  if (abonoModal.enviando) return;
+  abonoModal.abierto = false;
+}
+
+async function confirmarAbono() {
+  abonoModal.enviando = true; abonoModal.error = '';
+  try {
+    const fd = new FormData();
+    if (abonoModal.comprobante) fd.append('comprobante', abonoModal.comprobante);
+    if (abonoModal.referencia.trim()) fd.append('referencia', abonoModal.referencia.trim());
+    await api.upload(`/viaticos/${route.params.id}/pagar`, fd);
+    toast.success('Abono registrado', `${sol.value.folio} · $${Number(sol.value.monto_total).toFixed(2)}`);
+    abonoModal.abierto = false;
+    await cargar();
+  } catch (e) {
+    abonoModal.error = e.message;
+    toast.error('No se pudo registrar el abono', e.message);
+  } finally {
+    abonoModal.enviando = false;
+  }
+}
+
+async function confirmarRechazo() {
+  if (!rechazoModal.motivo.trim()) { rechazoModal.error = 'Indica un motivo'; return; }
+  rechazoModal.enviando = true; rechazoModal.error = '';
+  try {
+    await api.post(`/viaticos/${route.params.id}/rechazar`, {
+      motivo: rechazoModal.motivo.trim(),
+      permite_edicion: rechazoModal.permiteEdicion,
+    });
+    toast.success('Solicitud rechazada', `${sol.value.folio} fue rechazada.`);
+    rechazoModal.abierto = false;
+    await cargar();
+  } catch (e) {
+    rechazoModal.error = e.message;
+    toast.error('No se pudo rechazar', e.message);
+  } finally {
+    rechazoModal.enviando = false;
+  }
 }
 
 async function confirmarCierre() {
@@ -462,8 +643,17 @@ const esAdmin = computed(() => auth.rol === 'admin');
 const estaActivo = computed(() => sol.value && ['pagado', 'en_proceso'].includes(sol.value.estado));
 const bloqueadaPorUso = computed(() => sol.value?.bloqueada_por_uso || null);
 const puedeCerrar = computed(() => sol.value && ['aprobado', 'pagado', 'en_proceso'].includes(sol.value.estado) && (esColaborador.value || esAdmin.value) && !bloqueadaPorUso.value);
+const puedeSubir = computed(() => estaActivo.value && (esColaborador.value || esAdmin.value));
+const puedeAprobar = computed(() => sol.value?.estado === 'pendiente' && esAdmin.value);
+const puedeAbonar = computed(() => sol.value?.estado === 'aprobado' && !sol.value?.pago && auth.rol === 'finanzas');
 const disponible = computed(() => sol.value ? Number(sol.value.monto_total) - Number(sol.value.monto_gastado) : 0);
 const necesitaAjuste = computed(() => disponible.value <= 0);
+const comprobantesLabel = computed(() => {
+  const gastos = sol.value?.gastos || [];
+  if (!gastos.length) return 'Sin comprobantes registrados';
+  const total = gastos.reduce((s, g) => s + Number(g.monto || 0), 0);
+  return `${gastos.length} comprobante${gastos.length === 1 ? '' : 's'} · $${total.toFixed(2)} gastado`;
+});
 const pctGastado = computed(() => {
   if (!sol.value || !sol.value.monto_total) return 0;
   return Math.min(999, (Number(sol.value.monto_gastado) / Number(sol.value.monto_total)) * 100);
@@ -577,6 +767,7 @@ async function subirGasto() {
     toast.success('Comprobante subido', `Monto $${Number(gasto.monto).toFixed(2)}`);
     Object.assign(gasto, { monto: 0, fecha: '', rfc_emisor: '', nombre_emisor: '', concepto: '' });
     archivoGasto.value = null;
+    subirModal.abierto = false;
     await cargar();
   } catch (e) {
     errorGasto.value = e.message;

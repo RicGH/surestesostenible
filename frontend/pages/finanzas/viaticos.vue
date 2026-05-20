@@ -34,7 +34,7 @@
               <td class="font-medium">${{ Number(r.monto_total).toFixed(2) }}</td>
               <td>
                 <div class="flex gap-1 justify-end">
-                  <IconButton icon="eye" tooltip="Ver detalle del viaje" variant="primary" @click="$router.push(`/viaticos/${r.id}`)" />
+                  <IconButton icon="eye" tooltip="Ver detalle del viaje" variant="primary" @click="$router.push(`/viaticos/${r.id}?from=finanzas`)" />
                   <IconButton icon="wallet" tooltip="Registrar abono" variant="success" @click="abrirPago(r)" />
                 </div>
               </td>
@@ -80,7 +80,7 @@
               <td class="text-ink-500 text-xs">{{ p.referencia || '—' }}</td>
               <td>
                 <div class="flex gap-1 justify-end">
-                  <IconButton icon="eye" tooltip="Ver detalle del viático" variant="primary" @click="$router.push(`/viaticos/${p.solicitud_id}`)" />
+                  <IconButton icon="eye" tooltip="Ver detalle del viático" variant="primary" @click="$router.push(`/viaticos/${p.solicitud_id}?from=finanzas`)" />
                 </div>
               </td>
             </tr>

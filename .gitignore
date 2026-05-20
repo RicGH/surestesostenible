@@ -13,3 +13,4 @@ backend/uploads/*
 .vscode/
 .idea/
 Thumbs.db
+graphify-out/

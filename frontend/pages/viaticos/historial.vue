@@ -68,9 +68,9 @@
             <td><EstadoBadge :estado="s.estado" /></td>
             <td>
               <div class="flex gap-1 justify-end">
-                <IconButton icon="eye" tooltip="Ver detalle" variant="primary" @click="$router.push(`/viaticos/${s.id}`)" />
+                <IconButton icon="eye" tooltip="Ver detalle" variant="primary" @click="$router.push(`/viaticos/${s.id}?from=historial`)" />
                 <IconButton icon="copy" tooltip="Duplicar viaje" @click="duplicar(s.id)" />
-                <IconButton v-if="s.estado === 'rechazado' && s.permite_edicion" icon="edit" tooltip="Corregir solicitud" variant="warning" @click="$router.push(`/viaticos/${s.id}?editar=1`)" />
+                <IconButton v-if="s.estado === 'rechazado' && s.permite_edicion" icon="edit" tooltip="Corregir solicitud" variant="warning" @click="$router.push(`/viaticos/${s.id}?from=historial&editar=1`)" />
               </div>
             </td>
           </tr>

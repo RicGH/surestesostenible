@@ -56,7 +56,7 @@
               <td><AvanceCelda :total="s.monto_total" :gastado="s.monto_gastado" /></td>
               <td>
                 <div class="flex gap-1 justify-end">
-                  <IconButton icon="eye" tooltip="Ver detalle" variant="primary" @click="$router.push(`/viaticos/${s.id}`)" />
+                  <IconButton icon="eye" tooltip="Ver detalle" variant="primary" @click="$router.push(`/viaticos/${s.id}?from=admin`)" />
                   <IconButton icon="check" tooltip="Aprobar" variant="success" @click="aprobar(s.id)" />
                   <IconButton icon="x" tooltip="Rechazar" variant="danger" @click="abrirRechazo(s)" />
                 </div>
@@ -80,7 +80,7 @@
               <td class="font-medium">+${{ Number(a.monto_total).toFixed(2) }}</td>
               <td>
                 <div class="flex gap-1 justify-end">
-                  <IconButton icon="eye" tooltip="Ver viaje" variant="primary" @click="$router.push(`/viaticos/${a.solicitud_id}`)" />
+                  <IconButton icon="eye" tooltip="Ver viaje" variant="primary" @click="$router.push(`/viaticos/${a.solicitud_id}?from=admin`)" />
                   <IconButton icon="check" tooltip="Aprobar ajuste" variant="success" @click="aprobarAjuste(a.id)" />
                   <IconButton icon="x" tooltip="Rechazar ajuste" variant="danger" @click="abrirRechazoAjuste(a)" />
                 </div>
@@ -106,7 +106,7 @@
               <td><EstadoBadge :estado="s.estado" /></td>
               <td>
                 <div class="flex gap-1 justify-end">
-                  <IconButton icon="eye" tooltip="Ver comprobantes" variant="primary" @click="$router.push(`/viaticos/${s.id}`)" />
+                  <IconButton icon="eye" tooltip="Ver comprobantes" variant="primary" @click="$router.push(`/viaticos/${s.id}?from=admin`)" />
                   <IconButton icon="check" tooltip="Cerrar viáticos" variant="success" @click="abrirCerrar(s)" />
                 </div>
               </td>
@@ -134,7 +134,7 @@
               </td>
               <td>
                 <div class="flex gap-1 justify-end">
-                  <IconButton icon="eye" tooltip="Ver detalle" variant="primary" @click="$router.push(`/viaticos/${s.id}`)" />
+                  <IconButton icon="eye" tooltip="Ver detalle" variant="primary" @click="$router.push(`/viaticos/${s.id}?from=admin`)" />
                 </div>
               </td>
             </tr>
@@ -156,7 +156,7 @@
               <td><AvanceCelda :total="s.monto_total" :gastado="s.monto_gastado" /></td>
               <td>
                 <div class="flex gap-1 justify-end">
-                  <IconButton icon="eye" tooltip="Ver detalle" variant="primary" @click="$router.push(`/viaticos/${s.id}`)" />
+                  <IconButton icon="eye" tooltip="Ver detalle" variant="primary" @click="$router.push(`/viaticos/${s.id}?from=admin`)" />
                 </div>
               </td>
             </tr>
@@ -180,7 +180,7 @@
               <td><EstadoBadge :estado="s.estado" /></td>
               <td>
                 <div class="flex gap-1 justify-end">
-                  <IconButton icon="eye" tooltip="Ver detalle" variant="primary" @click="$router.push(`/viaticos/${s.id}`)" />
+                  <IconButton icon="eye" tooltip="Ver detalle" variant="primary" @click="$router.push(`/viaticos/${s.id}?from=admin`)" />
                 </div>
               </td>
             </tr>
