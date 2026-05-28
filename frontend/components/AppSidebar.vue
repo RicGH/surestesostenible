@@ -136,7 +136,7 @@ const ctaPrincipal = computed(() => {
 
 const MENUS = {
   admin: [
-    { label: 'General', links: [{ to: '/', label: 'Panel', icon: 'dashboard' }] },
+    { label: 'General', links: [{ to: '/', label: 'Panel', icon: 'dashboard' }, { to: '/manual', label: 'Manual', icon: 'book' }] },
     { label: 'Operación', links: [
       { to: '/admin/viaticos', label: 'Viáticos', icon: 'plane' },
       { to: '/admin/proveedores', label: 'Proveedores', icon: 'building' },
@@ -157,14 +157,14 @@ const MENUS = {
     ]},
   ],
   colaborador: [
-    { label: 'General', links: [{ to: '/', label: 'Panel', icon: 'dashboard' }] },
+    { label: 'General', links: [{ to: '/', label: 'Panel', icon: 'dashboard' }, { to: '/manual', label: 'Manual', icon: 'book' }] },
     { label: 'Viáticos', links: [
       { to: '/viaticos/actual', label: 'Mis viáticos actuales', icon: 'briefcase' },
       { to: '/viaticos/historial', label: 'Historial', icon: 'history' },
     ]},
   ],
   proveedor: [
-    { label: 'General', links: [{ to: '/', label: 'Panel', icon: 'dashboard' }] },
+    { label: 'General', links: [{ to: '/', label: 'Panel', icon: 'dashboard' }, { to: '/manual', label: 'Manual', icon: 'book' }] },
     { label: 'Facturación', links: [
       { to: '/proveedores/registro', label: 'Mi registro', icon: 'document' },
       { to: '/proveedores/facturas', label: 'Subir factura', icon: 'upload' },
@@ -172,7 +172,7 @@ const MENUS = {
     ]},
   ],
   finanzas: [
-    { label: 'General', links: [{ to: '/', label: 'Panel', icon: 'dashboard' }] },
+    { label: 'General', links: [{ to: '/', label: 'Panel', icon: 'dashboard' }, { to: '/manual', label: 'Manual', icon: 'book' }] },
     { label: 'Viáticos', links: [
       { to: '/finanzas/viaticos', label: 'Por pagar', icon: 'plane' },
     ]},

@@ -50,6 +50,7 @@ const TITLES = {
   '/finanzas/pendientes': { title: 'Facturas pendientes', subtitle: 'Facturas de proveedores por pagar' },
   '/finanzas/historial': { title: 'Historial', subtitle: 'Pagos de facturas realizados' },
   '/reportes': { title: 'Reportes', subtitle: 'Generar PDF' },
+  '/manual': { title: 'Manual de uso', subtitle: 'Guía del sistema y flujos por rol' },
 };
 
 const matched = computed(() => {
