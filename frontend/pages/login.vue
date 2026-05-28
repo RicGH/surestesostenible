@@ -18,7 +18,18 @@
           <label class="block text-sm font-medium text-ink-700">Contraseña</label>
           <NuxtLink to="/forgot-password" class="text-xs text-brand-600 hover:text-brand-700 font-medium">¿Olvidaste tu contraseña?</NuxtLink>
         </div>
-        <input v-model="password" type="password" required class="input" autocomplete="current-password" placeholder="••••••••" />
+        <div class="relative">
+          <input v-model="password" :type="mostrarPassword ? 'text' : 'password'" required class="input pr-10" autocomplete="current-password" placeholder="••••••••" />
+          <button
+            type="button"
+            tabindex="-1"
+            class="absolute right-3 top-1/2 -translate-y-1/2 text-ink-400 hover:text-ink-700 transition-colors"
+            :aria-label="mostrarPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+            @click="mostrarPassword = !mostrarPassword"
+          >
+            <Icon :name="mostrarPassword ? 'eye-off' : 'eye'" size="w-4 h-4" />
+          </button>
+        </div>
       </div>
       <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
       <button type="submit" class="btn-primary w-full" :disabled="loading">
@@ -33,6 +44,7 @@ definePageMeta({ layout: 'auth' });
 
 const email = ref('');
 const password = ref('');
+const mostrarPassword = ref(false);
 const error = ref('');
 const loading = ref(false);
 

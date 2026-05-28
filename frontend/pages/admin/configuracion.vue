@@ -74,7 +74,7 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label class="block text-sm font-medium text-ink-700 mb-1.5">Nombre</label>
-            <input v-model="form.from_name" class="input" placeholder="AdminProv" />
+            <input v-model="form.from_name" class="input" placeholder="App Sureste Sostenible" />
           </div>
           <div>
             <label class="block text-sm font-medium text-ink-700 mb-1.5">Correo</label>

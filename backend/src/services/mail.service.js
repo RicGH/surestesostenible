@@ -19,7 +19,7 @@ function plantilla({ titulo, mensaje, url, baseUrl }) {
     <tr><td align="center">
       <table width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
         <tr><td style="background:linear-gradient(135deg,#0f172a,#312e81 60%,#4338ca);padding:24px 28px;color:#fff;">
-          <strong style="font-size:14px;letter-spacing:0.5px;">AdminProv</strong>
+          <strong style="font-size:14px;letter-spacing:0.5px;">App Sureste Sostenible</strong>
         </td></tr>
         <tr><td style="padding:28px;">
           <h2 style="margin:0 0 12px;font-size:18px;">${titulo}</h2>
@@ -27,7 +27,7 @@ function plantilla({ titulo, mensaje, url, baseUrl }) {
           ${cta}
         </td></tr>
         <tr><td style="padding:16px 28px;border-top:1px solid #e2e8f0;color:#94a3b8;font-size:12px;">
-          Este correo fue generado automáticamente por la plataforma AdminProv.
+          Este correo fue generado automáticamente por la plataforma App Sureste Sostenible.
         </td></tr>
       </table>
     </td></tr>
@@ -84,8 +84,8 @@ async function enviarPrueba(to) {
   return t.sendMail({
     from,
     to,
-    subject: 'Prueba de configuración · AdminProv',
-    text: 'Este es un correo de prueba enviado desde AdminProv. Tu configuración SMTP está funcionando correctamente.',
+    subject: 'Prueba de configuración · App Sureste Sostenible',
+    text: 'Este es un correo de prueba enviado desde App Sureste Sostenible. Tu configuración SMTP está funcionando correctamente.',
     html: plantilla({
       titulo: 'Configuración exitosa',
       mensaje: 'Este correo confirma que tu configuración SMTP está funcionando correctamente. A partir de ahora la plataforma podrá enviar notificaciones por correo a los usuarios.',

@@ -27,22 +27,24 @@
       <div class="card overflow-hidden">
         <table class="table">
           <thead>
-            <tr><th>RFC</th><th>Razón social</th><th>Email</th><th>Estado</th><th class="!text-center">Acciones</th></tr>
+            <tr><th>RFC</th><th>Razón social</th><th>Contacto</th><th>Email</th><th>Estado</th><th class="!text-center">Acciones</th></tr>
           </thead>
           <tbody>
             <tr v-for="p in pendientes" :key="p.id">
               <td class="font-mono">{{ p.rfc }}</td>
               <td class="font-medium text-ink-800">{{ p.razon_social }}</td>
+              <td class="text-ink-700">{{ p.nombre || '—' }}</td>
               <td>{{ p.email }}</td>
               <td><EstadoBadge :estado="p.estado" /></td>
               <td>
                 <div class="flex gap-1 justify-center">
+                  <IconButton icon="eye" tooltip="Ver detalle" variant="primary" @click="abrirDetalle(p)" />
                   <IconButton icon="check" tooltip="Aprobar" variant="success" @click="aprobar(p.id)" />
                   <IconButton icon="x" tooltip="Rechazar" variant="danger" @click="abrirRechazo(p)" />
                 </div>
               </td>
             </tr>
-            <tr v-if="!pendientes.length"><td colspan="5" class="py-12 text-center text-ink-400">Sin proveedores pendientes</td></tr>
+            <tr v-if="!pendientes.length"><td colspan="6" class="py-12 text-center text-ink-400">Sin proveedores pendientes</td></tr>
           </tbody>
         </table>
       </div>
@@ -62,11 +64,13 @@
       </div>
       <div class="card overflow-hidden">
         <table class="table">
-          <thead><tr><th>RFC</th><th>Razón social</th><th>Estado</th><th>Activo</th><th class="!text-center">Acciones</th></tr></thead>
+          <thead><tr><th>RFC</th><th>Razón social</th><th>Contacto</th><th>Email</th><th>Estado</th><th>Activo</th><th class="!text-center">Acciones</th></tr></thead>
           <tbody>
             <tr v-for="p in todosFiltrados" :key="p.id">
               <td class="font-mono">{{ p.rfc }}</td>
               <td class="font-medium text-ink-800">{{ p.razon_social }}</td>
+              <td class="text-ink-700">{{ p.nombre || '—' }}</td>
+              <td>{{ p.email }}</td>
               <td><EstadoBadge :estado="p.estado" /></td>
               <td><EstadoBadge :estado="p.activo ? 'activo' : 'inactivo'" /></td>
               <td>
@@ -76,7 +80,7 @@
                 </div>
               </td>
             </tr>
-            <tr v-if="!todosFiltrados.length"><td colspan="5" class="py-12 text-center text-ink-400">{{ todos.length ? 'Sin coincidencias con los filtros' : 'Sin registros' }}</td></tr>
+            <tr v-if="!todosFiltrados.length"><td colspan="7" class="py-12 text-center text-ink-400">{{ todos.length ? 'Sin coincidencias con los filtros' : 'Sin registros' }}</td></tr>
           </tbody>
         </table>
       </div>
@@ -180,6 +184,23 @@
             <input v-model="edicionModal.form.cuenta_clabe" maxlength="18" class="input font-mono" placeholder="18 dígitos" />
           </div>
         </div>
+        <div class="flex items-center justify-between gap-3 pt-3 border-t border-ink-100">
+          <div>
+            <p class="text-sm font-medium text-ink-700">Estado del proveedor</p>
+            <p class="text-xs text-ink-500">{{ edicionModal.form.activo ? 'Activo · puede iniciar sesión y operar' : 'Inactivo · no puede acceder' }}</p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            :aria-checked="edicionModal.form.activo"
+            :class="['relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0',
+                     edicionModal.form.activo ? 'bg-emerald-500' : 'bg-ink-300']"
+            @click="edicionModal.form.activo = !edicionModal.form.activo"
+          >
+            <span :class="['inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform',
+                           edicionModal.form.activo ? 'translate-x-5' : 'translate-x-0.5']" />
+          </button>
+        </div>
         <p v-if="edicionModal.error" class="text-sm text-red-600">{{ edicionModal.error }}</p>
       </form>
       <template #footer>
@@ -278,6 +299,8 @@ const todosFiltrados = computed(() => {
   return todos.value.filter((p) =>
     String(p.rfc || '').toLowerCase().includes(q)
     || String(p.razon_social || '').toLowerCase().includes(q)
+    || String(p.nombre || '').toLowerCase().includes(q)
+    || String(p.email || '').toLowerCase().includes(q)
   );
 });
 
@@ -316,7 +339,7 @@ async function rechazar() {
 const detalleModal = reactive({ abierto: false, cargando: false, data: null });
 const edicionModal = reactive({
   abierto: false, guardando: false, error: '', id: null,
-  form: { rfc: '', razon_social: '', direccion: '', banco: '', cuenta_clabe: '' },
+  form: { rfc: '', razon_social: '', direccion: '', banco: '', cuenta_clabe: '', activo: true },
 });
 const visor = reactive({ abierto: false, path: '', title: '', subtitle: '', downloadName: '' });
 
@@ -342,6 +365,7 @@ async function abrirEdicion(p) {
       direccion: d.direccion || '',
       banco: d.banco || '',
       cuenta_clabe: d.cuenta_clabe || '',
+      activo: !!d.activo,
     });
   } catch (e) {
     toast.error('No se pudo cargar el proveedor', e.message);

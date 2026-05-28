@@ -7,7 +7,7 @@
     <div class="h-16 flex items-center justify-between px-5 border-b border-white/5">
       <NuxtLink to="/" class="flex items-center gap-2">
         <img src="/brand/icon.png" alt="Sureste Sostenible" class="w-8 h-8 object-contain" />
-        <span class="font-semibold tracking-tight">AdminProv</span>
+        <span class="font-semibold tracking-tight">App Sureste Sostenible</span>
       </NuxtLink>
       <button class="lg:hidden text-ink-400 hover:text-white" @click="$emit('close')">
         <Icon name="close" />

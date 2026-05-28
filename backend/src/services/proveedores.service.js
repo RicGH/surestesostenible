@@ -11,7 +11,7 @@ async function getByUserId(userId) {
 
 async function getById(id) {
   return queryOne(
-    `SELECT p.*, u.email, u.nombre
+    `SELECT p.*, u.email, u.nombre, u.activo
      FROM proveedores p JOIN users u ON u.id = p.user_id
      WHERE p.id = ?`,
     [id]
@@ -60,6 +60,13 @@ async function actualizar(id, data) {
      WHERE id = ?`,
     [data.rfc, data.razon_social, data.direccion || null, data.banco || null, data.cuenta_clabe || null, id]
   );
+  if (typeof data.activo === 'boolean') {
+    await query(
+      `UPDATE users u JOIN proveedores p ON p.user_id = u.id
+       SET u.activo = ? WHERE p.id = ?`,
+      [data.activo ? 1 : 0, id]
+    );
+  }
 }
 
 async function aprobar(id, adminId) {

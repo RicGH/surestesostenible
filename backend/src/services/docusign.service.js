@@ -177,7 +177,7 @@ async function cancelarEnvelope(envelopeId, motivo) {
   const envelopesApi = new docusign.EnvelopesApi(apiClient);
   const update = docusign.Envelope.constructFromObject({
     status: 'voided',
-    voidedReason: motivo || 'Cancelado desde AdminProv',
+    voidedReason: motivo || 'Cancelado desde App Sureste Sostenible',
   });
   return envelopesApi.update(accountId, envelopeId, { envelope: update });
 }

@@ -302,7 +302,7 @@ async function dashboardCsv(req, res) {
   const data = await service.dashboard(filtros);
   const lines = [];
   const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-  lines.push(`Dashboard AdminProv,Periodo,${data.rango.desde},${data.rango.hasta}`);
+  lines.push(`Dashboard App Sureste Sostenible,Periodo,${data.rango.desde},${data.rango.hasta}`);
   lines.push('');
   lines.push('=== VIATICOS - KPIs ===');
   Object.entries(data.viaticos.kpis || {}).forEach(([k, v]) => lines.push(`${k},${v}`));

@@ -78,7 +78,7 @@ async function forgotPassword(req, res) {
       try {
         await mail.enviar({
           to: user.email,
-          subject: 'Recuperación de contraseña · AdminProv',
+          subject: 'Recuperación de contraseña · App Sureste Sostenible',
           text: `Hola ${user.nombre},\n\nSolicitaste restablecer tu contraseña. Visita este enlace para crear una nueva:\n\n${link}\n\nEl enlace expira en ${passwordReset.TOKEN_TTL_MINUTOS} minutos.\n\nSi no fuiste tú, ignora este correo.`,
           html: plantillaReset({ nombre: user.nombre, link, ttl: passwordReset.TOKEN_TTL_MINUTOS }),
         });
@@ -121,7 +121,7 @@ function plantillaReset({ nombre, link, ttl }) {
   <table width="100%" cellpadding="0" cellspacing="0" style="padding:24px 0;"><tr><td align="center">
     <table width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
       <tr><td style="background:linear-gradient(135deg,#0f172a,#312e81 60%,#4338ca);padding:24px 28px;color:#fff;">
-        <strong style="font-size:14px;letter-spacing:0.5px;">AdminProv</strong>
+        <strong style="font-size:14px;letter-spacing:0.5px;">App Sureste Sostenible</strong>
       </td></tr>
       <tr><td style="padding:28px;">
         <h2 style="margin:0 0 12px;font-size:18px;">Restablece tu contraseña</h2>

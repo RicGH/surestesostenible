@@ -36,7 +36,7 @@ async function crear(req, res) {
   });
   await notifService.crear(id, {
     tipo: 'usuario_creado',
-    titulo: 'Bienvenido a AdminProv',
+    titulo: 'Bienvenido a App Sureste Sostenible',
     mensaje: `Se creó tu cuenta como ${data.rol}. Tu correo es ${data.email} y tu contraseña inicial es: ${data.password}. Te recomendamos cambiarla al iniciar sesión.`,
     url: '/login',
   });

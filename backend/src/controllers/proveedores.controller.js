@@ -62,6 +62,7 @@ const actualizarSchema = z.object({
   direccion: z.string().max(255).optional().or(z.literal('')),
   banco: z.string().max(120).optional().or(z.literal('')),
   cuenta_clabe: z.string().length(18).optional().or(z.literal('')),
+  activo: z.coerce.boolean().optional(),
 });
 
 async function actualizar(req, res) {

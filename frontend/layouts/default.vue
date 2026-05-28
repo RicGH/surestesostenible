@@ -55,7 +55,7 @@ const TITLES = {
 const matched = computed(() => {
   if (TITLES[route.path]) return TITLES[route.path];
   if (route.path.startsWith('/viaticos/')) return { title: 'Detalle de los viáticos', subtitle: 'Información y gastos' };
-  return { title: 'AdminProv', subtitle: '' };
+  return { title: 'App Sureste Sostenible', subtitle: '' };
 });
 const title = computed(() => matched.value.title);
 const subtitle = computed(() => matched.value.subtitle || `Hola, ${auth.user?.nombre || ''}`);
