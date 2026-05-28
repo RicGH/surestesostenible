@@ -29,7 +29,7 @@
         <thead>
           <tr>
             <th>Nombre</th><th>Correo</th><th>Rol</th><th>Estado</th>
-            <th>Creado</th><th class="text-right">Acciones</th>
+            <th>Creado</th><th class="!text-center">Acciones</th>
           </tr>
         </thead>
         <tbody>
@@ -40,7 +40,7 @@
             <td><EstadoBadge :estado="u.activo ? 'activo' : 'inactivo'" /></td>
             <td class="text-ink-500 text-xs">{{ u.created_at }}</td>
             <td>
-              <div class="flex gap-1 justify-end">
+              <div class="flex gap-1 justify-center">
                 <IconButton
                   v-if="u.id !== auth.user?.id && u.rol !== 'admin' && u.activo"
                   icon="users"

@@ -1,12 +1,21 @@
 const bcrypt = require('bcrypt');
+const path = require('path');
 const { z } = require('zod');
 const { HttpError } = require('../middleware/error');
+const { UPLOAD_ROOT } = require('../config/upload');
 const service = require('../services/proveedores.service');
 const usersService = require('../services/users.service');
 const notif = require('../services/notificaciones.service');
 
+// RFC: 3 letras (moral) o 4 (física) + 6 dígitos de fecha + 3 de homoclave → 12 o 13 caracteres.
+const RFC_REGEX = /^[A-ZÑ&]{3,4}\d{6}[A-Z\d]{3}$/;
+const rfcField = z.preprocess(
+  (v) => (typeof v === 'string' ? v.trim().toUpperCase() : v),
+  z.string().regex(RFC_REGEX, 'RFC inválido: usa 12 caracteres para persona moral o 13 para física.'),
+);
+
 const registroSchema = z.object({
-  rfc: z.string().min(12).max(13),
+  rfc: rfcField,
   razon_social: z.string().min(2).max(200),
   direccion: z.string().max(255).optional(),
   banco: z.string().max(120).optional(),
@@ -47,6 +56,30 @@ async function detalle(req, res) {
   res.json(data);
 }
 
+const actualizarSchema = z.object({
+  rfc: rfcField,
+  razon_social: z.string().min(2).max(200),
+  direccion: z.string().max(255).optional().or(z.literal('')),
+  banco: z.string().max(120).optional().or(z.literal('')),
+  cuenta_clabe: z.string().length(18).optional().or(z.literal('')),
+});
+
+async function actualizar(req, res) {
+  const id = Number(req.params.id);
+  const existente = await service.getById(id);
+  if (!existente) throw new HttpError(404, 'Proveedor no encontrado');
+  const data = actualizarSchema.parse(req.body);
+  await service.actualizar(id, data);
+  res.json({ ok: true });
+}
+
+async function descargarDocumentacion(req, res) {
+  const id = Number(req.params.id);
+  const prov = await service.getById(id);
+  if (!prov || !prov.documentacion) throw new HttpError(404, 'Sin documentación');
+  res.sendFile(path.join(UPLOAD_ROOT, prov.documentacion));
+}
+
 async function aprobar(req, res) {
   await service.aprobar(Number(req.params.id), req.user.sub);
   const prov = await service.getById(Number(req.params.id));
@@ -69,7 +102,7 @@ async function rechazar(req, res) {
     await notif.crear(prov.user_id, {
       tipo: 'proveedor_rechazado',
       titulo: 'Tu registro fue rechazado',
-      mensaje: motivo,
+      mensaje: `Tu registro de proveedor fue rechazado. Motivo: ${motivo}`,
       url: '/proveedores/registro',
     });
   }
@@ -80,7 +113,7 @@ const crearAdminSchema = z.object({
   nombre: z.string().min(2).max(120),
   email: z.string().email().max(120),
   password: z.string().min(6).max(72),
-  rfc: z.string().min(12).max(13),
+  rfc: rfcField,
   razon_social: z.string().min(2).max(200),
   direccion: z.string().max(255).optional(),
   banco: z.string().max(120).optional(),
@@ -106,4 +139,4 @@ async function crearComoAdmin(req, res) {
   res.status(201).json({ id, user_id: userId });
 }
 
-module.exports = { miRegistro, registrar, listarPendientes, listarTodos, detalle, aprobar, rechazar, crearComoAdmin };
+module.exports = { miRegistro, registrar, listarPendientes, listarTodos, detalle, actualizar, descargarDocumentacion, aprobar, rechazar, crearComoAdmin };

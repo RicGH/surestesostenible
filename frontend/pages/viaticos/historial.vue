@@ -51,7 +51,7 @@
       <table class="table">
         <thead>
           <tr>
-            <th>Folio</th><th>Destino</th><th>Fechas</th><th>Total</th><th>Estado</th><th class="text-right">Acciones</th>
+            <th>Folio</th><th>Destino</th><th>Fechas</th><th>Total</th><th>Estado</th><th class="!text-center">Acciones</th>
           </tr>
         </thead>
         <tbody>
@@ -67,7 +67,7 @@
             <td>${{ Number(s.monto_total).toFixed(2) }}</td>
             <td><EstadoBadge :estado="s.estado" /></td>
             <td>
-              <div class="flex gap-1 justify-end">
+              <div class="flex gap-1 justify-center">
                 <IconButton icon="eye" tooltip="Ver detalle" variant="primary" @click="$router.push(`/viaticos/${s.id}?from=historial`)" />
                 <IconButton icon="copy" tooltip="Duplicar viaje" @click="duplicar(s.id)" />
                 <IconButton v-if="s.estado === 'rechazado' && s.permite_edicion" icon="edit" tooltip="Corregir solicitud" variant="warning" @click="$router.push(`/viaticos/${s.id}?from=historial&editar=1`)" />

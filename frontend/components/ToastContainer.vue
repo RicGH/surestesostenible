@@ -21,6 +21,15 @@
           <div class="flex-1 min-w-0">
             <p :class="['font-semibold text-sm', titleColor(t.type)]">{{ t.titulo }}</p>
             <p v-if="t.mensaje" class="text-xs text-ink-600 mt-0.5">{{ t.mensaje }}</p>
+            <NuxtLink
+              v-if="t.action"
+              :to="t.action.to"
+              :class="['inline-flex items-center gap-1 mt-2 text-xs font-semibold hover:underline', titleColor(t.type)]"
+              @click="toast.remove(t.id)"
+            >
+              {{ t.action.label }}
+              <Icon name="chevron-right" size="w-3.5 h-3.5" />
+            </NuxtLink>
           </div>
           <button class="text-ink-400 hover:text-ink-700 shrink-0" @click="toast.remove(t.id)">
             <Icon name="close" size="w-4 h-4" />

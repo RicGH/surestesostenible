@@ -8,6 +8,8 @@ dist
 *.log
 backend/uploads/*
 !backend/uploads/.gitkeep
+backend/secrets/
+*.pem
 .DS_Store
 .claude/
 .vscode/

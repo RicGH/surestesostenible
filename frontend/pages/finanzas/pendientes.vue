@@ -7,7 +7,7 @@
         <thead>
           <tr>
             <th>Folio</th><th>Proveedor</th><th>RFC</th>
-            <th>Monto</th><th class="text-right">Acciones</th>
+            <th>Monto</th><th class="!text-center">Acciones</th>
           </tr>
         </thead>
         <tbody>
@@ -17,7 +17,7 @@
             <td class="font-mono">{{ f.rfc }}</td>
             <td class="font-medium">${{ Number(f.monto).toFixed(2) }} {{ f.moneda }}</td>
             <td>
-              <div class="flex gap-1 justify-end">
+              <div class="flex gap-1 justify-center">
                 <IconButton icon="download" tooltip="Descargar PDF" @click="api.download(`/facturas/${f.id}/archivo/pdf`, `${f.folio}.pdf`)" />
                 <IconButton icon="fileText" tooltip="Descargar XML" @click="api.download(`/facturas/${f.id}/archivo/xml`, `${f.folio}.xml`)" />
                 <IconButton icon="wallet" tooltip="Registrar pago" variant="success" @click="abrirPago(f)" />

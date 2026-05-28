@@ -17,7 +17,7 @@
     <section v-if="tab === 'por_pagar'">
       <div class="card overflow-hidden">
         <table class="table">
-          <thead><tr><th>Tipo</th><th>Folio</th><th>Colaborador</th><th>Destino</th><th>Monto</th><th class="text-right">Acciones</th></tr></thead>
+          <thead><tr><th>Tipo</th><th>Folio</th><th>Colaborador</th><th>Destino</th><th>Monto</th><th class="!text-center">Acciones</th></tr></thead>
           <tbody>
             <tr v-for="r in porPagar" :key="`${r.tipo}-${r.id}-${r.ajuste_id || ''}`">
               <td>
@@ -33,7 +33,7 @@
               </td>
               <td class="font-medium">${{ Number(r.monto_total).toFixed(2) }}</td>
               <td>
-                <div class="flex gap-1 justify-end">
+                <div class="flex gap-1 justify-center">
                   <IconButton icon="eye" tooltip="Ver detalle del viaje" variant="primary" @click="$router.push(`/viaticos/${r.id}?from=finanzas`)" />
                   <IconButton icon="wallet" tooltip="Registrar abono" variant="success" @click="abrirPago(r)" />
                 </div>
@@ -48,7 +48,7 @@
     <section v-if="tab === 'historial'">
       <div class="card overflow-hidden">
         <table class="table">
-          <thead><tr><th>Tipo</th><th>Folio</th><th>Colaborador</th><th>Destino</th><th>Monto</th><th>Avance del viático</th><th>Fecha</th><th>Referencia</th><th class="text-right">Acciones</th></tr></thead>
+          <thead><tr><th>Tipo</th><th>Folio</th><th>Colaborador</th><th>Destino</th><th>Monto</th><th>Avance del viático</th><th>Fecha</th><th>Referencia</th><th class="!text-center">Acciones</th></tr></thead>
           <tbody>
             <tr v-for="p in historial" :key="p.id">
               <td>
@@ -79,7 +79,7 @@
               <td class="text-ink-600">{{ formatFecha(p.fecha_pago) }}</td>
               <td class="text-ink-500 text-xs">{{ p.referencia || '—' }}</td>
               <td>
-                <div class="flex gap-1 justify-end">
+                <div class="flex gap-1 justify-center">
                   <IconButton icon="eye" tooltip="Ver detalle del viático" variant="primary" @click="$router.push(`/viaticos/${p.solicitud_id}?from=finanzas`)" />
                 </div>
               </td>

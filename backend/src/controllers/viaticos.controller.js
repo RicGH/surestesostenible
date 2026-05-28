@@ -35,7 +35,8 @@ async function crear(req, res) {
   const data = solicitudSchema.parse(req.body);
   const colaboradorId = await resolverColaboradorId(req, data);
   const { colaborador_id: _ignore, ...payload } = data;
-  const result = await service.crearSolicitud(colaboradorId, payload);
+  const justificante = req.file ? `justificantes/${req.file.filename}` : null;
+  const result = await service.crearSolicitud(colaboradorId, payload, justificante);
   await notifService.crearParaRol('admin', {
     tipo: 'viaticos_nueva',
     titulo: 'Nueva solicitud de viáticos',
@@ -130,9 +131,12 @@ async function listarPagosHistorial(req, res) {
 
 async function pagarSolicitud(req, res) {
   const id = Number(req.params.id);
-  const { referencia } = z.object({ referencia: z.string().max(80).optional() }).parse(req.body);
+  const { referencia, metodo_pago } = z.object({
+    referencia: z.string().max(80).optional(),
+    metodo_pago: z.enum(['tarjeta', 'transferencia']),
+  }).parse(req.body);
   const comprobante = req.file ? `comprobantes/${req.file.filename}` : null;
-  await pagosService.pagarSolicitud(id, req.user.sub, comprobante, referencia);
+  await pagosService.pagarSolicitud(id, req.user.sub, comprobante, referencia, metodo_pago);
   const sol = await service.getById(id);
   if (sol) {
     await notifService.crear(sol.colaborador_id, {
@@ -154,6 +158,15 @@ async function descargarComprobantePago(req, res) {
     throw new HttpError(403, 'Sin acceso');
   }
   res.sendFile(path.join(UPLOAD_ROOT, pago.comprobante_path));
+}
+
+async function descargarJustificante(req, res) {
+  const id = Number(req.params.id);
+  const restringir = req.user.rol === 'colaborador' ? req.user.sub : null;
+  const sol = await service.getById(id, restringir);
+  if (!sol) throw new HttpError(404, 'Solicitud no encontrada');
+  if (!sol.justificante_path) throw new HttpError(404, 'Sin justificante');
+  res.sendFile(path.join(UPLOAD_ROOT, sol.justificante_path));
 }
 
 async function descargarGasto(req, res) {
@@ -281,5 +294,5 @@ module.exports = {
   listarRechazados, listarTodos, detalle,
   aprobar, rechazar, editar, duplicar, cerrar, subirGasto, puedoCrear,
   listarPorPagar, listarPagosHistorial, pagarSolicitud, descargarComprobantePago,
-  descargarGasto,
+  descargarGasto, descargarJustificante,
 };

@@ -40,7 +40,7 @@ async function getPagoSolicitud(solicitudId) {
   );
 }
 
-async function pagarSolicitud(solicitudId, userId, comprobante, referencia) {
+async function pagarSolicitud(solicitudId, userId, comprobante, referencia, metodoPago = null) {
   return withTx(async (conn) => {
     const [solRows] = await conn.execute(
       "SELECT id, monto_total, estado FROM viaticos_solicitudes WHERE id = ? FOR UPDATE",
@@ -50,9 +50,9 @@ async function pagarSolicitud(solicitudId, userId, comprobante, referencia) {
     if (solRows[0].estado !== 'aprobado') throw new Error('La solicitud no está aprobada');
 
     await conn.execute(
-      `INSERT INTO viaticos_pagos (solicitud_id, monto, fecha_pago, comprobante_path, referencia, pagado_por)
-       VALUES (?, ?, NOW(), ?, ?, ?)`,
-      [solicitudId, solRows[0].monto_total, comprobante, referencia || null, userId]
+      `INSERT INTO viaticos_pagos (solicitud_id, monto, fecha_pago, comprobante_path, referencia, metodo_pago, pagado_por)
+       VALUES (?, ?, NOW(), ?, ?, ?, ?)`,
+      [solicitudId, solRows[0].monto_total, comprobante, referencia || null, metodoPago || null, userId]
     );
 
     await conn.execute(

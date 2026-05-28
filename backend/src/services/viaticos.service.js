@@ -34,21 +34,21 @@ async function getActivaDeColaborador(colaboradorId) {
   );
 }
 
-async function crearSolicitud(colaboradorId, data) {
+async function crearSolicitud(colaboradorId, data, justificante = null) {
   const folio = generarFolio();
   const monto_total = sumarMontos(data);
   const result = await query(
     `INSERT INTO viaticos_solicitudes
      (folio, colaborador_id, destino, fecha_inicio, fecha_fin, motivo,
       monto_vuelos, monto_hospedaje, monto_alimentos, monto_transporte, monto_otros,
-      monto_total, proyecto, cuenta, partida, estado)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendiente')`,
+      monto_total, proyecto, cuenta, partida, justificante_path, estado)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendiente')`,
     [
       folio, colaboradorId, data.destino, data.fecha_inicio, data.fecha_fin, data.motivo,
       data.monto_vuelos || 0, data.monto_hospedaje || 0, data.monto_alimentos || 0,
       data.monto_transporte || 0, data.monto_otros || 0,
       monto_total,
-      data.proyecto || null, data.cuenta || null, data.partida || null,
+      data.proyecto || null, data.cuenta || null, data.partida || null, justificante || null,
     ]
   );
   return { id: result.insertId, folio };
@@ -177,7 +177,7 @@ async function getById(id, colaboradorId = null) {
       [id]
     ),
     queryOne(
-      'SELECT id, monto, fecha_pago, referencia, comprobante_path FROM viaticos_pagos WHERE solicitud_id = ? AND ajuste_id IS NULL ORDER BY id ASC LIMIT 1',
+      'SELECT id, monto, fecha_pago, referencia, metodo_pago, comprobante_path FROM viaticos_pagos WHERE solicitud_id = ? AND ajuste_id IS NULL ORDER BY id ASC LIMIT 1',
       [id]
     ),
     query(

@@ -1,12 +1,12 @@
 const router = require('express').Router();
 const ctrl = require('../controllers/viaticos.controller');
 const { verifyToken, requireRole } = require('../middleware/auth');
-const { uploadGastos, uploadComprobantes } = require('../config/upload');
+const { uploadGastos, uploadComprobantes, uploadJustificantes } = require('../config/upload');
 const asyncHandler = require('../utils/asyncHandler');
 
 router.use(verifyToken);
 
-router.post('/', requireRole('admin', 'colaborador'), asyncHandler(ctrl.crear));
+router.post('/', requireRole('admin', 'colaborador'), uploadJustificantes.single('justificante'), asyncHandler(ctrl.crear));
 router.get('/puedo-crear', requireRole('admin', 'colaborador'), asyncHandler(ctrl.puedoCrear));
 router.get('/mias', requireRole('admin', 'colaborador'), asyncHandler(ctrl.listarMios));
 router.get('/pendientes', requireRole('admin'), asyncHandler(ctrl.listarPendientes));
@@ -19,6 +19,7 @@ router.get('/por-pagar', requireRole('admin', 'finanzas'), asyncHandler(ctrl.lis
 router.get('/pagos-historial', requireRole('admin', 'finanzas'), asyncHandler(ctrl.listarPagosHistorial));
 router.post('/:id/pagar', requireRole('admin', 'finanzas'), uploadComprobantes.single('comprobante'), asyncHandler(ctrl.pagarSolicitud));
 router.get('/:id/comprobante-pago', requireRole('admin', 'finanzas', 'colaborador'), asyncHandler(ctrl.descargarComprobantePago));
+router.get('/:id/justificante', requireRole('admin', 'finanzas', 'colaborador'), asyncHandler(ctrl.descargarJustificante));
 router.get('/:id/gastos/:gastoId/archivo', requireRole('admin', 'finanzas', 'colaborador'), asyncHandler(ctrl.descargarGasto));
 router.get('/:id', requireRole('admin', 'colaborador', 'finanzas'), asyncHandler(ctrl.detalle));
 router.put('/:id', requireRole('admin', 'colaborador'), asyncHandler(ctrl.editar));

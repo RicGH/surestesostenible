@@ -5,7 +5,7 @@
     </div>
     <div class="hidden lg:flex flex-col justify-between p-12 bg-gradient-to-br from-ink-900 via-brand-900 to-brand-700 text-white">
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-white/10 ring-1 ring-white/20 grid place-items-center font-bold">A</div>
+        <img src="/brand/icon.png" alt="Sureste Sostenible" class="w-10 h-10 object-contain" />
         <span class="text-lg font-semibold tracking-tight">AdminProv</span>
       </div>
       <div class="space-y-4 max-w-md">

@@ -20,6 +20,12 @@ const MAP = {
   pagado:       { cls: 'badge-violet', label: 'Pagado · listo para usar' },
   activo:       { cls: 'badge-green',  label: 'Activo' },
   inactivo:     { cls: 'badge-gray',   label: 'Inactivo' },
+  borrador:     { cls: 'badge-gray',   label: 'Borrador' },
+  enviado:      { cls: 'badge-blue',   label: 'Enviado' },
+  parcial:      { cls: 'badge-amber',  label: 'Firma parcial' },
+  firmado:      { cls: 'badge-green',  label: 'Firmado' },
+  declinado:    { cls: 'badge-red',    label: 'Declinado' },
+  error:        { cls: 'badge-red',    label: 'Error' },
 };
 
 const cls = computed(() => MAP[props.estado]?.cls || 'badge-gray');

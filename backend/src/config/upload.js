@@ -42,9 +42,36 @@ const uploadComprobantes = multer({
   limits: { fileSize: 25 * 1024 * 1024 },
 });
 
+const uploadJustificantes = multer({
+  storage: makeStorage('justificantes'),
+  limits: { fileSize: 25 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ok = /\.(jpe?g|png|pdf)$/i.test(file.originalname);
+    cb(ok ? null : new Error('Solo se permiten imágenes o PDF'), ok);
+  },
+});
+
 const uploadDocsProveedor = multer({
   storage: makeStorage('proveedores'),
   limits: { fileSize: 25 * 1024 * 1024 },
 });
 
-module.exports = { UPLOAD_ROOT, uploadGastos, uploadFacturas, uploadComprobantes, uploadDocsProveedor };
+const uploadDocumentos = multer({
+  storage: makeStorage('documentos'),
+  limits: { fileSize: 25 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ok = /\.pdf$/i.test(file.originalname);
+    cb(ok ? null : new Error('Solo se permiten archivos PDF'), ok);
+  },
+});
+
+const uploadDocx = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 25 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ok = /\.docx$/i.test(file.originalname);
+    cb(ok ? null : new Error('Solo se permiten archivos .docx (Word moderno). Los .doc antiguos no son compatibles.'), ok);
+  },
+});
+
+module.exports = { UPLOAD_ROOT, uploadGastos, uploadFacturas, uploadComprobantes, uploadJustificantes, uploadDocsProveedor, uploadDocumentos, uploadDocx };

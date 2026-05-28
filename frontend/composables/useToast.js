@@ -4,9 +4,9 @@ let _id = 0;
 export const useToast = () => {
   if (!_toasts) _toasts = ref([]);
 
-  function add({ type = 'info', titulo, mensaje = '', duration = 5000 }) {
+  function add({ type = 'info', titulo, mensaje = '', duration = 5000, action = null }) {
     const id = ++_id;
-    _toasts.value.push({ id, type, titulo, mensaje });
+    _toasts.value.push({ id, type, titulo, mensaje, action });
     if (duration > 0) setTimeout(() => remove(id), duration);
     return id;
   }
@@ -17,10 +17,10 @@ export const useToast = () => {
 
   return {
     toasts: _toasts,
-    success: (titulo, mensaje) => add({ type: 'success', titulo, mensaje }),
-    warning: (titulo, mensaje) => add({ type: 'warning', titulo, mensaje }),
-    info:    (titulo, mensaje) => add({ type: 'info',    titulo, mensaje }),
-    error:   (titulo, mensaje) => add({ type: 'error',   titulo, mensaje, duration: 7000 }),
+    success: (titulo, mensaje, opts) => add({ type: 'success', titulo, mensaje, ...opts }),
+    warning: (titulo, mensaje, opts) => add({ type: 'warning', titulo, mensaje, ...opts }),
+    info:    (titulo, mensaje, opts) => add({ type: 'info',    titulo, mensaje, ...opts }),
+    error:   (titulo, mensaje, opts) => add({ type: 'error',   titulo, mensaje, duration: 7000, ...opts }),
     remove,
   };
 };

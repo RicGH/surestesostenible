@@ -53,6 +53,7 @@ export const useAuthStore = defineStore('auth', {
       this.impersonator = impersonator;
       this.setSession(token, user);
       try { usePuedoCrearViatico().reset(); } catch {}
+      try { useRegistroProveedor().reset(); } catch {}
     },
     stopImpersonation() {
       if (!this.originalToken) return;
@@ -68,6 +69,7 @@ export const useAuthStore = defineStore('auth', {
       }
       this.setSession(t, u);
       try { usePuedoCrearViatico().reset(); } catch {}
+      try { useRegistroProveedor().reset(); } catch {}
     },
     logout() {
       this.token = null;
@@ -83,6 +85,7 @@ export const useAuthStore = defineStore('auth', {
         localStorage.removeItem('originalUser');
       }
       try { usePuedoCrearViatico().reset(); } catch {}
+      try { useRegistroProveedor().reset(); } catch {}
     },
   },
 });

@@ -13,19 +13,26 @@
     "migrate:flujo-finanzas": "node src/db/migrate-flujo-finanzas.js",
     "migrate:correo": "node src/db/migrate-correo.js",
     "migrate:reset-password": "node src/db/migrate-reset-password.js",
-    "migrate:pagos-comprobante-opcional": "node src/db/migrate-pagos-comprobante-opcional.js"
+    "migrate:pagos-comprobante-opcional": "node src/db/migrate-pagos-comprobante-opcional.js",
+    "migrate:documentos": "node src/db/migrate-documentos.js",
+    "migrate:documentos-creados": "node src/db/migrate-documentos-creados.js",
+    "migrate:documento-anotaciones": "node src/db/migrate-documento-anotaciones.js"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",
     "cors": "^2.8.5",
+    "docusign-esign": "^7.0.0",
     "dotenv": "^16.4.5",
     "express": "^4.21.0",
     "fast-xml-parser": "^4.5.0",
     "jsonwebtoken": "^9.0.2",
+    "mammoth": "^1.8.0",
     "multer": "^1.4.5-lts.1",
     "mysql2": "^3.11.3",
     "nodemailer": "^6.9.15",
+    "pdf-lib": "^1.17.1",
     "pdfkit": "^0.15.1",
+    "puppeteer-core": "^23.5.0",
     "zod": "^3.23.8"
   }
 }

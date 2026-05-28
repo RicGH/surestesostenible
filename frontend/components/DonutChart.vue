@@ -49,7 +49,7 @@ const cy = size / 2;
 const radius = (size - stroke) / 2;
 const circumference = 2 * Math.PI * radius;
 
-const FALLBACK = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#3b82f6', '#64748b'];
+const FALLBACK = ['#00b7c6', '#67ae3e', '#f59e0b', '#ef4444', '#8b5cf6', '#1b347d', '#64748b'];
 
 const total = computed(() => props.series.reduce((s, r) => s + Number(r[props.valueKey] || 0), 0));
 

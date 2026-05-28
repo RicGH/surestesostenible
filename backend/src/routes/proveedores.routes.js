@@ -12,6 +12,8 @@ router.post('/admin-crear', requireRole('admin'), asyncHandler(ctrl.crearComoAdm
 router.get('/pendientes', requireRole('admin'), asyncHandler(ctrl.listarPendientes));
 router.get('/', requireRole('admin', 'finanzas'), asyncHandler(ctrl.listarTodos));
 router.get('/:id', requireRole('admin'), asyncHandler(ctrl.detalle));
+router.get('/:id/documentacion', requireRole('admin'), asyncHandler(ctrl.descargarDocumentacion));
+router.put('/:id', requireRole('admin'), asyncHandler(ctrl.actualizar));
 router.post('/:id/aprobar', requireRole('admin'), asyncHandler(ctrl.aprobar));
 router.post('/:id/rechazar', requireRole('admin'), asyncHandler(ctrl.rechazar));
 

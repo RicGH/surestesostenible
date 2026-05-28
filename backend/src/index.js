@@ -29,6 +29,8 @@ app.use('/api/proveedores', require('./routes/proveedores.routes'));
 app.use('/api/facturas', require('./routes/facturas.routes'));
 app.use('/api/reportes', require('./routes/reportes.routes'));
 app.use('/api/settings', require('./routes/settings.routes'));
+app.use('/api/documentos', require('./routes/documentos.routes'));
+app.use('/api/plantillas', require('./routes/plantillas.routes'));
 
 app.use(notFound);
 app.use(errorHandler);

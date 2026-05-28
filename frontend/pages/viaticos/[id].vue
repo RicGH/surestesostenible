@@ -100,7 +100,13 @@
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 grid place-items-center"><Icon name="wallet" /></div>
           <div>
-            <p class="text-sm font-semibold text-ink-900">Abono recibido</p>
+            <p class="text-sm font-semibold text-ink-900 flex items-center gap-2 flex-wrap">
+              Abono recibido
+              <span v-if="sol.pago.metodo_pago" class="badge badge-blue">
+                <Icon :name="sol.pago.metodo_pago === 'tarjeta' ? 'wallet' : 'send'" size="w-3 h-3" />
+                {{ sol.pago.metodo_pago === 'tarjeta' ? 'Tarjeta' : 'Transferencia' }}
+              </span>
+            </p>
             <p class="text-xs text-ink-500 mt-0.5">
               ${{ Number(sol.pago.monto).toFixed(2) }} · {{ formatFecha(sol.pago.fecha_pago) }}
               <span v-if="sol.pago.referencia"> · ref. {{ sol.pago.referencia }}</span>
@@ -166,6 +172,19 @@
         <div><dt class="text-xs text-ink-500 uppercase">Cuenta</dt><dd class="mt-1 text-ink-800">{{ sol.cuenta || '—' }}</dd></div>
         <div><dt class="text-xs text-ink-500 uppercase">Partida</dt><dd class="mt-1 text-ink-800">{{ sol.partida || '—' }}</dd></div>
       </dl>
+      <div class="pt-2 border-t border-ink-100">
+        <dt class="text-xs text-ink-500 uppercase tracking-wide">Justificante de salida</dt>
+        <dd class="mt-1.5">
+          <button
+            v-if="sol.justificante_path"
+            class="btn-secondary text-sm"
+            @click="abrirVisor({ path: `/viaticos/${sol.id}/justificante`, title: 'Justificante de salida', subtitle: sol.folio, downloadName: `justificante-${sol.folio}` })"
+          >
+            <Icon name="eye" size="w-4 h-4" /> Ver justificante
+          </button>
+          <span v-else class="text-sm text-ink-400 italic">Sin justificante adjunto</span>
+        </dd>
+      </div>
     </section>
 
     <section class="card-pad space-y-4">
@@ -353,6 +372,27 @@
           </div>
         </div>
         <div>
+          <label class="block text-sm font-medium text-ink-700 mb-1.5">Forma de pago <span class="text-red-500">*</span></label>
+          <div class="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              :class="['flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-medium transition-colors',
+                       abonoModal.metodo === 'transferencia' ? 'border-brand-500 bg-brand-50 text-brand-700 ring-1 ring-brand-200' : 'border-ink-200 text-ink-600 hover:bg-ink-50']"
+              @click="abonoModal.metodo = 'transferencia'"
+            >
+              <Icon name="send" size="w-4 h-4" /> Transferencia
+            </button>
+            <button
+              type="button"
+              :class="['flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-medium transition-colors',
+                       abonoModal.metodo === 'tarjeta' ? 'border-brand-500 bg-brand-50 text-brand-700 ring-1 ring-brand-200' : 'border-ink-200 text-ink-600 hover:bg-ink-50']"
+              @click="abonoModal.metodo = 'tarjeta'"
+            >
+              <Icon name="wallet" size="w-4 h-4" /> Tarjeta
+            </button>
+          </div>
+        </div>
+        <div>
           <label class="block text-sm font-medium text-ink-700 mb-1.5">Referencia <span class="text-ink-400 text-xs font-normal">(opcional)</span></label>
           <input v-model="abonoModal.referencia" placeholder="Folio bancario, SPEI, etc." class="input" />
         </div>
@@ -371,7 +411,7 @@
       </div>
       <template #footer>
         <button class="btn-secondary" :disabled="abonoModal.enviando" @click="cerrarAbono">Cancelar</button>
-        <button class="btn-success" :disabled="abonoModal.enviando" @click="confirmarAbono">
+        <button class="btn-success" :disabled="abonoModal.enviando || !abonoModal.metodo" @click="confirmarAbono">
           {{ abonoModal.enviando ? 'Registrando...' : 'Confirmar abono' }}
         </button>
       </template>
@@ -513,7 +553,7 @@ const visor = reactive({ abierto: false, path: '', title: '', subtitle: '', down
 const cerrarModal = reactive({ abierto: false, cerrando: false, error: '' });
 const subirModal = reactive({ abierto: false });
 const rechazoModal = reactive({ abierto: false, motivo: '', permiteEdicion: false, enviando: false, error: '' });
-const abonoModal = reactive({ abierto: false, referencia: '', comprobante: null, enviando: false, error: '' });
+const abonoModal = reactive({ abierto: false, metodo: '', referencia: '', comprobante: null, enviando: false, error: '' });
 const aprobando = ref(false);
 
 const BREADCRUMB_MAP = {
@@ -566,7 +606,7 @@ async function aprobar() {
 }
 
 function abrirAbono() {
-  Object.assign(abonoModal, { abierto: true, referencia: '', comprobante: null, enviando: false, error: '' });
+  Object.assign(abonoModal, { abierto: true, metodo: '', referencia: '', comprobante: null, enviando: false, error: '' });
 }
 
 function cerrarAbono() {
@@ -575,9 +615,14 @@ function cerrarAbono() {
 }
 
 async function confirmarAbono() {
+  if (!abonoModal.metodo) {
+    abonoModal.error = 'Selecciona la forma de pago (transferencia o tarjeta).';
+    return;
+  }
   abonoModal.enviando = true; abonoModal.error = '';
   try {
     const fd = new FormData();
+    fd.append('metodo_pago', abonoModal.metodo);
     if (abonoModal.comprobante) fd.append('comprobante', abonoModal.comprobante);
     if (abonoModal.referencia.trim()) fd.append('referencia', abonoModal.referencia.trim());
     await api.upload(`/viaticos/${route.params.id}/pagar`, fd);

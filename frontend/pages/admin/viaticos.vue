@@ -46,7 +46,7 @@
     <section v-if="tab === 'pendientes'">
       <div class="card overflow-hidden">
         <table class="table">
-          <thead><tr><th>Folio</th><th>Colaborador</th><th>Destino</th><th>Fechas</th><th>Avance</th><th class="text-right">Acciones</th></tr></thead>
+          <thead><tr><th>Folio</th><th>Colaborador</th><th>Destino</th><th>Fechas</th><th>Avance</th><th class="!text-center">Acciones</th></tr></thead>
           <tbody>
             <tr v-for="s in pendientesFiltrados" :key="s.id">
               <td class="font-mono text-xs">{{ s.folio }}</td>
@@ -55,7 +55,7 @@
               <td class="text-ink-600">{{ s.fecha_inicio }} → {{ s.fecha_fin }}</td>
               <td><AvanceCelda :total="s.monto_total" :gastado="s.monto_gastado" /></td>
               <td>
-                <div class="flex gap-1 justify-end">
+                <div class="flex gap-1 justify-center">
                   <IconButton icon="eye" tooltip="Ver detalle" variant="primary" @click="$router.push(`/viaticos/${s.id}?from=admin`)" />
                   <IconButton icon="check" tooltip="Aprobar" variant="success" @click="aprobar(s.id)" />
                   <IconButton icon="x" tooltip="Rechazar" variant="danger" @click="abrirRechazo(s)" />
@@ -71,7 +71,7 @@
     <section v-if="tab === 'ajustes'">
       <div class="card overflow-hidden">
         <table class="table">
-          <thead><tr><th>Folio viaje</th><th>Colaborador</th><th>Motivo</th><th>Monto</th><th class="text-right">Acciones</th></tr></thead>
+          <thead><tr><th>Folio viaje</th><th>Colaborador</th><th>Motivo</th><th>Monto</th><th class="!text-center">Acciones</th></tr></thead>
           <tbody>
             <tr v-for="a in ajustesFiltrados" :key="a.id">
               <td class="font-mono text-xs">{{ a.solicitud_folio }}</td>
@@ -79,7 +79,7 @@
               <td>{{ a.motivo }}</td>
               <td class="font-medium">+${{ Number(a.monto_total).toFixed(2) }}</td>
               <td>
-                <div class="flex gap-1 justify-end">
+                <div class="flex gap-1 justify-center">
                   <IconButton icon="eye" tooltip="Ver viaje" variant="primary" @click="$router.push(`/viaticos/${a.solicitud_id}?from=admin`)" />
                   <IconButton icon="check" tooltip="Aprobar ajuste" variant="success" @click="aprobarAjuste(a.id)" />
                   <IconButton icon="x" tooltip="Rechazar ajuste" variant="danger" @click="abrirRechazoAjuste(a)" />
@@ -95,7 +95,7 @@
     <section v-if="tab === 'activos'">
       <div class="card overflow-hidden">
         <table class="table">
-          <thead><tr><th>Folio</th><th>Colaborador</th><th>Destino</th><th>Avance</th><th>Comprobantes</th><th>Estado</th><th class="text-right">Acciones</th></tr></thead>
+          <thead><tr><th>Folio</th><th>Colaborador</th><th>Destino</th><th>Avance</th><th>Comprobantes</th><th>Estado</th><th class="!text-center">Acciones</th></tr></thead>
           <tbody>
             <tr v-for="s in activosFiltrados" :key="s.id">
               <td class="font-mono text-xs">{{ s.folio }}</td>
@@ -105,7 +105,7 @@
               <td><span class="badge-blue">{{ s.gastos_count }}</span></td>
               <td><EstadoBadge :estado="s.estado" /></td>
               <td>
-                <div class="flex gap-1 justify-end">
+                <div class="flex gap-1 justify-center">
                   <IconButton icon="eye" tooltip="Ver comprobantes" variant="primary" @click="$router.push(`/viaticos/${s.id}?from=admin`)" />
                   <IconButton icon="check" tooltip="Cerrar viáticos" variant="success" @click="abrirCerrar(s)" />
                 </div>
@@ -120,7 +120,7 @@
     <section v-if="tab === 'rechazados'">
       <div class="card overflow-hidden">
         <table class="table">
-          <thead><tr><th>Folio</th><th>Colaborador</th><th>Destino</th><th>Avance</th><th>Motivo</th><th>Edición</th><th class="text-right">Acciones</th></tr></thead>
+          <thead><tr><th>Folio</th><th>Colaborador</th><th>Destino</th><th>Avance</th><th>Motivo</th><th>Edición</th><th class="!text-center">Acciones</th></tr></thead>
           <tbody>
             <tr v-for="s in rechazadosFiltrados" :key="s.id">
               <td class="font-mono text-xs">{{ s.folio }}</td>
@@ -133,7 +133,7 @@
                 <span v-else class="badge-gray">Bloqueada</span>
               </td>
               <td>
-                <div class="flex gap-1 justify-end">
+                <div class="flex gap-1 justify-center">
                   <IconButton icon="eye" tooltip="Ver detalle" variant="primary" @click="$router.push(`/viaticos/${s.id}?from=admin`)" />
                 </div>
               </td>
@@ -147,7 +147,7 @@
     <section v-if="tab === 'cerrados'">
       <div class="card overflow-hidden">
         <table class="table">
-          <thead><tr><th>Folio</th><th>Colaborador</th><th>Destino</th><th>Avance</th><th class="text-right">Acciones</th></tr></thead>
+          <thead><tr><th>Folio</th><th>Colaborador</th><th>Destino</th><th>Avance</th><th class="!text-center">Acciones</th></tr></thead>
           <tbody>
             <tr v-for="s in cerradosFiltrados" :key="s.id">
               <td class="font-mono text-xs">{{ s.folio }}</td>
@@ -155,7 +155,7 @@
               <td>{{ s.destino }}</td>
               <td><AvanceCelda :total="s.monto_total" :gastado="s.monto_gastado" /></td>
               <td>
-                <div class="flex gap-1 justify-end">
+                <div class="flex gap-1 justify-center">
                   <IconButton icon="eye" tooltip="Ver detalle" variant="primary" @click="$router.push(`/viaticos/${s.id}?from=admin`)" />
                 </div>
               </td>
@@ -169,7 +169,7 @@
     <section v-if="tab === 'todos'">
       <div class="card overflow-hidden">
         <table class="table">
-          <thead><tr><th>Folio</th><th>Colaborador</th><th>Destino</th><th>Fechas</th><th>Avance</th><th>Estado</th><th class="text-right">Acciones</th></tr></thead>
+          <thead><tr><th>Folio</th><th>Colaborador</th><th>Destino</th><th>Fechas</th><th>Avance</th><th>Estado</th><th class="!text-center">Acciones</th></tr></thead>
           <tbody>
             <tr v-for="s in todosFiltrados" :key="s.id">
               <td class="font-mono text-xs">{{ s.folio }}</td>
@@ -179,7 +179,7 @@
               <td><AvanceCelda :total="s.monto_total" :gastado="s.monto_gastado" /></td>
               <td><EstadoBadge :estado="s.estado" /></td>
               <td>
-                <div class="flex gap-1 justify-end">
+                <div class="flex gap-1 justify-center">
                   <IconButton icon="eye" tooltip="Ver detalle" variant="primary" @click="$router.push(`/viaticos/${s.id}?from=admin`)" />
                 </div>
               </td>

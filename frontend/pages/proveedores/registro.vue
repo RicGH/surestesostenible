@@ -137,6 +137,12 @@
           <div>
             <label class="block text-sm font-medium text-ink-700 mb-1.5">RFC</label>
             <input v-model="form.rfc" required minlength="12" maxlength="13" class="input uppercase font-mono" placeholder="XAXX010101000" />
+            <p v-if="rfcTipo" class="mt-1.5 text-xs text-emerald-600 flex items-center gap-1">
+              <Icon name="check" size="w-3.5 h-3.5" /> {{ rfcTipo }} · {{ rfcUpper.length }} caracteres
+            </p>
+            <p v-else-if="form.rfc" class="mt-1.5 text-xs text-amber-600">
+              RFC incompleto o inválido (12 caracteres = moral · 13 = física)
+            </p>
           </div>
           <div>
             <label class="block text-sm font-medium text-ink-700 mb-1.5">Razón social</label>
@@ -177,7 +183,13 @@
             <p class="text-xs text-ink-500">Constancia fiscal o documento de respaldo (PDF / imagen)</p>
           </div>
         </div>
-        <input ref="docInput" type="file" accept=".pdf,image/*" class="input" />
+        <FileDrop
+          v-model="documentacion"
+          accept=".pdf,image/*"
+          icon="upload"
+          label="Constancia fiscal"
+          hint="Arrastra el archivo o haz clic · PDF o imagen"
+        />
       </section>
 
       <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
@@ -193,8 +205,8 @@
 
         <div class="border-t border-ink-100 pt-4 space-y-3 text-sm">
           <div class="flex items-center gap-2">
-            <Icon name="check" size="w-4 h-4" :class="form.rfc ? 'text-emerald-500' : 'text-ink-300'" />
-            <span :class="form.rfc ? 'text-ink-700' : 'text-ink-400'">RFC</span>
+            <Icon name="check" size="w-4 h-4" :class="rfcValido ? 'text-emerald-500' : 'text-ink-300'" />
+            <span :class="rfcValido ? 'text-ink-700' : 'text-ink-400'">RFC</span>
           </div>
           <div class="flex items-center gap-2">
             <Icon name="check" size="w-4 h-4" :class="form.razon_social ? 'text-emerald-500' : 'text-ink-300'" />
@@ -226,10 +238,18 @@
 const api = useApi();
 const cargando = ref(true);
 const registro = ref(null);
-const docInput = ref(null);
+const documentacion = ref(null);
 const loading = ref(false);
 const error = ref('');
 const form = reactive({ rfc: '', razon_social: '', direccion: '', banco: '', cuenta_clabe: '' });
+
+const RFC_RE = /^[A-ZÑ&]{3,4}\d{6}[A-Z\d]{3}$/;
+const rfcUpper = computed(() => (form.rfc || '').trim().toUpperCase());
+const rfcValido = computed(() => RFC_RE.test(rfcUpper.value));
+const rfcTipo = computed(() => {
+  if (!rfcValido.value) return null;
+  return rfcUpper.value.length === 13 ? 'Persona física' : 'Persona moral';
+});
 
 async function cargar() {
   try {
@@ -242,14 +262,22 @@ onMounted(cargar);
 const toast = useToast();
 
 async function enviar() {
-  error.value = ''; loading.value = true;
+  error.value = '';
+  if (!rfcValido.value) {
+    error.value = 'RFC inválido: usa 12 caracteres para persona moral o 13 para física.';
+    toast.error('RFC inválido', error.value);
+    return;
+  }
+  form.rfc = rfcUpper.value;
+  loading.value = true;
   try {
     const fd = new FormData();
     Object.entries(form).forEach(([k, v]) => v && fd.append(k, v));
-    if (docInput.value?.files?.[0]) fd.append('documentacion', docInput.value.files[0]);
+    if (documentacion.value) fd.append('documentacion', documentacion.value);
     await api.upload('/proveedores', fd);
     toast.success('Registro enviado', 'En espera de aprobación del administrador.');
     await cargar();
+    try { await useRegistroProveedor().refrescar(); } catch {}
   } catch (e) {
     error.value = e.message;
     toast.error('No se pudo enviar el registro', e.message);

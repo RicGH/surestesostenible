@@ -18,7 +18,8 @@
       </div>
       <AppHeader :title="title" :subtitle="subtitle" class="shrink-0" @toggle-sidebar="sidebarOpen = !sidebarOpen" />
       <main class="flex-1 overflow-y-auto">
-        <div class="p-6 lg:p-8">
+        <div class="p-6 lg:p-8 space-y-6">
+          <AlertaRegistro v-if="mostrarAlertaRegistro" />
           <slot />
         </div>
       </main>
@@ -67,4 +68,21 @@ async function volverAdmin() {
   toast.success('Sesión restaurada', 'Volviste a tu cuenta de administrador.');
   await router.push('/');
 }
+
+const reg = useRegistroProveedor();
+
+const mostrarAlertaRegistro = computed(() =>
+  auth.rol === 'proveedor' &&
+  reg.cargado &&
+  !reg.registrado &&
+  route.path !== '/proveedores/registro'
+);
+
+onMounted(async () => {
+  if (auth.rol === 'proveedor') await reg.refrescar();
+});
+
+watch(() => route.path, async () => {
+  if (auth.rol === 'proveedor' && !reg.cargado) await reg.refrescar();
+});
 </script>

@@ -27,7 +27,7 @@
       <div class="card overflow-hidden">
         <table class="table">
           <thead>
-            <tr><th>RFC</th><th>Razón social</th><th>Email</th><th>Estado</th><th class="text-right">Acciones</th></tr>
+            <tr><th>RFC</th><th>Razón social</th><th>Email</th><th>Estado</th><th class="!text-center">Acciones</th></tr>
           </thead>
           <tbody>
             <tr v-for="p in pendientes" :key="p.id">
@@ -36,7 +36,7 @@
               <td>{{ p.email }}</td>
               <td><EstadoBadge :estado="p.estado" /></td>
               <td>
-                <div class="flex gap-1 justify-end">
+                <div class="flex gap-1 justify-center">
                   <IconButton icon="check" tooltip="Aprobar" variant="success" @click="aprobar(p.id)" />
                   <IconButton icon="x" tooltip="Rechazar" variant="danger" @click="abrirRechazo(p)" />
                 </div>
@@ -62,27 +62,142 @@
       </div>
       <div class="card overflow-hidden">
         <table class="table">
-          <thead><tr><th>RFC</th><th>Razón social</th><th>Estado</th><th>Activo</th></tr></thead>
+          <thead><tr><th>RFC</th><th>Razón social</th><th>Estado</th><th>Activo</th><th class="!text-center">Acciones</th></tr></thead>
           <tbody>
             <tr v-for="p in todosFiltrados" :key="p.id">
               <td class="font-mono">{{ p.rfc }}</td>
               <td class="font-medium text-ink-800">{{ p.razon_social }}</td>
               <td><EstadoBadge :estado="p.estado" /></td>
               <td><EstadoBadge :estado="p.activo ? 'activo' : 'inactivo'" /></td>
+              <td>
+                <div class="flex gap-1 justify-center">
+                  <IconButton icon="eye" tooltip="Ver detalle" variant="primary" @click="abrirDetalle(p)" />
+                  <IconButton icon="edit" tooltip="Editar" variant="primary" @click="abrirEdicion(p)" />
+                </div>
+              </td>
             </tr>
-            <tr v-if="!todosFiltrados.length"><td colspan="4" class="py-12 text-center text-ink-400">{{ todos.length ? 'Sin coincidencias con los filtros' : 'Sin registros' }}</td></tr>
+            <tr v-if="!todosFiltrados.length"><td colspan="5" class="py-12 text-center text-ink-400">{{ todos.length ? 'Sin coincidencias con los filtros' : 'Sin registros' }}</td></tr>
           </tbody>
         </table>
       </div>
     </section>
 
-    <Modal v-if="modal.abierto" :title="`Rechazar ${modal.rfc}`" @close="modal.abierto = false">
-      <textarea v-model="modal.motivo" rows="3" class="input" placeholder="Motivo del rechazo"></textarea>
+    <Modal v-if="modal.abierto" title="Rechazar registro de proveedor" @close="modal.abierto = false">
+      <div class="space-y-4">
+        <div v-if="modal.prov" class="rounded-lg bg-ink-50 border border-ink-200 p-3 text-sm space-y-1.5">
+          <div class="flex justify-between gap-3">
+            <span class="text-ink-500 shrink-0">Razón social</span>
+            <span class="font-medium text-ink-900 text-right">{{ modal.prov.razon_social }}</span>
+          </div>
+          <div class="flex justify-between gap-3">
+            <span class="text-ink-500 shrink-0">RFC</span>
+            <span class="font-mono text-ink-900">{{ modal.prov.rfc }}</span>
+          </div>
+          <div v-if="modal.prov.nombre" class="flex justify-between gap-3">
+            <span class="text-ink-500 shrink-0">Contacto</span>
+            <span class="text-ink-900 text-right">{{ modal.prov.nombre }}</span>
+          </div>
+          <div class="flex justify-between gap-3">
+            <span class="text-ink-500 shrink-0">Email</span>
+            <span class="text-ink-900 text-right break-all">{{ modal.prov.email }}</span>
+          </div>
+          <div v-if="modal.prov.direccion" class="flex justify-between gap-3">
+            <span class="text-ink-500 shrink-0">Dirección</span>
+            <span class="text-ink-900 text-right">{{ modal.prov.direccion }}</span>
+          </div>
+          <div v-if="modal.prov.banco" class="flex justify-between gap-3">
+            <span class="text-ink-500 shrink-0">Banco</span>
+            <span class="text-ink-900 text-right">{{ modal.prov.banco }}</span>
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-ink-700 mb-1.5">Motivo del rechazo <span class="text-red-500">*</span></label>
+          <textarea v-model="modal.motivo" rows="3" required class="input" placeholder="Explica por qué se rechaza el registro"></textarea>
+          <p class="text-xs text-ink-500 mt-1.5">El proveedor recibirá este motivo en la plataforma y por correo.</p>
+        </div>
+      </div>
       <template #footer>
         <button class="btn-secondary" @click="modal.abierto = false">Cancelar</button>
-        <button class="btn-danger" @click="rechazar">Rechazar</button>
+        <button class="btn-danger" :disabled="!modal.motivo.trim()" @click="rechazar">Rechazar</button>
       </template>
     </Modal>
+
+    <Modal v-if="detalleModal.abierto" title="Detalle del proveedor" @close="detalleModal.abierto = false">
+      <div v-if="detalleModal.cargando" class="py-8 text-center text-ink-500">Cargando...</div>
+      <div v-else-if="detalleModal.data" class="space-y-4">
+        <div class="flex items-center gap-2 flex-wrap">
+          <EstadoBadge :estado="detalleModal.data.estado" />
+          <EstadoBadge :estado="detalleModal.data.activo ? 'activo' : 'inactivo'" />
+        </div>
+        <dl class="rounded-lg bg-ink-50 border border-ink-200 divide-y divide-ink-200 text-sm">
+          <div class="flex justify-between gap-3 px-3 py-2"><dt class="text-ink-500 shrink-0">Razón social</dt><dd class="font-medium text-ink-900 text-right">{{ detalleModal.data.razon_social }}</dd></div>
+          <div class="flex justify-between gap-3 px-3 py-2"><dt class="text-ink-500 shrink-0">RFC</dt><dd class="font-mono text-ink-900">{{ detalleModal.data.rfc }}</dd></div>
+          <div class="flex justify-between gap-3 px-3 py-2"><dt class="text-ink-500 shrink-0">Contacto</dt><dd class="text-ink-900 text-right">{{ detalleModal.data.nombre || '—' }}</dd></div>
+          <div class="flex justify-between gap-3 px-3 py-2"><dt class="text-ink-500 shrink-0">Email</dt><dd class="text-ink-900 text-right break-all">{{ detalleModal.data.email }}</dd></div>
+          <div class="flex justify-between gap-3 px-3 py-2"><dt class="text-ink-500 shrink-0">Dirección</dt><dd class="text-ink-900 text-right">{{ detalleModal.data.direccion || '—' }}</dd></div>
+          <div class="flex justify-between gap-3 px-3 py-2"><dt class="text-ink-500 shrink-0">Banco</dt><dd class="text-ink-900 text-right">{{ detalleModal.data.banco || '—' }}</dd></div>
+          <div class="flex justify-between gap-3 px-3 py-2"><dt class="text-ink-500 shrink-0">CLABE</dt><dd class="font-mono text-ink-900 text-right">{{ detalleModal.data.cuenta_clabe || '—' }}</dd></div>
+        </dl>
+        <div class="flex items-center justify-between gap-3">
+          <span class="text-sm text-ink-500">Constancia fiscal</span>
+          <button v-if="detalleModal.data.documentacion" class="btn-secondary text-sm" @click="verDocumentacion">
+            <Icon name="eye" size="w-4 h-4" /> Ver constancia
+          </button>
+          <span v-else class="text-sm text-ink-400 italic">No adjuntada</span>
+        </div>
+      </div>
+      <template #footer>
+        <button class="btn-secondary" @click="detalleModal.abierto = false">Cerrar</button>
+        <button v-if="detalleModal.data" class="btn-primary" @click="abrirEdicion(detalleModal.data); detalleModal.abierto = false">
+          <Icon name="edit" size="w-4 h-4" /> Editar
+        </button>
+      </template>
+    </Modal>
+
+    <Modal v-if="edicionModal.abierto" title="Editar proveedor" @close="edicionModal.abierto = false">
+      <form class="space-y-3" @submit.prevent="guardarEdicion">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-ink-700 mb-1.5">RFC</label>
+            <input v-model="edicionModal.form.rfc" required maxlength="13" class="input uppercase font-mono" placeholder="XAXX010101000" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-ink-700 mb-1.5">Razón social</label>
+            <input v-model="edicionModal.form.razon_social" required class="input" />
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-ink-700 mb-1.5">Dirección</label>
+          <input v-model="edicionModal.form.direccion" class="input" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-ink-700 mb-1.5">Banco</label>
+            <input v-model="edicionModal.form.banco" class="input" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-ink-700 mb-1.5">CLABE</label>
+            <input v-model="edicionModal.form.cuenta_clabe" maxlength="18" class="input font-mono" placeholder="18 dígitos" />
+          </div>
+        </div>
+        <p v-if="edicionModal.error" class="text-sm text-red-600">{{ edicionModal.error }}</p>
+      </form>
+      <template #footer>
+        <button class="btn-secondary" @click="edicionModal.abierto = false">Cancelar</button>
+        <button class="btn-primary" :disabled="edicionModal.guardando" @click="guardarEdicion">
+          {{ edicionModal.guardando ? 'Guardando...' : 'Guardar cambios' }}
+        </button>
+      </template>
+    </Modal>
+
+    <FileViewer
+      v-if="visor.abierto"
+      :path="visor.path"
+      :title="visor.title"
+      :subtitle="visor.subtitle"
+      :download-name="visor.downloadName"
+      @close="visor.abierto = false"
+    />
 
     <Modal v-if="nuevoModal.abierto" title="Nuevo proveedor" @close="nuevoModal.abierto = false">
       <form class="space-y-3" @submit.prevent="crearNuevo">
@@ -150,7 +265,7 @@ const tabs = [
 const pendientes = ref([]);
 const todos = ref([]);
 const filtros = reactive({ activo: '', q: '' });
-const modal = reactive({ abierto: false, id: null, rfc: '', motivo: '' });
+const modal = reactive({ abierto: false, prov: null, motivo: '' });
 
 const counts = computed(() => ({
   pendientes: pendientes.value.length,
@@ -185,13 +300,78 @@ async function aprobar(id) {
     cargar();
   } catch (e) { toast.error('No se pudo aprobar', e.message); }
 }
-function abrirRechazo(p) { Object.assign(modal, { abierto: true, id: p.id, rfc: p.rfc, motivo: '' }); }
+function abrirRechazo(p) { Object.assign(modal, { abierto: true, prov: p, motivo: '' }); }
 async function rechazar() {
+  if (!modal.motivo.trim()) {
+    toast.warning('Falta el motivo', 'Indica por qué se rechaza el registro.');
+    return;
+  }
   try {
-    await api.post(`/proveedores/${modal.id}/rechazar`, { motivo: modal.motivo });
-    toast.success('Proveedor rechazado');
+    await api.post(`/proveedores/${modal.prov.id}/rechazar`, { motivo: modal.motivo.trim() });
+    toast.success('Proveedor rechazado', 'Se notificó al proveedor con el motivo.');
     modal.abierto = false; cargar();
   } catch (e) { toast.error('No se pudo rechazar', e.message); }
+}
+
+const detalleModal = reactive({ abierto: false, cargando: false, data: null });
+const edicionModal = reactive({
+  abierto: false, guardando: false, error: '', id: null,
+  form: { rfc: '', razon_social: '', direccion: '', banco: '', cuenta_clabe: '' },
+});
+const visor = reactive({ abierto: false, path: '', title: '', subtitle: '', downloadName: '' });
+
+async function abrirDetalle(p) {
+  Object.assign(detalleModal, { abierto: true, cargando: true, data: null });
+  try {
+    detalleModal.data = await api.get(`/proveedores/${p.id}`);
+  } catch (e) {
+    toast.error('No se pudo cargar el detalle', e.message);
+    detalleModal.abierto = false;
+  } finally {
+    detalleModal.cargando = false;
+  }
+}
+
+async function abrirEdicion(p) {
+  Object.assign(edicionModal, { abierto: true, guardando: false, error: '', id: p.id });
+  try {
+    const d = await api.get(`/proveedores/${p.id}`);
+    Object.assign(edicionModal.form, {
+      rfc: d.rfc || '',
+      razon_social: d.razon_social || '',
+      direccion: d.direccion || '',
+      banco: d.banco || '',
+      cuenta_clabe: d.cuenta_clabe || '',
+    });
+  } catch (e) {
+    toast.error('No se pudo cargar el proveedor', e.message);
+    edicionModal.abierto = false;
+  }
+}
+
+async function guardarEdicion() {
+  edicionModal.guardando = true; edicionModal.error = '';
+  try {
+    await api.put(`/proveedores/${edicionModal.id}`, edicionModal.form);
+    toast.success('Proveedor actualizado', 'Los datos fiscales se guardaron.');
+    edicionModal.abierto = false;
+    cargar();
+  } catch (e) {
+    edicionModal.error = e.message;
+    toast.error('No se pudo actualizar', e.message);
+  } finally {
+    edicionModal.guardando = false;
+  }
+}
+
+function verDocumentacion() {
+  Object.assign(visor, {
+    abierto: true,
+    path: `/proveedores/${detalleModal.data.id}/documentacion`,
+    title: 'Constancia fiscal',
+    subtitle: detalleModal.data.razon_social,
+    downloadName: `constancia-${detalleModal.data.rfc}`,
+  });
 }
 
 const nuevoModal = reactive({

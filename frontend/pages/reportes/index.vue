@@ -182,10 +182,10 @@ const tabs = [
 
 const ESTADO_COLORS = {
   pendiente: '#f59e0b',
-  aprobado: '#3b82f6',
-  aprobada: '#3b82f6',
-  pagado: '#10b981',
-  pagada: '#10b981',
+  aprobado: '#1b347d',
+  aprobada: '#1b347d',
+  pagado: '#67ae3e',
+  pagada: '#67ae3e',
   en_proceso: '#8b5cf6',
   cerrado: '#64748b',
   rechazado: '#ef4444',

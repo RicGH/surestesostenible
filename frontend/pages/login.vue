@@ -1,9 +1,8 @@
 <template>
   <div class="w-full max-w-sm">
     <div class="mb-8">
-      <div class="flex items-center gap-2 mb-6 lg:hidden">
-        <div class="w-9 h-9 rounded-lg bg-brand-600 grid place-items-center font-bold text-white">A</div>
-        <span class="font-semibold tracking-tight">AdminProv</span>
+      <div class="mb-6 lg:hidden">
+        <img src="/brand/logo.png" alt="Sureste Sostenible" class="h-10 w-auto" />
       </div>
       <h1 class="text-2xl font-semibold text-ink-900">Bienvenido de vuelta</h1>
       <p class="text-sm text-ink-500 mt-1">Ingresa tus credenciales para continuar.</p>

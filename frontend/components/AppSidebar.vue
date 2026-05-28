@@ -6,7 +6,7 @@
   ]">
     <div class="h-16 flex items-center justify-between px-5 border-b border-white/5">
       <NuxtLink to="/" class="flex items-center gap-2">
-        <div class="w-8 h-8 rounded-lg bg-brand-600 grid place-items-center font-bold">A</div>
+        <img src="/brand/icon.png" alt="Sureste Sostenible" class="w-8 h-8 object-contain" />
         <span class="font-semibold tracking-tight">AdminProv</span>
       </NuxtLink>
       <button class="lg:hidden text-ink-400 hover:text-white" @click="$emit('close')">
@@ -145,6 +145,10 @@ const MENUS = {
     { label: 'Pagos', links: [
       { to: '/finanzas/viaticos', label: 'Pagar viáticos', icon: 'wallet' },
       { to: '/finanzas/pendientes', label: 'Pagar facturas', icon: 'inbox' },
+    ]},
+    { label: 'Documentos', links: [
+      { to: '/admin/documentos', label: 'Documentos', icon: 'fileText' },
+      { to: '/admin/plantillas', label: 'Plantillas', icon: 'document' },
     ]},
     { label: 'Administración', links: [
       { to: '/admin/usuarios', label: 'Usuarios', icon: 'users' },

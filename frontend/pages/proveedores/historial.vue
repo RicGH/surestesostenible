@@ -19,7 +19,7 @@
         <thead>
           <tr>
             <th>Folio</th><th>UUID</th><th>Fecha</th>
-            <th>Monto</th><th>Estado</th><th class="text-right">Acciones</th>
+            <th>Monto</th><th>Estado</th><th class="!text-center">Acciones</th>
           </tr>
         </thead>
         <tbody>
@@ -30,7 +30,7 @@
             <td class="font-medium">${{ Number(f.monto).toFixed(2) }} {{ f.moneda }}</td>
             <td><EstadoBadge :estado="f.estado" /></td>
             <td>
-              <div class="flex gap-1 justify-end">
+              <div class="flex gap-1 justify-center">
                 <IconButton v-if="f.estado === 'pagada'" icon="download" tooltip="Descargar comprobante de pago" variant="success" @click="descargarComprobante(f.id, f.folio)" />
                 <IconButton v-if="f.estado === 'rechazada'" icon="alert" tooltip="Ver motivo del rechazo" variant="danger" @click="verMotivo(f.id)" />
               </div>

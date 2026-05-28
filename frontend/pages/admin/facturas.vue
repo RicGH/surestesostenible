@@ -15,7 +15,7 @@
         <thead>
           <tr>
             <th>Folio</th><th>Proveedor</th><th>RFC</th>
-            <th>Monto</th><th>Fecha</th><th>Estado</th><th class="text-right">Acciones</th>
+            <th>Monto</th><th>Fecha</th><th>Estado</th><th class="!text-center">Acciones</th>
           </tr>
         </thead>
         <tbody>
@@ -27,7 +27,7 @@
             <td class="text-ink-600">{{ f.fecha_emision }}</td>
             <td><EstadoBadge :estado="f.estado" /></td>
             <td>
-              <div class="flex gap-1 justify-end">
+              <div class="flex gap-1 justify-center">
                 <IconButton icon="eye" tooltip="Ver detalle" variant="primary" @click="abrir(f.id)" />
                 <IconButton v-if="f.estado === 'en_revision'" icon="check" tooltip="Aprobar" variant="success" @click="aprobar(f.id)" />
                 <IconButton v-if="f.estado === 'en_revision'" icon="x" tooltip="Rechazar" variant="danger" @click="abrirRechazo(f)" />

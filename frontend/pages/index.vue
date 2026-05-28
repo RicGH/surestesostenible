@@ -104,6 +104,8 @@ const modulos = computed(() => {
       { titulo: 'Proveedores', descripcion: 'Aprobar registros nuevos', to: '/admin/proveedores', icon: 'building' },
       { titulo: 'Facturas', descripcion: 'Aprobar facturas en revisión', to: '/admin/facturas', icon: 'receipt' },
       { titulo: 'Usuarios', descripcion: 'Gestión de cuentas', to: '/admin/usuarios', icon: 'users' },
+      { titulo: 'Documentos', descripcion: 'Firmas electrónicas con DocuSign', to: '/admin/documentos', icon: 'document' },
+      { titulo: 'Plantillas', descripcion: 'Documentos reutilizables', to: '/admin/plantillas', icon: 'document' },
       { titulo: 'Configuración', descripcion: 'Servidor de correo y ajustes', to: '/admin/configuracion', icon: 'send' },
       { titulo: 'Reportes', descripcion: 'Generar reportes PDF', to: '/reportes', icon: 'chart' },
     ];

@@ -78,6 +78,23 @@
 
       <section class="card-pad space-y-5">
         <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-brand-50 text-brand-600 grid place-items-center"><Icon name="document" /></div>
+          <div>
+            <h3 class="font-semibold text-ink-900">Justificante de salida</h3>
+            <p class="text-xs text-ink-500">Documento de respaldo para el administrador (opcional)</p>
+          </div>
+        </div>
+        <FileDrop
+          v-model="justificante"
+          accept=".pdf,image/*"
+          icon="upload"
+          label="Justificante de salida"
+          hint="PDF o imagen · arrastra o haz clic para seleccionar"
+        />
+      </section>
+
+      <section class="card-pad space-y-5">
+        <div class="flex items-center gap-3">
           <div class="w-10 h-10 rounded-lg bg-amber-50 text-amber-600 grid place-items-center"><Icon name="wallet" /></div>
           <div>
             <h3 class="font-semibold text-ink-900">Desglose de viáticos</h3>
@@ -196,6 +213,7 @@ const loading = ref(false);
 const error = ref('');
 const ok = ref('');
 const duplicadoDesde = ref('');
+const justificante = ref(null);
 
 const VACIO = {
   destino: '', fecha_inicio: '', fecha_fin: '', motivo: '',
@@ -276,13 +294,15 @@ async function enviar() {
   }
   error.value = ''; ok.value = ''; loading.value = true;
   try {
-    const payload = esAdmin.value
-      ? { ...form, colaborador_id: colaboradorSeleccionado.value }
-      : form;
-    const r = await api.post('/viaticos', payload);
+    const fd = new FormData();
+    Object.entries(form).forEach(([k, v]) => fd.append(k, v ?? ''));
+    if (esAdmin.value) fd.append('colaborador_id', colaboradorSeleccionado.value);
+    if (justificante.value) fd.append('justificante', justificante.value);
+    const r = await api.upload('/viaticos', fd);
     ok.value = r.folio;
     toast.success('Solicitud enviada', `Folio ${r.folio} · pendiente de aprobación`);
     Object.assign(form, VACIO);
+    justificante.value = null;
     duplicadoDesde.value = '';
     if (route.query.desde) router.replace({ query: {} });
     await check.refrescar();

@@ -99,7 +99,7 @@
     text-align: left;
   }
   .table tbody td:not([data-label])::before { display: none; }
-  .table tbody td[data-label="Acciones"] { justify-content: flex-end; padding-top: 0.85rem; }
+  .table tbody td[data-label="Acciones"] { justify-content: center; padding-top: 0.85rem; }
   .table tbody td[data-label="Acciones"]::before { display: none; }
   .table tbody td.text-right { justify-content: flex-end; }
   .table tbody td[colspan] {

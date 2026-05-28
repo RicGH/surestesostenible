@@ -53,6 +53,15 @@ async function listarTodos(filtros = {}) {
   return query(sql, params);
 }
 
+async function actualizar(id, data) {
+  await query(
+    `UPDATE proveedores
+     SET rfc = ?, razon_social = ?, direccion = ?, banco = ?, cuenta_clabe = ?
+     WHERE id = ?`,
+    [data.rfc, data.razon_social, data.direccion || null, data.banco || null, data.cuenta_clabe || null, id]
+  );
+}
+
 async function aprobar(id, adminId) {
   await query(
     "UPDATE proveedores SET estado='aprobado', aprobado_por=?, aprobado_at=NOW(), motivo_rechazo=NULL WHERE id=? AND estado='pendiente'",
@@ -67,4 +76,4 @@ async function rechazar(id, adminId, motivo) {
   );
 }
 
-module.exports = { getByUserId, getById, crear, listarPendientes, listarTodos, aprobar, rechazar };
+module.exports = { getByUserId, getById, crear, actualizar, listarPendientes, listarTodos, aprobar, rechazar };
