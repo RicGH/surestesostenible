@@ -77,6 +77,7 @@
                 <div class="flex gap-1 justify-center">
                   <IconButton icon="eye" tooltip="Ver detalle" variant="primary" @click="abrirDetalle(p)" />
                   <IconButton icon="edit" tooltip="Editar" variant="primary" @click="abrirEdicion(p)" />
+                  <IconButton icon="send" tooltip="Enviar contrato" variant="primary" @click="abrirContrato(p)" />
                 </div>
               </td>
             </tr>
@@ -139,8 +140,23 @@
           <div class="flex justify-between gap-3 px-3 py-2"><dt class="text-ink-500 shrink-0">Contacto</dt><dd class="text-ink-900 text-right">{{ detalleModal.data.nombre || '—' }}</dd></div>
           <div class="flex justify-between gap-3 px-3 py-2"><dt class="text-ink-500 shrink-0">Email</dt><dd class="text-ink-900 text-right break-all">{{ detalleModal.data.email }}</dd></div>
           <div class="flex justify-between gap-3 px-3 py-2"><dt class="text-ink-500 shrink-0">Dirección</dt><dd class="text-ink-900 text-right">{{ detalleModal.data.direccion || '—' }}</dd></div>
+          <div class="flex justify-between gap-3 px-3 py-2"><dt class="text-ink-500 shrink-0">CP</dt><dd class="font-mono text-ink-900 text-right">{{ detalleModal.data.codigo_postal || '—' }}</dd></div>
+          <div class="flex justify-between gap-3 px-3 py-2"><dt class="text-ink-500 shrink-0">Municipio</dt><dd class="text-ink-900 text-right">{{ detalleModal.data.municipio || '—' }}</dd></div>
+          <div class="flex justify-between gap-3 px-3 py-2"><dt class="text-ink-500 shrink-0">Estado</dt><dd class="text-ink-900 text-right">{{ detalleModal.data.estado_republica || '—' }}</dd></div>
+        </dl>
+
+        <p class="text-xs font-semibold text-ink-500 uppercase tracking-wide">Datos bancarios</p>
+        <dl class="rounded-lg bg-ink-50 border border-ink-200 divide-y divide-ink-200 text-sm">
           <div class="flex justify-between gap-3 px-3 py-2"><dt class="text-ink-500 shrink-0">Banco</dt><dd class="text-ink-900 text-right">{{ detalleModal.data.banco || '—' }}</dd></div>
+          <div class="flex justify-between gap-3 px-3 py-2"><dt class="text-ink-500 shrink-0">Sucursal</dt><dd class="text-ink-900 text-right">{{ detalleModal.data.sucursal_banco || '—' }}</dd></div>
           <div class="flex justify-between gap-3 px-3 py-2"><dt class="text-ink-500 shrink-0">CLABE</dt><dd class="font-mono text-ink-900 text-right">{{ detalleModal.data.cuenta_clabe || '—' }}</dd></div>
+        </dl>
+
+        <p class="text-xs font-semibold text-ink-500 uppercase tracking-wide">Datos personales (para contratos)</p>
+        <dl class="rounded-lg bg-ink-50 border border-ink-200 divide-y divide-ink-200 text-sm">
+          <div class="flex justify-between gap-3 px-3 py-2"><dt class="text-ink-500 shrink-0">Fecha de nacimiento</dt><dd class="text-ink-900 text-right">{{ fmtFecha(detalleModal.data.fecha_nacimiento) }}</dd></div>
+          <div class="flex justify-between gap-3 px-3 py-2"><dt class="text-ink-500 shrink-0">Estado civil</dt><dd class="text-ink-900 text-right">{{ detalleModal.data.estado_civil || '—' }}</dd></div>
+          <div class="flex justify-between gap-3 px-3 py-2"><dt class="text-ink-500 shrink-0">Nacionalidad</dt><dd class="text-ink-900 text-right">{{ detalleModal.data.nacionalidad || '—' }}</dd></div>
         </dl>
         <div class="flex items-center justify-between gap-3">
           <span class="text-sm text-ink-500">Constancia fiscal</span>
@@ -152,38 +168,97 @@
       </div>
       <template #footer>
         <button class="btn-secondary" @click="detalleModal.abierto = false">Cerrar</button>
+        <button v-if="detalleModal.data" class="btn-secondary" @click="abrirContrato(detalleModal.data); detalleModal.abierto = false">
+          <Icon name="send" size="w-4 h-4" /> Enviar contrato
+        </button>
         <button v-if="detalleModal.data" class="btn-primary" @click="abrirEdicion(detalleModal.data); detalleModal.abierto = false">
           <Icon name="edit" size="w-4 h-4" /> Editar
         </button>
       </template>
     </Modal>
 
-    <Modal v-if="edicionModal.abierto" title="Editar proveedor" @close="edicionModal.abierto = false">
-      <form class="space-y-3" @submit.prevent="guardarEdicion">
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-sm font-medium text-ink-700 mb-1.5">RFC</label>
-            <input v-model="edicionModal.form.rfc" required maxlength="13" class="input uppercase font-mono" placeholder="XAXX010101000" />
+    <Modal v-if="edicionModal.abierto" title="Editar proveedor" size="2xl" @close="edicionModal.abierto = false">
+      <form class="space-y-5" @submit.prevent="guardarEdicion">
+
+        <!-- Datos fiscales -->
+        <div class="space-y-3">
+          <p class="text-xs font-semibold text-ink-500 uppercase tracking-wide border-b border-ink-100 pb-1">Datos fiscales</p>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-sm font-medium text-ink-700 mb-1.5">RFC</label>
+              <input v-model="edicionModal.form.rfc" required maxlength="13" class="input uppercase font-mono" placeholder="XAXX010101000" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-ink-700 mb-1.5">Razón social</label>
+              <input v-model="edicionModal.form.razon_social" required class="input" />
+            </div>
           </div>
           <div>
-            <label class="block text-sm font-medium text-ink-700 mb-1.5">Razón social</label>
-            <input v-model="edicionModal.form.razon_social" required class="input" />
+            <label class="block text-sm font-medium text-ink-700 mb-1.5">Dirección completa</label>
+            <input v-model="edicionModal.form.direccion" class="input" />
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div>
+              <label class="block text-sm font-medium text-ink-700 mb-1.5">CP</label>
+              <input v-model="edicionModal.form.codigo_postal" maxlength="10" class="input font-mono" placeholder="00000" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-ink-700 mb-1.5">Municipio</label>
+              <input v-model="edicionModal.form.municipio" class="input" />
+            </div>
+            <div class="sm:col-span-2">
+              <label class="block text-sm font-medium text-ink-700 mb-1.5">Estado (República)</label>
+              <input v-model="edicionModal.form.estado_republica" class="input" placeholder="Ej: Chiapas" />
+            </div>
           </div>
         </div>
-        <div>
-          <label class="block text-sm font-medium text-ink-700 mb-1.5">Dirección</label>
-          <input v-model="edicionModal.form.direccion" class="input" />
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-sm font-medium text-ink-700 mb-1.5">Banco</label>
-            <input v-model="edicionModal.form.banco" class="input" />
+
+        <!-- Datos bancarios -->
+        <div class="space-y-3">
+          <p class="text-xs font-semibold text-ink-500 uppercase tracking-wide border-b border-ink-100 pb-1">Datos bancarios</p>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div>
+              <label class="block text-sm font-medium text-ink-700 mb-1.5">Banco</label>
+              <input v-model="edicionModal.form.banco" class="input" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-ink-700 mb-1.5">Sucursal</label>
+              <input v-model="edicionModal.form.sucursal_banco" class="input" />
+            </div>
+            <div class="sm:col-span-2">
+              <label class="block text-sm font-medium text-ink-700 mb-1.5">CLABE interbancaria</label>
+              <input v-model="edicionModal.form.cuenta_clabe" maxlength="18" class="input font-mono" placeholder="18 dígitos" />
+            </div>
           </div>
-          <div>
-            <label class="block text-sm font-medium text-ink-700 mb-1.5">CLABE</label>
-            <input v-model="edicionModal.form.cuenta_clabe" maxlength="18" class="input font-mono" placeholder="18 dígitos" />
+        </div>
+
+        <!-- Datos personales -->
+        <div class="space-y-3">
+          <p class="text-xs font-semibold text-ink-500 uppercase tracking-wide border-b border-ink-100 pb-1">Datos personales (para contratos)</p>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label class="block text-sm font-medium text-ink-700 mb-1.5">Fecha de nacimiento</label>
+              <input v-model="edicionModal.form.fecha_nacimiento" type="date" class="input" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-ink-700 mb-1.5">Estado civil</label>
+              <select v-model="edicionModal.form.estado_civil" class="input">
+                <option value="">— Seleccionar —</option>
+                <option>Soltero/a</option>
+                <option>Casado/a</option>
+                <option>Divorciado/a</option>
+                <option>Viudo/a</option>
+                <option>Unión libre</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-ink-700 mb-1.5">Nacionalidad</label>
+              <input v-model="edicionModal.form.nacionalidad" class="input" placeholder="Mexicana" />
+            </div>
           </div>
         </div>
+
+        <!-- Toggle activo -->
         <div class="flex items-center justify-between gap-3 pt-3 border-t border-ink-100">
           <div>
             <p class="text-sm font-medium text-ink-700">Estado del proveedor</p>
@@ -201,6 +276,7 @@
                            edicionModal.form.activo ? 'translate-x-5' : 'translate-x-0.5']" />
           </button>
         </div>
+
         <p v-if="edicionModal.error" class="text-sm text-red-600">{{ edicionModal.error }}</p>
       </form>
       <template #footer>
@@ -220,7 +296,116 @@
       @close="visor.abierto = false"
     />
 
-    <Modal v-if="nuevoModal.abierto" title="Nuevo proveedor" @close="nuevoModal.abierto = false">
+    <!-- Modal enviar contrato -->
+    <Modal
+      v-if="contratoModal.abierto"
+      :title="contratoModal.paso === 1 ? 'Enviar contrato' : 'Datos del contrato'"
+      size="3xl"
+      @close="cerrarContrato"
+    >
+      <!-- PASO 1: seleccionar plantilla -->
+      <div v-if="contratoModal.paso === 1" class="space-y-3">
+        <!-- Info del proveedor -->
+        <div class="flex items-center gap-2 rounded-lg bg-ink-50 border border-ink-200 px-3 py-2 text-sm">
+          <Icon name="building" size="w-4 h-4 text-ink-400 shrink-0" />
+          <span class="font-medium text-ink-800">{{ contratoModal.proveedor?.razon_social }}</span>
+          <span class="text-ink-400 font-mono text-xs ml-auto">{{ contratoModal.proveedor?.rfc }}</span>
+        </div>
+        <p class="text-xs font-semibold text-ink-500 uppercase tracking-wide">Selecciona una plantilla</p>
+        <div v-if="contratoModal.cargandoPlantillas" class="py-6 text-center text-ink-500 text-sm">Cargando...</div>
+        <div v-else-if="!contratoModal.plantillas.length" class="py-6 text-center text-ink-400 text-sm">
+          No hay plantillas.
+          <NuxtLink to="/admin/contratos" class="text-brand-600 hover:underline ml-1">Subir una</NuxtLink>
+        </div>
+        <div v-else class="space-y-2 max-h-72 overflow-auto pr-0.5">
+          <button
+            v-for="p in contratoModal.plantillas"
+            :key="p.id"
+            :class="['w-full text-left px-3 py-2.5 rounded-lg border transition-all flex items-center gap-3',
+                     contratoModal.plantillaId === p.id
+                       ? 'border-brand-500 bg-brand-50'
+                       : 'border-ink-200 hover:border-brand-300 hover:bg-ink-50']"
+            @click="seleccionarPlantilla(p)"
+          >
+            <div class="flex-1 min-w-0">
+              <p class="font-medium text-ink-800 text-sm">{{ p.nombre }}</p>
+              <p v-if="p.descripcion" class="text-xs text-ink-500 truncate">{{ p.descripcion }}</p>
+            </div>
+            <div class="flex gap-2 text-xs shrink-0">
+              <span class="text-emerald-600 font-medium">{{ p.etiquetas_json?.filter((e) => e.mapa).length || 0 }} auto</span>
+              <span v-if="p.etiquetas_json?.filter((e) => !e.mapa).length" class="text-amber-600 font-medium">
+                {{ p.etiquetas_json.filter((e) => !e.mapa).length }} manual
+              </span>
+            </div>
+            <Icon v-if="contratoModal.plantillaId === p.id" name="check" size="w-4 h-4 text-brand-600 shrink-0" />
+          </button>
+        </div>
+      </div>
+
+      <!-- PASO 2: revisar y completar campos -->
+      <div v-else-if="contratoModal.paso === 2" class="space-y-4">
+
+        <!-- Campos automáticos: lista compacta -->
+        <div v-if="contratoModal.camposAuto.length">
+          <p class="text-xs font-semibold text-ink-500 uppercase tracking-wide mb-2">
+            Automáticos — tomados del proveedor
+          </p>
+          <dl class="rounded-lg bg-emerald-50 border border-emerald-200 divide-y divide-emerald-100">
+            <div
+              v-for="c in contratoModal.camposAuto"
+              :key="c.etiqueta"
+              class="flex items-center justify-between gap-4 px-3 py-1.5"
+            >
+              <dt class="text-xs text-emerald-700 font-mono shrink-0">«{{ c.etiqueta }}»</dt>
+              <dd class="text-xs font-semibold text-ink-800 text-right truncate max-w-[220px]" :title="c.valor">{{ c.valor || '—' }}</dd>
+            </div>
+          </dl>
+        </div>
+
+        <!-- Campos manuales: grid 2 columnas -->
+        <div v-if="contratoModal.camposManuales.length">
+          <p class="text-xs font-semibold text-ink-500 uppercase tracking-wide mb-2">
+            Completar manualmente
+          </p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div v-for="c in contratoModal.camposManuales" :key="c.etiqueta">
+              <label class="block text-xs font-medium text-ink-700 mb-1 truncate" :title="c.label">
+                {{ c.label }}
+              </label>
+              <input
+                v-model="contratoModal.valoresExtra[c.etiqueta]"
+                class="input text-sm"
+                :placeholder="c.label"
+              />
+            </div>
+          </div>
+        </div>
+
+        <p v-if="contratoModal.error" class="text-sm text-red-600">{{ contratoModal.error }}</p>
+      </div>
+
+      <template #footer>
+        <button class="btn-secondary" @click="cerrarContrato">Cancelar</button>
+        <button
+          v-if="contratoModal.paso === 1"
+          class="btn-primary"
+          :disabled="!contratoModal.plantillaId"
+          @click="contratoModal.paso = 2"
+        >
+          Siguiente
+        </button>
+        <button
+          v-else
+          class="btn-primary"
+          :disabled="contratoModal.generando"
+          @click="generarContrato"
+        >
+          {{ contratoModal.generando ? 'Generando PDF...' : 'Generar y abrir editor' }}
+        </button>
+      </template>
+    </Modal>
+
+    <Modal v-if="nuevoModal.abierto" title="Nuevo proveedor" size="2xl" @close="nuevoModal.abierto = false">
       <form class="space-y-3" @submit.prevent="crearNuevo">
         <p class="text-xs text-ink-500">Crea el usuario del proveedor y su registro fiscal en un solo paso.</p>
         <div class="grid grid-cols-2 gap-3">
@@ -259,6 +444,48 @@
           <label class="block text-sm font-medium text-ink-700 mb-1.5">Dirección</label>
           <input v-model="nuevoModal.form.direccion" class="input" />
         </div>
+
+        <div class="pt-1 border-t border-ink-100">
+          <p class="text-xs font-semibold text-ink-500 uppercase tracking-wide mb-3">Datos personales <span class="font-normal normal-case">(para contratos, opcional)</span></p>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-sm font-medium text-ink-700 mb-1.5">Fecha de nacimiento</label>
+              <input v-model="nuevoModal.form.fecha_nacimiento" type="date" class="input" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-ink-700 mb-1.5">Estado civil</label>
+              <select v-model="nuevoModal.form.estado_civil" class="input">
+                <option value="">Selecciona</option>
+                <option>Soltero(a)</option>
+                <option>Casado(a)</option>
+                <option>Divorciado(a)</option>
+                <option>Viudo(a)</option>
+                <option>Unión libre</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-ink-700 mb-1.5">Nacionalidad</label>
+              <input v-model="nuevoModal.form.nacionalidad" class="input" placeholder="Mexicana" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-ink-700 mb-1.5">Código postal</label>
+              <input v-model="nuevoModal.form.codigo_postal" maxlength="5" class="input font-mono" placeholder="00000" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-ink-700 mb-1.5">Municipio</label>
+              <input v-model="nuevoModal.form.municipio" class="input" placeholder="Ciudad / Municipio" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-ink-700 mb-1.5">Estado</label>
+              <input v-model="nuevoModal.form.estado_republica" class="input" placeholder="Tabasco" />
+            </div>
+            <div class="col-span-2">
+              <label class="block text-sm font-medium text-ink-700 mb-1.5">Sucursal bancaria</label>
+              <input v-model="nuevoModal.form.sucursal_banco" class="input" placeholder="Sucursal donde se realizarán los depósitos" />
+            </div>
+          </div>
+        </div>
+
         <label class="flex items-center gap-2 text-sm text-ink-700 cursor-pointer w-fit">
           <input v-model="nuevoModal.form.aprobar" type="checkbox" class="w-4 h-4 rounded" />
           Aprobar inmediatamente (puede subir facturas sin esperar)
@@ -339,9 +566,18 @@ async function rechazar() {
 const detalleModal = reactive({ abierto: false, cargando: false, data: null });
 const edicionModal = reactive({
   abierto: false, guardando: false, error: '', id: null,
-  form: { rfc: '', razon_social: '', direccion: '', banco: '', cuenta_clabe: '', activo: true },
+  form: {
+    rfc: '', razon_social: '', direccion: '', banco: '', cuenta_clabe: '', activo: true,
+    codigo_postal: '', municipio: '', estado_republica: '', sucursal_banco: '',
+    fecha_nacimiento: '', estado_civil: '', nacionalidad: '',
+  },
 });
 const visor = reactive({ abierto: false, path: '', title: '', subtitle: '', downloadName: '' });
+
+function fmtFecha(f) {
+  if (!f) return '—';
+  return new Date(f).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' });
+}
 
 async function abrirDetalle(p) {
   Object.assign(detalleModal, { abierto: true, cargando: true, data: null });
@@ -366,6 +602,13 @@ async function abrirEdicion(p) {
       banco: d.banco || '',
       cuenta_clabe: d.cuenta_clabe || '',
       activo: !!d.activo,
+      codigo_postal: d.codigo_postal || '',
+      municipio: d.municipio || '',
+      estado_republica: d.estado_republica || '',
+      sucursal_banco: d.sucursal_banco || '',
+      fecha_nacimiento: d.fecha_nacimiento ? d.fecha_nacimiento.slice(0, 10) : '',
+      estado_civil: d.estado_civil || '',
+      nacionalidad: d.nacionalidad || 'Mexicana',
     });
   } catch (e) {
     toast.error('No se pudo cargar el proveedor', e.message);
@@ -400,15 +643,17 @@ function verDocumentacion() {
 
 const nuevoModal = reactive({
   abierto: false, guardando: false, error: '',
-  form: { nombre: '', email: '', password: '', rfc: '', razon_social: '', direccion: '', banco: '', cuenta_clabe: '', aprobar: false },
+  form: { nombre: '', email: '', password: '', rfc: '', razon_social: '', direccion: '', banco: '', cuenta_clabe: '', aprobar: false, fecha_nacimiento: '', estado_civil: '', nacionalidad: '', codigo_postal: '', municipio: '', estado_republica: '', sucursal_banco: '' },
 });
+
+const nuevoFormVacio = () => ({ nombre: '', email: '', password: '', rfc: '', razon_social: '', direccion: '', banco: '', cuenta_clabe: '', aprobar: false, fecha_nacimiento: '', estado_civil: '', nacionalidad: '', codigo_postal: '', municipio: '', estado_republica: '', sucursal_banco: '' });
 
 async function crearNuevo() {
   nuevoModal.guardando = true; nuevoModal.error = '';
   try {
     await api.post('/proveedores/admin-crear', nuevoModal.form);
     toast.success('Proveedor creado', `${nuevoModal.form.razon_social} (${nuevoModal.form.rfc})`);
-    Object.assign(nuevoModal.form, { nombre: '', email: '', password: '', rfc: '', razon_social: '', direccion: '', banco: '', cuenta_clabe: '', aprobar: false });
+    Object.assign(nuevoModal.form, nuevoFormVacio());
     nuevoModal.abierto = false;
     cargar();
   } catch (e) {
@@ -416,5 +661,111 @@ async function crearNuevo() {
     toast.error('No se pudo crear', e.message);
   }
   finally { nuevoModal.guardando = false; }
+}
+
+// — Enviar contrato —
+const router = useRouter();
+
+const contratoModal = reactive({
+  abierto: false,
+  paso: 1,
+  proveedor: null,
+  proveedorData: null,
+  plantillas: [],
+  cargandoPlantillas: false,
+  plantillaId: null,
+  plantillaSeleccionada: null,
+  camposAuto: [],
+  camposManuales: [],
+  valoresExtra: {},
+  generando: false,
+  error: '',
+});
+
+async function abrirContrato(p) {
+  Object.assign(contratoModal, {
+    abierto: true, paso: 1, proveedor: p, proveedorData: null,
+    plantillas: [], cargandoPlantillas: true,
+    plantillaId: null, plantillaSeleccionada: null,
+    camposAuto: [], camposManuales: [], valoresExtra: {}, error: '',
+  });
+  try {
+    const [pData, pls] = await Promise.all([
+      api.get(`/proveedores/${p.id}`),
+      api.get('/contratos/plantillas'),
+    ]);
+    contratoModal.proveedorData = pData;
+    contratoModal.plantillas = pls.data || [];
+  } catch (e) {
+    toast.error('No se pudieron cargar los datos', e.message);
+    contratoModal.abierto = false;
+  } finally {
+    contratoModal.cargandoPlantillas = false;
+  }
+}
+
+function seleccionarPlantilla(p) {
+  contratoModal.plantillaId = p.id;
+  contratoModal.plantillaSeleccionada = p;
+}
+
+watch(() => contratoModal.paso, (paso) => {
+  if (paso !== 2 || !contratoModal.plantillaSeleccionada) return;
+  const prov = contratoModal.proveedorData;
+  const mapeoCampos = {
+    razon_social: prov?.razon_social, rfc: prov?.rfc, direccion: prov?.direccion,
+    banco: prov?.banco, cuenta_clabe: prov?.cuenta_clabe,
+    nombre: prov?.nombre, email: prov?.email,
+    fecha_nacimiento: prov?.fecha_nacimiento, estado_civil: prov?.estado_civil,
+    nacionalidad: prov?.nacionalidad, codigo_postal: prov?.codigo_postal,
+    municipio: prov?.municipio, estado_republica: prov?.estado_republica,
+    sucursal_banco: prov?.sucursal_banco,
+  };
+  const auto = [];
+  const manual = [];
+  for (const e of contratoModal.plantillaSeleccionada.etiquetas_json || []) {
+    if (e.mapa === '__fecha__') {
+      auto.push({ ...e, valor: new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }) });
+    } else if (e.mapa === '__ciudad_y_estado__') {
+      const partes = [prov?.municipio, prov?.estado_republica].filter(Boolean);
+      if (partes.length) auto.push({ ...e, valor: partes.join(', ') });
+      else manual.push(e);
+    } else if (e.mapa && mapeoCampos[e.mapa] != null && mapeoCampos[e.mapa] !== '') {
+      const valor = e.mapa === 'fecha_nacimiento' ? fmtFecha(mapeoCampos[e.mapa]) : mapeoCampos[e.mapa];
+      auto.push({ ...e, valor });
+    } else {
+      manual.push(e);
+    }
+  }
+  contratoModal.camposAuto = auto;
+  contratoModal.camposManuales = manual;
+  contratoModal.valoresExtra = Object.fromEntries(manual.map((m) => [m.etiqueta, '']));
+});
+
+async function generarContrato() {
+  contratoModal.generando = true; contratoModal.error = '';
+  try {
+    const r = await api.post('/contratos/generar', {
+      plantilla_id: contratoModal.plantillaId,
+      proveedor_id: contratoModal.proveedor.id,
+      valores_extra: contratoModal.valoresExtra,
+    });
+    toast.success('Contrato generado', r.nombre);
+    cerrarContrato();
+    router.push(`/admin/documentos/${r.documento_id}/editor`);
+  } catch (e) {
+    contratoModal.error = e.message;
+    toast.error('No se pudo generar el contrato', e.message);
+  } finally {
+    contratoModal.generando = false;
+  }
+}
+
+function cerrarContrato() {
+  Object.assign(contratoModal, {
+    abierto: false, paso: 1, proveedor: null, proveedorData: null,
+    plantillaId: null, plantillaSeleccionada: null,
+    camposAuto: [], camposManuales: [], valoresExtra: {}, error: '',
+  });
 }
 </script>

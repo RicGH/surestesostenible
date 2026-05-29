@@ -49,7 +49,7 @@
       <div v-else-if="tab === 'word'" class="space-y-5">
         <div class="rounded-lg bg-blue-50 border border-blue-200 p-3 text-xs text-blue-800 flex items-start gap-2">
           <Icon name="alert" size="w-4 h-4" class="shrink-0 mt-0.5" />
-          <p>Importa un archivo <strong>.docx</strong> (Word moderno). Se convertirá automáticamente a HTML editable y podrás editarlo como si fuera un documento creado desde cero. Los .doc antiguos no son compatibles.</p>
+          <p>Importa un archivo <strong>.docx</strong> o <strong>.doc</strong> (Word). Se convertirá automáticamente a HTML editable y podrás editarlo como si fuera un documento creado desde cero. Para mejores resultados usa .docx (Word moderno).</p>
         </div>
         <div>
           <label class="block text-sm font-medium text-ink-700 mb-1.5">Nombre del documento</label>
@@ -61,7 +61,7 @@
         </div>
         <div>
           <label class="block text-sm font-medium text-ink-700 mb-1.5">Archivo Word</label>
-          <FileDrop v-model="formDocx.archivo" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" label="Selecciona el .docx" hint="Solo .docx (Word moderno), máximo 25 MB" icon="fileText" />
+          <FileDrop v-model="formDocx.archivo" accept=".docx,.doc,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword" label="Selecciona el archivo Word (.doc o .docx)" hint=".doc o .docx, máximo 25 MB" icon="fileText" />
         </div>
         <p v-if="errorDocx" class="text-sm text-red-600">{{ errorDocx }}</p>
         <div class="flex justify-end gap-2 pt-2">

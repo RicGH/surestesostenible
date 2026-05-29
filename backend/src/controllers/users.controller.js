@@ -100,4 +100,13 @@ async function resetPassword(req, res) {
   res.json({ ok: true });
 }
 
-module.exports = { listar, crear, actualizar, setActivo, resetPassword };
+async function eliminar(req, res) {
+  const id = Number(req.params.id);
+  if (id === req.user.sub) throw new HttpError(400, 'No puedes eliminarte a ti mismo');
+  const usuario = await service.findById(id);
+  if (!usuario) throw new HttpError(404, 'Usuario no encontrado');
+  await service.eliminar(id);
+  res.json({ ok: true });
+}
+
+module.exports = { listar, crear, actualizar, setActivo, resetPassword, eliminar };

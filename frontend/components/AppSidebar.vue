@@ -147,8 +147,9 @@ const MENUS = {
       { to: '/finanzas/pendientes', label: 'Pagar facturas', icon: 'inbox' },
     ]},
     { label: 'Documentos', links: [
-      { to: '/admin/documentos', label: 'Documentos', icon: 'fileText' },
-      { to: '/admin/plantillas', label: 'Plantillas', icon: 'document' },
+      { to: '/admin/documentos', label: 'Contratos', icon: 'fileText' },
+      // { to: '/admin/plantillas', label: 'Plantillas', icon: 'document' },
+      { to: '/admin/contratos', label: 'Plantilla de contratos', icon: 'document' },
     ]},
     { label: 'Administración', links: [
       { to: '/admin/usuarios', label: 'Usuarios', icon: 'users' },

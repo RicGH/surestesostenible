@@ -69,8 +69,8 @@ const uploadDocx = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 25 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    const ok = /\.docx$/i.test(file.originalname);
-    cb(ok ? null : new Error('Solo se permiten archivos .docx (Word moderno). Los .doc antiguos no son compatibles.'), ok);
+    const ok = /\.docx?$/i.test(file.originalname);
+    cb(ok ? null : new Error('Solo se permiten archivos .doc o .docx (Word).'), ok);
   },
 });
 

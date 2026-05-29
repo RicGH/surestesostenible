@@ -14,12 +14,23 @@ const rfcField = z.preprocess(
   z.string().regex(RFC_REGEX, 'RFC inválido: usa 12 caracteres para persona moral o 13 para física.'),
 );
 
+const camposPersonalesSchema = {
+  fecha_nacimiento: z.string().optional().or(z.literal('')),
+  estado_civil: z.string().max(60).optional(),
+  nacionalidad: z.string().max(80).optional(),
+  codigo_postal: z.string().max(10).optional(),
+  municipio: z.string().max(120).optional(),
+  estado_republica: z.string().max(120).optional(),
+  sucursal_banco: z.string().max(200).optional(),
+};
+
 const registroSchema = z.object({
   rfc: rfcField,
   razon_social: z.string().min(2).max(200),
   direccion: z.string().max(255).optional(),
   banco: z.string().max(120).optional(),
   cuenta_clabe: z.string().length(18).optional().or(z.literal('')),
+  ...camposPersonalesSchema,
 });
 
 async function miRegistro(req, res) {
@@ -120,6 +131,7 @@ const crearAdminSchema = z.object({
   banco: z.string().max(120).optional(),
   cuenta_clabe: z.string().length(18).optional().or(z.literal('')),
   aprobar: z.coerce.boolean().optional().default(false),
+  ...camposPersonalesSchema,
 });
 
 async function crearComoAdmin(req, res) {

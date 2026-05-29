@@ -2,14 +2,14 @@ const { query, queryOne } = require('../config/db');
 
 async function findByEmail(email) {
   return queryOne(
-    'SELECT id, email, password_hash, nombre, rol, activo FROM users WHERE email = ? LIMIT 1',
+    'SELECT id, email, password_hash, nombre, rol, activo FROM users WHERE email = ? AND eliminado = 0 LIMIT 1',
     [email]
   );
 }
 
 async function findById(id) {
   return queryOne(
-    'SELECT id, email, nombre, rol, activo, created_at FROM users WHERE id = ? LIMIT 1',
+    'SELECT id, email, nombre, rol, activo, created_at FROM users WHERE id = ? AND eliminado = 0 LIMIT 1',
     [id]
   );
 }
@@ -23,7 +23,7 @@ async function create({ email, password_hash, nombre, rol }) {
 }
 
 async function listar(filtros = {}) {
-  const where = [];
+  const where = ['eliminado = 0'];
   const params = [];
   if (filtros.rol) { where.push('rol = ?'); params.push(filtros.rol); }
   if (filtros.activo === '1' || filtros.activo === '0') {
@@ -37,7 +37,7 @@ async function listar(filtros = {}) {
   return query(
     `SELECT id, email, nombre, rol, activo, created_at
      FROM users
-     ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
+     WHERE ${where.join(' AND ')}
      ORDER BY created_at DESC LIMIT 200`,
     params
   );
@@ -53,7 +53,7 @@ async function actualizarPassword(id, password_hash) {
 
 async function existeEmailEnOtro(email, exceptId) {
   const row = await queryOne(
-    'SELECT id FROM users WHERE email = ? AND id <> ? LIMIT 1',
+    'SELECT id FROM users WHERE email = ? AND id <> ? AND eliminado = 0 LIMIT 1',
     [email, exceptId]
   );
   return !!row;
@@ -66,7 +66,16 @@ async function actualizar(id, { email, nombre, rol }) {
   );
 }
 
+async function tieneProveedor(id) {
+  const row = await queryOne('SELECT id FROM proveedores WHERE user_id = ? LIMIT 1', [id]);
+  return !!row;
+}
+
+async function eliminar(id) {
+  await query('UPDATE users SET eliminado = 1, activo = 0 WHERE id = ?', [id]);
+}
+
 module.exports = {
   findByEmail, findById, create, listar, setActivo, actualizarPassword,
-  existeEmailEnOtro, actualizar,
+  existeEmailEnOtro, actualizar, tieneProveedor, eliminar,
 };

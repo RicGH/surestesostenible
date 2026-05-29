@@ -129,7 +129,7 @@ async function subir(req, res) {
 }
 
 async function importarDocx(req, res) {
-  if (!req.file) throw new HttpError(400, 'Debes adjuntar un archivo .docx');
+  if (!req.file) throw new HttpError(400, 'Debes adjuntar un archivo Word (.doc o .docx)');
   const nombre = (req.body.nombre || '').trim();
   if (!nombre || nombre.length < 2) throw new HttpError(400, 'El nombre debe tener al menos 2 caracteres');
   let html;
@@ -138,7 +138,7 @@ async function importarDocx(req, res) {
     html = convertido;
   } catch (err) {
     console.error('Error convirtiendo DOCX:', err);
-    throw new HttpError(400, 'No se pudo convertir el archivo Word. Verifica que sea un .docx válido.');
+    throw new HttpError(400, 'No se pudo convertir el archivo Word. Si es un .doc antiguo, ábrelo en Word y guárdalo como .docx e intenta de nuevo.');
   }
   const id = await service.crearDesdeHtml({
     nombre,
@@ -203,7 +203,7 @@ async function guardarCamposImportado(req, res) {
   const doc = await service.findById(id);
   if (!doc) throw new HttpError(404, 'Documento no encontrado');
   if (doc.estado !== 'borrador') throw new HttpError(400, 'Solo en borrador');
-  if (doc.tipo !== 'importado') throw new HttpError(400, 'Este endpoint es solo para PDFs importados');
+  if (doc.tipo !== 'importado' && doc.tipo !== 'contrato') throw new HttpError(400, 'Este endpoint es solo para PDFs importados');
   const { campos } = camposImpSchema.parse(req.body);
   await service.reemplazarCamposImportado(id, campos);
   res.json({ ok: true });
@@ -325,7 +325,7 @@ async function enviarADocusign(req, res) {
   let tagsFinal = doc.tags;
   let documentoParaDocusign = doc;
 
-  if (doc.tipo === 'importado' && (doc.anotaciones || []).length > 0) {
+  if ((doc.tipo === 'importado' || doc.tipo === 'contrato') && (doc.anotaciones || []).length > 0) {
     const camposFaltantes = (doc.campos || []).filter((c) => {
       const usado = (doc.anotaciones || []).some((a) => a.tipo === 'campo' && a.campo_nombre === c.nombre);
       return usado && c.requerido && (c.valor == null || c.valor === '');

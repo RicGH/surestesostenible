@@ -18,12 +18,36 @@ async function getById(id) {
   );
 }
 
+async function actualizarCamposContrato(id, data) {
+  await query(
+    `UPDATE proveedores
+     SET fecha_nacimiento = ?, estado_civil = ?, nacionalidad = ?,
+         codigo_postal = ?, municipio = ?, estado_republica = ?, sucursal_banco = ?
+     WHERE id = ?`,
+    [
+      data.fecha_nacimiento || null,
+      data.estado_civil || null,
+      data.nacionalidad || null,
+      data.codigo_postal || null,
+      data.municipio || null,
+      data.estado_republica || null,
+      data.sucursal_banco || null,
+      id,
+    ]
+  );
+}
+
 async function crear(userId, data, documentacion) {
   const result = await query(
     `INSERT INTO proveedores
-     (user_id, rfc, razon_social, direccion, banco, cuenta_clabe, documentacion, estado)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'pendiente')`,
-    [userId, data.rfc, data.razon_social, data.direccion, data.banco, data.cuenta_clabe, documentacion || null]
+     (user_id, rfc, razon_social, direccion, banco, cuenta_clabe, documentacion, estado,
+      fecha_nacimiento, estado_civil, nacionalidad, codigo_postal, municipio, estado_republica, sucursal_banco)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'pendiente', ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      userId, data.rfc, data.razon_social, data.direccion || null, data.banco || null, data.cuenta_clabe || null, documentacion || null,
+      data.fecha_nacimiento || null, data.estado_civil || null, data.nacionalidad || null,
+      data.codigo_postal || null, data.municipio || null, data.estado_republica || null, data.sucursal_banco || null,
+    ]
   );
   return result.insertId;
 }
@@ -56,9 +80,18 @@ async function listarTodos(filtros = {}) {
 async function actualizar(id, data) {
   await query(
     `UPDATE proveedores
-     SET rfc = ?, razon_social = ?, direccion = ?, banco = ?, cuenta_clabe = ?
+     SET rfc = ?, razon_social = ?, direccion = ?, banco = ?, cuenta_clabe = ?,
+         fecha_nacimiento = ?, estado_civil = ?, nacionalidad = ?,
+         codigo_postal = ?, municipio = ?, estado_republica = ?, sucursal_banco = ?
      WHERE id = ?`,
-    [data.rfc, data.razon_social, data.direccion || null, data.banco || null, data.cuenta_clabe || null, id]
+    [
+      data.rfc, data.razon_social,
+      data.direccion || null, data.banco || null, data.cuenta_clabe || null,
+      data.fecha_nacimiento || null, data.estado_civil || null, data.nacionalidad || null,
+      data.codigo_postal || null, data.municipio || null, data.estado_republica || null,
+      data.sucursal_banco || null,
+      id,
+    ]
   );
   if (typeof data.activo === 'boolean') {
     await query(
@@ -83,4 +116,4 @@ async function rechazar(id, adminId, motivo) {
   );
 }
 
-module.exports = { getByUserId, getById, crear, actualizar, listarPendientes, listarTodos, aprobar, rechazar };
+module.exports = { getByUserId, getById, crear, actualizar, actualizarCamposContrato, listarPendientes, listarTodos, aprobar, rechazar };

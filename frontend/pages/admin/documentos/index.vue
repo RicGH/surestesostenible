@@ -2,9 +2,9 @@
   <div class="space-y-6">
     <div class="flex items-center justify-between">
       <p class="text-sm text-ink-500">{{ documentos.length }} documento(s)</p>
-      <NuxtLink to="/admin/documentos/nuevo" class="btn-primary">
+      <!-- <NuxtLink to="/admin/documentos/nuevo" class="btn-primary">
         <Icon name="plus" size="w-4 h-4" /> Nuevo documento
-      </NuxtLink>
+      </NuxtLink> -->
     </div>
 
     <div class="card-pad grid grid-cols-2 md:grid-cols-3 gap-3">

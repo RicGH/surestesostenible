@@ -177,6 +177,53 @@
 
       <section class="card-pad space-y-5">
         <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-amber-50 text-amber-600 grid place-items-center"><Icon name="users" /></div>
+          <div>
+            <h3 class="font-semibold text-ink-900">Datos personales</h3>
+            <p class="text-xs text-ink-500">Información para generación de contratos (opcional)</p>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-ink-700 mb-1.5">Fecha de nacimiento</label>
+            <input v-model="form.fecha_nacimiento" type="date" class="input" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-ink-700 mb-1.5">Estado civil</label>
+            <select v-model="form.estado_civil" class="input">
+              <option value="">Selecciona</option>
+              <option>Soltero(a)</option>
+              <option>Casado(a)</option>
+              <option>Divorciado(a)</option>
+              <option>Viudo(a)</option>
+              <option>Unión libre</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-ink-700 mb-1.5">Nacionalidad</label>
+            <input v-model="form.nacionalidad" class="input" placeholder="Mexicana" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-ink-700 mb-1.5">Código postal</label>
+            <input v-model="form.codigo_postal" maxlength="5" class="input font-mono" placeholder="00000" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-ink-700 mb-1.5">Municipio</label>
+            <input v-model="form.municipio" class="input" placeholder="Ciudad / Municipio" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-ink-700 mb-1.5">Estado</label>
+            <input v-model="form.estado_republica" class="input" placeholder="Tabasco" />
+          </div>
+          <div class="md:col-span-2">
+            <label class="block text-sm font-medium text-ink-700 mb-1.5">Sucursal bancaria</label>
+            <input v-model="form.sucursal_banco" class="input" placeholder="Sucursal donde se realizarán los depósitos" />
+          </div>
+        </div>
+      </section>
+
+      <section class="card-pad space-y-5">
+        <div class="flex items-center gap-3">
           <div class="w-10 h-10 rounded-lg bg-violet-50 text-violet-600 grid place-items-center"><Icon name="upload" /></div>
           <div>
             <h3 class="font-semibold text-ink-900">Documentación</h3>
@@ -241,7 +288,11 @@ const registro = ref(null);
 const documentacion = ref(null);
 const loading = ref(false);
 const error = ref('');
-const form = reactive({ rfc: '', razon_social: '', direccion: '', banco: '', cuenta_clabe: '' });
+const form = reactive({
+  rfc: '', razon_social: '', direccion: '', banco: '', cuenta_clabe: '',
+  fecha_nacimiento: '', estado_civil: '', nacionalidad: '',
+  codigo_postal: '', municipio: '', estado_republica: '', sucursal_banco: '',
+});
 
 const RFC_RE = /^[A-ZÑ&]{3,4}\d{6}[A-Z\d]{3}$/;
 const rfcUpper = computed(() => (form.rfc || '').trim().toUpperCase());

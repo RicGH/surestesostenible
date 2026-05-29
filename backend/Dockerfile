@@ -8,7 +8,8 @@ RUN apk add --no-cache \
   harfbuzz \
   ca-certificates \
   ttf-freefont \
-  font-noto
+  font-noto \
+  libreoffice
 
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser

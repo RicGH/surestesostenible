@@ -56,6 +56,13 @@
                   @click="toggleActivo(u)"
                 />
                 <IconButton icon="key" tooltip="Resetear contraseña" variant="warning" @click="abrirReset(u)" />
+                <IconButton
+                  v-if="u.id !== auth.user?.id"
+                  icon="trash"
+                  tooltip="Eliminar usuario"
+                  variant="danger"
+                  @click="abrirEliminar(u)"
+                />
               </div>
             </td>
           </tr>
@@ -137,6 +144,33 @@
       </template>
     </Modal>
 
+    <Modal v-if="modalEliminar.abierto" title="Eliminar usuario" @close="modalEliminar.abierto = false">
+      <div class="space-y-3 text-sm">
+        <div class="flex items-start gap-3">
+          <div class="w-10 h-10 rounded-lg bg-red-50 text-red-600 grid place-items-center shrink-0">
+            <Icon name="trash" />
+          </div>
+          <div class="min-w-0">
+            <p class="text-ink-800">
+              ¿Eliminar a <strong class="text-ink-900">{{ modalEliminar.nombre }}</strong>?
+            </p>
+            <p class="text-xs text-ink-500 mt-0.5 break-all">{{ modalEliminar.email }}</p>
+          </div>
+        </div>
+        <div class="rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800 flex items-start gap-2">
+          <Icon name="alert" size="w-4 h-4" class="shrink-0 mt-0.5" />
+          <p>El usuario dejará de aparecer en el sistema y no podrá iniciar sesión. Sus registros históricos se conservan.</p>
+        </div>
+        <p v-if="modalEliminar.error" class="text-sm text-red-600">{{ modalEliminar.error }}</p>
+      </div>
+      <template #footer>
+        <button class="btn-secondary" @click="modalEliminar.abierto = false">Cancelar</button>
+        <button class="btn-danger" :disabled="modalEliminar.cargando" @click="confirmarEliminar">
+          {{ modalEliminar.cargando ? 'Eliminando...' : 'Eliminar definitivamente' }}
+        </button>
+      </template>
+    </Modal>
+
     <Modal v-if="modalEditar.abierto" :title="`Editar usuario`" @close="modalEditar.abierto = false">
       <form class="space-y-3" @submit.prevent="guardarEdicion">
         <div>
@@ -177,6 +211,7 @@ const filtros = reactive({ q: '', rol: '', activo: '' });
 const modalCrear = reactive({ abierto: false, nombre: '', email: '', rol: '', password: '', loading: false, error: '' });
 const modalReset = reactive({ abierto: false, id: null, email: '', password: '', error: '' });
 const modalEditar = reactive({ abierto: false, id: null, nombre: '', email: '', rol: '', esYoMismo: false, guardando: false, error: '' });
+const modalEliminar = reactive({ abierto: false, id: null, nombre: '', email: '', cargando: false, error: '' });
 
 async function cargar() {
   const qs = new URLSearchParams(Object.entries(filtros).filter(([, v]) => v)).toString();
@@ -249,6 +284,24 @@ async function resetPassword() {
   } catch (e) {
     modalReset.error = e.message;
     toast.error('No se pudo restablecer', e.message);
+  }
+}
+
+function abrirEliminar(u) {
+  Object.assign(modalEliminar, { abierto: true, id: u.id, nombre: u.nombre, email: u.email, cargando: false, error: '' });
+}
+async function confirmarEliminar() {
+  modalEliminar.cargando = true; modalEliminar.error = '';
+  try {
+    await api.del(`/users/${modalEliminar.id}`);
+    toast.success('Usuario eliminado', modalEliminar.email);
+    modalEliminar.abierto = false;
+    cargar();
+  } catch (e) {
+    modalEliminar.error = e.message;
+    toast.error('No se pudo eliminar', e.message);
+  } finally {
+    modalEliminar.cargando = false;
   }
 }
 

@@ -62,10 +62,10 @@
 
         <div v-if="puedeEditar" class="card-pad space-y-2">
           <h4 class="text-xs font-semibold text-ink-700 uppercase tracking-wide">Modo de inserción</h4>
-          <div class="grid grid-cols-3 gap-1">
+          <div class="grid grid-cols-2 gap-1">
             <button :class="['btn-secondary !py-1 text-xs', modoInsercion === 'tag' ? '!bg-ink-900 !text-white' : '']" @click="modoInsercion = 'tag'">Tag</button>
             <button :class="['btn-secondary !py-1 text-xs', modoInsercion === 'texto' ? '!bg-ink-900 !text-white' : '']" @click="modoInsercion = 'texto'">Texto</button>
-            <button :class="['btn-secondary !py-1 text-xs', modoInsercion === 'campo' ? '!bg-ink-900 !text-white' : '']" @click="modoInsercion = 'campo'">Campo</button>
+            <!-- <button :class="['btn-secondary !py-1 text-xs', modoInsercion === 'campo' ? '!bg-ink-900 !text-white' : '']" @click="modoInsercion = 'campo'">Campo</button> -->
           </div>
           <div v-if="modoInsercion === 'tag'" class="space-y-1">
             <p v-if="!firmanteSeleccionado" class="text-xs text-ink-500">Selecciona un firmante arriba.</p>
@@ -78,15 +78,15 @@
           <div v-else-if="modoInsercion === 'texto'">
             <p class="text-xs text-ink-500">Haz click sobre el PDF para añadir un bloque de texto.</p>
           </div>
-          <div v-else-if="modoInsercion === 'campo'">
+          <!-- <div v-else-if="modoInsercion === 'campo'">
             <p v-if="!campoSeleccionado" class="text-xs text-ink-500">Selecciona o crea un campo abajo.</p>
             <div v-else class="text-xs text-ink-700 p-1.5 rounded bg-amber-50 border border-amber-200">
               <strong>{{ campoSeleccionado.label }}</strong> · {{ campoSeleccionado.nombre }}
             </div>
-          </div>
+          </div> -->
         </div>
 
-        <div class="card-pad space-y-3">
+        <!-- <div class="card-pad space-y-3">
           <div class="flex items-center justify-between">
             <h3 class="font-semibold text-ink-900 text-sm">Campos dinámicos</h3>
             <button v-if="puedeEditar" class="text-xs text-brand-600 hover:underline inline-flex items-center gap-1" @click="abrirAgregarCampo">
@@ -115,7 +115,7 @@
               </div>
             </div>
           </div>
-        </div>
+        </div> -->
       </div>
 
       <!-- VISOR PDF -->

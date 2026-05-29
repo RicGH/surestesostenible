@@ -16,12 +16,16 @@
     "migrate:pagos-comprobante-opcional": "node src/db/migrate-pagos-comprobante-opcional.js",
     "migrate:documentos": "node src/db/migrate-documentos.js",
     "migrate:documentos-creados": "node src/db/migrate-documentos-creados.js",
-    "migrate:documento-anotaciones": "node src/db/migrate-documento-anotaciones.js"
+    "migrate:documento-anotaciones": "node src/db/migrate-documento-anotaciones.js",
+    "migrate:contratos": "node src/db/migrate-contratos.js",
+    "migrate:proveedor-campos-contrato": "node src/db/migrate-proveedor-campos-contrato.js",
+    "migrate:users-soft-delete": "node src/db/migrate-users-soft-delete.js"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",
     "cors": "^2.8.5",
     "docusign-esign": "^7.0.0",
+    "docxtemplater": "^3.68.7",
     "dotenv": "^16.4.5",
     "express": "^4.21.0",
     "fast-xml-parser": "^4.5.0",
@@ -32,6 +36,7 @@
     "nodemailer": "^6.9.15",
     "pdf-lib": "^1.17.1",
     "pdfkit": "^0.15.1",
+    "pizzip": "^3.2.0",
     "puppeteer-core": "^23.5.0",
     "zod": "^3.23.8"
   }

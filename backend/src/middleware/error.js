@@ -62,6 +62,9 @@ function errorHandler(err, req, res, next) {
       details: err.issues,
     });
   }
+  if (err.errno === 1451) {
+    return res.status(409).json({ error: 'No se puede eliminar: el registro está siendo usado en otras partes del sistema. Desactívalo en lugar de eliminarlo.' });
+  }
   if (err.code === 'LIMIT_FILE_SIZE') {
     return res.status(413).json({
       error: 'El archivo excede el tamaño máximo permitido (25 MB).',
