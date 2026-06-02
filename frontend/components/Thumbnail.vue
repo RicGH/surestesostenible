@@ -12,6 +12,12 @@
         <span class="block leading-none mt-0.5">PDF</span>
       </div>
     </div>
+    <div v-else-if="esXml" class="w-full h-full grid place-items-center bg-emerald-50 text-emerald-600 text-[10px] font-bold">
+      <div class="text-center">
+        <Icon name="fileText" size="w-6 h-6" class="mx-auto" />
+        <span class="block leading-none mt-0.5">XML</span>
+      </div>
+    </div>
     <div v-else-if="cargando" class="w-full h-full grid place-items-center text-ink-400">
       <Icon name="document" size="w-6 h-6" />
     </div>
@@ -39,11 +45,13 @@ const cargando = ref(false);
 const ext = computed(() => {
   const name = (props.filename || props.path || '').toLowerCase();
   if (name.endsWith('.pdf')) return 'pdf';
+  if (name.endsWith('.xml')) return 'xml';
   if (/\.(jpe?g|png|gif|webp|bmp|svg)(\?|$)/.test(name)) return 'image';
   return 'other';
 });
 const esImagen = computed(() => ext.value === 'image');
 const esPdf = computed(() => ext.value === 'pdf');
+const esXml = computed(() => ext.value === 'xml');
 
 onMounted(async () => {
   if (!esImagen.value) return;

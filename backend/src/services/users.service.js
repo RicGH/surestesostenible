@@ -75,7 +75,17 @@ async function eliminar(id) {
   await query('UPDATE users SET eliminado = 1, activo = 0 WHERE id = ?', [id]);
 }
 
+async function eliminarVarios(ids) {
+  if (!ids.length) return 0;
+  const placeholders = ids.map(() => '?').join(',');
+  const result = await query(
+    `UPDATE users SET eliminado = 1, activo = 0 WHERE id IN (${placeholders}) AND eliminado = 0`,
+    ids
+  );
+  return result.affectedRows;
+}
+
 module.exports = {
   findByEmail, findById, create, listar, setActivo, actualizarPassword,
-  existeEmailEnOtro, actualizar, tieneProveedor, eliminar,
+  existeEmailEnOtro, actualizar, tieneProveedor, eliminar, eliminarVarios,
 };

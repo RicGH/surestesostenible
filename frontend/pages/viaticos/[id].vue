@@ -19,6 +19,15 @@
       <Icon name="chevron-left" size="w-4 h-4" /> Volver a {{ breadcrumb.label }}
     </NuxtLink>
 
+    <div v-if="puedeSubir && !bloqueadaPorUso && disponible <= 0" class="rounded-lg bg-amber-50 border border-amber-200 p-4 text-sm text-amber-800 flex items-start gap-3">
+      <Icon name="alert" size="w-5 h-5" class="text-amber-600 mt-0.5 shrink-0" />
+      <div class="flex-1">
+        Sin saldo disponible.
+        <button class="font-semibold underline" @click="abrirAjuste">Solicita un ajuste</button>
+        para continuar.
+      </div>
+    </div>
+
     <div
       v-if="puedeCerrar || puedeSubir || puedeAprobar || puedeAbonar"
       class="sticky top-0 z-30 -mt-6 lg:-mt-8 -mx-6 lg:-mx-8 px-6 lg:px-8 py-3 bg-white/95 backdrop-blur-md border-b border-ink-200 flex items-center justify-between gap-3"
@@ -246,11 +255,20 @@
           <tr v-for="g in sol.gastos" :key="g.id">
             <td>
               <Thumbnail
+                v-if="g.archivo"
                 :path="`/viaticos/${sol.id}/gastos/${g.id}/archivo`"
                 :filename="g.archivo"
                 tooltip="Ver comprobante"
                 @open="abrirVisor({ path: `/viaticos/${sol.id}/gastos/${g.id}/archivo`, title: 'Comprobante de gasto', subtitle: `${g.nombre_emisor || g.concepto || ''} · $${Number(g.monto).toFixed(2)}`, downloadName: `gasto-${g.id}` })"
               />
+              <Thumbnail
+                v-else-if="g.xml_path"
+                :path="`/viaticos/${sol.id}/gastos/${g.id}/xml`"
+                :filename="g.xml_path"
+                tooltip="Ver XML (CFDI)"
+                @open="abrirVisor({ path: `/viaticos/${sol.id}/gastos/${g.id}/xml`, title: 'XML del CFDI', subtitle: `${g.nombre_emisor || g.concepto || ''} · $${Number(g.monto).toFixed(2)}`, downloadName: `cfdi-gasto-${g.id}.xml` })"
+              />
+              <span v-else class="text-ink-300 text-xs">—</span>
             </td>
             <td>{{ g.fecha }}</td>
             <td class="font-medium text-ink-800">{{ g.nombre_emisor || '—' }}</td>
@@ -349,13 +367,23 @@
             hint="PDF, JPG o PNG · arrastra o haz clic para seleccionar"
           />
 
+          <FileDrop
+            v-model="xmlGasto"
+            accept=".xml,text/xml,application/xml"
+            icon="document"
+            label="XML del CFDI (opcional)"
+            hint="Sube el XML de la factura y se llenarán los datos automáticamente"
+          />
+          <p v-if="errorXml" class="text-sm text-red-600 -mt-2">{{ errorXml }}</p>
+          <p v-else-if="xmlGasto" class="text-xs text-emerald-600 -mt-2">Datos cargados desde el XML. Revísalos antes de subir.</p>
+
           <p v-if="errorGasto" class="text-sm text-red-600">{{ errorGasto }}</p>
-          <p v-else class="text-xs text-ink-500">El monto descontará del saldo disponible.</p>
+          <p v-else class="text-xs text-ink-500">Sube al menos el comprobante o el XML. El monto descontará del saldo disponible.</p>
         </form>
       </div>
       <template #footer>
         <button class="btn-secondary" :disabled="subiendo" @click="cerrarSubir">Cancelar</button>
-        <button form="subir-comprobante-form" type="submit" class="btn-primary" :disabled="subiendo || !archivoGasto || disponible <= 0 || !!bloqueadaPorUso">
+        <button form="subir-comprobante-form" type="submit" class="btn-primary" :disabled="subiendo || (!archivoGasto && !xmlGasto) || disponible <= 0 || !!bloqueadaPorUso">
           <Icon name="upload" size="w-4 h-4" /> {{ subiendo ? `Subiendo... ${progreso}%` : 'Subir comprobante' }}
         </button>
       </template>
@@ -531,6 +559,8 @@ const toast = useToast();
 const sol = ref(null);
 const errorCarga = ref('');
 const archivoGasto = ref(null);
+const xmlGasto = ref(null);
+const errorXml = ref('');
 const gasto = reactive({ monto: 0, fecha: '', rfc_emisor: '', nombre_emisor: '', concepto: '' });
 const subiendo = ref(false);
 const progreso = ref(0);
@@ -585,6 +615,10 @@ function abrirSubir() {
 function cerrarSubir() {
   if (subiendo.value) return;
   subirModal.abierto = false;
+  Object.assign(gasto, { monto: 0, fecha: '', rfc_emisor: '', nombre_emisor: '', concepto: '' });
+  archivoGasto.value = null;
+  xmlGasto.value = null;
+  errorXml.value = '';
 }
 
 function abrirRechazo() {
@@ -791,10 +825,78 @@ async function guardarAjuste() {
 
 const MAX_BYTES = 25 * 1024 * 1024;
 
+function leerAtributo(el, nombres) {
+  if (!el) return '';
+  for (const n of nombres) {
+    const v = el.getAttribute(n);
+    if (v) return v;
+  }
+  return '';
+}
+
+function hijoPorNombre(el, nombre) {
+  if (!el) return null;
+  return [...el.children].find((c) => c.localName?.toLowerCase() === nombre) || null;
+}
+
+function parsearCfdi(texto) {
+  const doc = new DOMParser().parseFromString(texto, 'application/xml');
+  if (doc.querySelector('parsererror')) throw new Error('El archivo no es un XML válido');
+  const comp = doc.documentElement;
+  if (comp.localName?.toLowerCase() !== 'comprobante') {
+    throw new Error('El XML no es un CFDI (comprobante fiscal)');
+  }
+  const emisor = hijoPorNombre(comp, 'emisor');
+  const conceptosNode = hijoPorNombre(comp, 'conceptos');
+  let concepto = '';
+  if (conceptosNode) {
+    concepto = [...conceptosNode.children]
+      .filter((c) => c.localName?.toLowerCase() === 'concepto')
+      .map((c) => leerAtributo(c, ['Descripcion', 'descripcion']))
+      .filter(Boolean)
+      .join(', ');
+  }
+  return {
+    total: leerAtributo(comp, ['Total', 'total']),
+    fecha: leerAtributo(comp, ['Fecha', 'fecha']),
+    rfc: leerAtributo(emisor, ['Rfc', 'rfc']),
+    nombre: leerAtributo(emisor, ['Nombre', 'nombre']),
+    concepto,
+  };
+}
+
+watch(xmlGasto, async (file) => {
+  errorXml.value = '';
+  if (!file) return;
+  try {
+    const texto = await file.text();
+    const cfdi = parsearCfdi(texto);
+    if (cfdi.total) gasto.monto = Number(cfdi.total);
+    if (cfdi.fecha) gasto.fecha = cfdi.fecha.slice(0, 10);
+    if (cfdi.rfc) gasto.rfc_emisor = cfdi.rfc.toUpperCase();
+    if (cfdi.nombre) gasto.nombre_emisor = cfdi.nombre;
+    if (cfdi.concepto) gasto.concepto = cfdi.concepto;
+    toast.success('XML leído', 'Se llenaron los datos del comprobante');
+  } catch (e) {
+    errorXml.value = e.message;
+    xmlGasto.value = null;
+    toast.error('No se pudo leer el XML', e.message);
+  }
+});
+
+async function descargarXml(g) {
+  try {
+    await api.download(`/viaticos/${route.params.id}/gastos/${g.id}/xml`, `cfdi-gasto-${g.id}.xml`);
+  } catch (e) {
+    toast.error('No se pudo descargar el XML', e.message);
+  }
+}
+
 async function subirGasto() {
-  if (!archivoGasto.value) return;
-  if (archivoGasto.value.size > MAX_BYTES) {
-    const mb = (archivoGasto.value.size / (1024 * 1024)).toFixed(1);
+  if (!archivoGasto.value && !xmlGasto.value) return;
+  const grande = [archivoGasto.value, xmlGasto.value].find((f) => f && f.size > MAX_BYTES);
+  if (grande) {
+    const mb = (grande.size / (1024 * 1024)).toFixed(1);
     errorGasto.value = `El archivo pesa ${mb} MB. El máximo permitido es 25 MB.`;
     toast.error('Archivo muy grande', errorGasto.value);
     return;
@@ -802,7 +904,8 @@ async function subirGasto() {
   subiendo.value = true; errorGasto.value = ''; progreso.value = 0;
   try {
     const fd = new FormData();
-    fd.append('archivo', archivoGasto.value);
+    if (archivoGasto.value) fd.append('archivo', archivoGasto.value);
+    if (xmlGasto.value) fd.append('xml', xmlGasto.value);
     fd.append('monto', String(gasto.monto));
     fd.append('fecha', gasto.fecha);
     if (gasto.rfc_emisor) fd.append('rfc_emisor', gasto.rfc_emisor);
@@ -812,6 +915,8 @@ async function subirGasto() {
     toast.success('Comprobante subido', `Monto $${Number(gasto.monto).toFixed(2)}`);
     Object.assign(gasto, { monto: 0, fecha: '', rfc_emisor: '', nombre_emisor: '', concepto: '' });
     archivoGasto.value = null;
+    xmlGasto.value = null;
+    errorXml.value = '';
     subirModal.abierto = false;
     await cargar();
   } catch (e) {

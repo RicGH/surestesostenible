@@ -10,6 +10,7 @@ router.post('/', asyncHandler(ctrl.crear));
 router.put('/:id', asyncHandler(ctrl.actualizar));
 router.put('/:id/activo', asyncHandler(ctrl.setActivo));
 router.put('/:id/password', asyncHandler(ctrl.resetPassword));
+router.post('/bulk-delete', asyncHandler(ctrl.eliminarVarios));
 router.delete('/:id', asyncHandler(ctrl.eliminar));
 
 module.exports = router;

@@ -31,6 +31,9 @@
             class="w-full h-full bg-white border-0"
             frameborder="0"
           />
+          <div v-else-if="esXml" class="w-full h-full overflow-auto bg-white">
+            <pre class="text-xs text-ink-800 p-4 whitespace-pre font-mono leading-relaxed">{{ texto }}</pre>
+          </div>
           <div v-else class="text-center p-6 text-ink-600">
             <p class="font-medium">No se puede previsualizar este archivo</p>
             <button v-if="downloadName" class="btn-primary mt-3" @click="descargar">
@@ -55,11 +58,29 @@ const emit = defineEmits(['close']);
 const api = useApi();
 const url = ref('');
 const mime = ref('');
+const texto = ref('');
 const cargando = ref(true);
 const error = ref('');
 
 const esImagen = computed(() => mime.value.startsWith('image/'));
 const esPdf = computed(() => mime.value === 'application/pdf' || (props.path || '').toLowerCase().endsWith('.pdf'));
+const esXml = computed(() => mime.value.includes('xml') || (props.path || '').toLowerCase().endsWith('.xml'));
+
+function formatearXml(xml) {
+  try {
+    const sinSaltos = xml.replace(/>\s+</g, '><').trim();
+    let formateado = '';
+    let nivel = 0;
+    sinSaltos.split(/(?=<)/).forEach((nodo) => {
+      if (/^<\/.+>/.test(nodo)) nivel = Math.max(nivel - 1, 0);
+      formateado += '  '.repeat(nivel) + nodo + '\n';
+      if (/^<[^!?/][^>]*[^/]>$/.test(nodo) && !/<\/.+>/.test(nodo)) nivel++;
+    });
+    return formateado.trim();
+  } catch {
+    return xml;
+  }
+}
 
 async function cargar() {
   cargando.value = true;
@@ -68,6 +89,9 @@ async function cargar() {
     const r = await api.viewBlob(props.path);
     url.value = r.url;
     mime.value = r.mime || '';
+    if (esXml.value && r.blob) {
+      texto.value = formatearXml(await r.blob.text());
+    }
   } catch (e) {
     error.value = e.message || 'No se pudo cargar el archivo';
   } finally {

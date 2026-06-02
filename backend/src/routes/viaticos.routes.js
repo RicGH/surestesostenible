@@ -21,13 +21,14 @@ router.post('/:id/pagar', requireRole('admin', 'finanzas'), uploadComprobantes.s
 router.get('/:id/comprobante-pago', requireRole('admin', 'finanzas', 'colaborador'), asyncHandler(ctrl.descargarComprobantePago));
 router.get('/:id/justificante', requireRole('admin', 'finanzas', 'colaborador'), asyncHandler(ctrl.descargarJustificante));
 router.get('/:id/gastos/:gastoId/archivo', requireRole('admin', 'finanzas', 'colaborador'), asyncHandler(ctrl.descargarGasto));
+router.get('/:id/gastos/:gastoId/xml', requireRole('admin', 'finanzas', 'colaborador'), asyncHandler(ctrl.descargarGastoXml));
 router.get('/:id', requireRole('admin', 'colaborador', 'finanzas'), asyncHandler(ctrl.detalle));
 router.put('/:id', requireRole('admin', 'colaborador'), asyncHandler(ctrl.editar));
 router.post('/:id/duplicar', requireRole('admin', 'colaborador'), asyncHandler(ctrl.duplicar));
 router.post('/:id/aprobar', requireRole('admin'), asyncHandler(ctrl.aprobar));
 router.post('/:id/rechazar', requireRole('admin'), asyncHandler(ctrl.rechazar));
 router.post('/:id/cerrar', requireRole('admin', 'colaborador'), asyncHandler(ctrl.cerrar));
-router.post('/:id/gastos', requireRole('admin', 'colaborador'), uploadGastos.single('archivo'), asyncHandler(ctrl.subirGasto));
+router.post('/:id/gastos', requireRole('admin', 'colaborador'), uploadGastos.fields([{ name: 'archivo', maxCount: 1 }, { name: 'xml', maxCount: 1 }]), asyncHandler(ctrl.subirGasto));
 
 const ajustesCtrl = require('../controllers/viaticos-ajustes.controller');
 router.post('/:id/ajustes', requireRole('admin', 'colaborador'), asyncHandler(ajustesCtrl.crear));

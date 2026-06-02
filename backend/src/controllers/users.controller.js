@@ -109,4 +109,17 @@ async function eliminar(req, res) {
   res.json({ ok: true });
 }
 
-module.exports = { listar, crear, actualizar, setActivo, resetPassword, eliminar };
+const eliminarVariosSchema = z.object({
+  ids: z.array(z.number().int().positive()).min(1).max(200),
+});
+
+async function eliminarVarios(req, res) {
+  const { ids } = eliminarVariosSchema.parse(req.body);
+  if (ids.includes(req.user.sub)) {
+    throw new HttpError(400, 'No puedes eliminarte a ti mismo');
+  }
+  const eliminados = await service.eliminarVarios(ids);
+  res.json({ ok: true, eliminados });
+}
+
+module.exports = { listar, crear, actualizar, setActivo, resetPassword, eliminar, eliminarVarios };

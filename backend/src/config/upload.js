@@ -23,8 +23,11 @@ const uploadGastos = multer({
   storage: makeStorage('gastos'),
   limits: { fileSize: 25 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    const ok = /\.(jpe?g|png|pdf)$/i.test(file.originalname);
-    cb(ok ? null : new Error('Solo se permiten imágenes o PDF'), ok);
+    // El comprobante debe ser imagen/PDF; el XML (CFDI) opcional solo acepta .xml
+    const okArchivo = file.fieldname === 'archivo' && /\.(jpe?g|png|pdf)$/i.test(file.originalname);
+    const okXml = file.fieldname === 'xml' && /\.xml$/i.test(file.originalname);
+    const ok = okArchivo || okXml;
+    cb(ok ? null : new Error('El comprobante debe ser imagen o PDF, y el CFDI debe ser XML'), ok);
   },
 });
 

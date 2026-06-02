@@ -178,8 +178,21 @@ async function descargarGasto(req, res) {
     throw new HttpError(403, 'Sin acceso');
   }
   const gasto = (sol.gastos || []).find((g) => g.id === gastoId);
-  if (!gasto) throw new HttpError(404, 'Comprobante no encontrado');
+  if (!gasto || !gasto.archivo) throw new HttpError(404, 'Comprobante no encontrado');
   res.sendFile(path.join(UPLOAD_ROOT, gasto.archivo));
+}
+
+async function descargarGastoXml(req, res) {
+  const id = Number(req.params.id);
+  const gastoId = Number(req.params.gastoId);
+  const sol = await service.getById(id);
+  if (!sol) throw new HttpError(404, 'Solicitud no encontrada');
+  if (req.user.rol === 'colaborador' && sol.colaborador_id !== req.user.sub) {
+    throw new HttpError(403, 'Sin acceso');
+  }
+  const gasto = (sol.gastos || []).find((g) => g.id === gastoId);
+  if (!gasto || !gasto.xml_path) throw new HttpError(404, 'XML no encontrado');
+  res.sendFile(path.join(UPLOAD_ROOT, gasto.xml_path));
 }
 
 async function rechazar(req, res) {
@@ -274,14 +287,17 @@ const gastoSchema = z.object({
 });
 
 async function subirGasto(req, res) {
-  if (!req.file) throw new HttpError(400, 'Archivo requerido');
+  const archivoFile = req.files?.archivo?.[0];
+  const xmlFile = req.files?.xml?.[0];
+  if (!archivoFile && !xmlFile) throw new HttpError(400, 'Debes subir el comprobante (PDF/imagen) o el XML del CFDI');
   const id = Number(req.params.id);
   const data = gastoSchema.parse(req.body);
-  const archivo = `gastos/${req.file.filename}`;
+  const archivo = archivoFile ? `gastos/${archivoFile.filename}` : null;
+  const xmlPath = xmlFile ? `gastos/${xmlFile.filename}` : null;
   try {
     const colaboradorId = req.user.rol === 'colaborador' ? req.user.sub : null;
-    const gastoId = await service.agregarGasto(id, colaboradorId, data, archivo);
-    res.status(201).json({ id: gastoId, archivo });
+    const gastoId = await service.agregarGasto(id, colaboradorId, data, archivo, xmlPath);
+    res.status(201).json({ id: gastoId, archivo, xml_path: xmlPath });
   } catch (e) {
     if (e.code === 'SALDO_INSUFICIENTE') throw new HttpError(409, e.message);
     if (e.code === 'BLOQUEADO_POR_USO') throw new HttpError(409, e.message);
@@ -294,5 +310,5 @@ module.exports = {
   listarRechazados, listarTodos, detalle,
   aprobar, rechazar, editar, duplicar, cerrar, subirGasto, puedoCrear,
   listarPorPagar, listarPagosHistorial, pagarSolicitud, descargarComprobantePago,
-  descargarGasto, descargarJustificante,
+  descargarGasto, descargarGastoXml, descargarJustificante,
 };

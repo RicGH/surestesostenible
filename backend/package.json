@@ -19,7 +19,9 @@
     "migrate:documento-anotaciones": "node src/db/migrate-documento-anotaciones.js",
     "migrate:contratos": "node src/db/migrate-contratos.js",
     "migrate:proveedor-campos-contrato": "node src/db/migrate-proveedor-campos-contrato.js",
-    "migrate:users-soft-delete": "node src/db/migrate-users-soft-delete.js"
+    "migrate:users-soft-delete": "node src/db/migrate-users-soft-delete.js",
+    "migrate:gasto-xml": "node src/db/migrate-gasto-xml.js",
+    "migrate:gasto-archivo-opcional": "node src/db/migrate-gasto-archivo-opcional.js"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",

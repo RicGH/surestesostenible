@@ -24,16 +24,45 @@
       </select>
     </div>
 
+    <div v-if="seleccionados.length" class="card-pad flex items-center justify-between bg-red-50 border-red-200">
+      <p class="text-sm text-red-800">{{ seleccionados.length }} usuario(s) seleccionado(s)</p>
+      <div class="flex gap-2">
+        <button class="btn-secondary" @click="seleccionados = []">Cancelar selección</button>
+        <button class="btn-danger" @click="abrirEliminarBulk">
+          <Icon name="trash" size="w-4 h-4" /> Eliminar seleccionados
+        </button>
+      </div>
+    </div>
+
     <div class="card overflow-hidden">
       <table class="table">
         <thead>
           <tr>
+            <th class="!text-center w-10">
+              <input
+                type="checkbox"
+                class="cursor-pointer"
+                :checked="todosSeleccionados"
+                :indeterminate="seleccionParcial"
+                :disabled="!seleccionables.length"
+                @change="toggleTodos"
+              />
+            </th>
             <th>Nombre</th><th>Correo</th><th>Rol</th><th>Estado</th>
             <th>Creado</th><th class="!text-center">Acciones</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="u in usuarios" :key="u.id">
+            <td class="!text-center">
+              <input
+                v-if="u.id !== auth.user?.id"
+                type="checkbox"
+                class="cursor-pointer"
+                :value="u.id"
+                v-model="seleccionados"
+              />
+            </td>
             <td class="font-medium text-ink-800">{{ u.nombre }}</td>
             <td>{{ u.email }}</td>
             <td><span :class="rolClass(u.rol)">{{ u.rol }}</span></td>
@@ -66,7 +95,7 @@
               </div>
             </td>
           </tr>
-          <tr v-if="!usuarios.length"><td colspan="6" class="py-12 text-center text-ink-400">Sin usuarios</td></tr>
+          <tr v-if="!usuarios.length"><td colspan="7" class="py-12 text-center text-ink-400">Sin usuarios</td></tr>
         </tbody>
       </table>
     </div>
@@ -171,6 +200,32 @@
       </template>
     </Modal>
 
+    <Modal v-if="modalEliminarBulk.abierto" title="Eliminar usuarios seleccionados" @close="modalEliminarBulk.abierto = false">
+      <div class="space-y-3 text-sm">
+        <div class="flex items-start gap-3">
+          <div class="w-10 h-10 rounded-lg bg-red-50 text-red-600 grid place-items-center shrink-0">
+            <Icon name="trash" />
+          </div>
+          <div class="min-w-0">
+            <p class="text-ink-800">
+              ¿Eliminar <strong class="text-ink-900">{{ seleccionados.length }}</strong> usuario(s)?
+            </p>
+          </div>
+        </div>
+        <div class="rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800 flex items-start gap-2">
+          <Icon name="alert" size="w-4 h-4" class="shrink-0 mt-0.5" />
+          <p>Los usuarios dejarán de aparecer en el sistema y no podrán iniciar sesión. Sus registros históricos se conservan.</p>
+        </div>
+        <p v-if="modalEliminarBulk.error" class="text-sm text-red-600">{{ modalEliminarBulk.error }}</p>
+      </div>
+      <template #footer>
+        <button class="btn-secondary" @click="modalEliminarBulk.abierto = false">Cancelar</button>
+        <button class="btn-danger" :disabled="modalEliminarBulk.cargando" @click="confirmarEliminarBulk">
+          {{ modalEliminarBulk.cargando ? 'Eliminando...' : 'Eliminar definitivamente' }}
+        </button>
+      </template>
+    </Modal>
+
     <Modal v-if="modalEditar.abierto" :title="`Editar usuario`" @close="modalEditar.abierto = false">
       <form class="space-y-3" @submit.prevent="guardarEdicion">
         <div>
@@ -212,11 +267,41 @@ const modalCrear = reactive({ abierto: false, nombre: '', email: '', rol: '', pa
 const modalReset = reactive({ abierto: false, id: null, email: '', password: '', error: '' });
 const modalEditar = reactive({ abierto: false, id: null, nombre: '', email: '', rol: '', esYoMismo: false, guardando: false, error: '' });
 const modalEliminar = reactive({ abierto: false, id: null, nombre: '', email: '', cargando: false, error: '' });
+const modalEliminarBulk = reactive({ abierto: false, cargando: false, error: '' });
+const seleccionados = ref([]);
+
+const seleccionables = computed(() => usuarios.value.filter((u) => u.id !== auth.user?.id));
+const todosSeleccionados = computed(() => seleccionables.value.length > 0 && seleccionados.value.length === seleccionables.value.length);
+const seleccionParcial = computed(() => seleccionados.value.length > 0 && !todosSeleccionados.value);
+
+function toggleTodos() {
+  seleccionados.value = todosSeleccionados.value ? [] : seleccionables.value.map((u) => u.id);
+}
+
+function abrirEliminarBulk() {
+  Object.assign(modalEliminarBulk, { abierto: true, cargando: false, error: '' });
+}
+async function confirmarEliminarBulk() {
+  modalEliminarBulk.cargando = true; modalEliminarBulk.error = '';
+  try {
+    const r = await api.post('/users/bulk-delete', { ids: seleccionados.value });
+    toast.success('Usuarios eliminados', `${r.eliminados} usuario(s) eliminado(s)`);
+    modalEliminarBulk.abierto = false;
+    seleccionados.value = [];
+    cargar();
+  } catch (e) {
+    modalEliminarBulk.error = e.message;
+    toast.error('No se pudieron eliminar', e.message);
+  } finally {
+    modalEliminarBulk.cargando = false;
+  }
+}
 
 async function cargar() {
   const qs = new URLSearchParams(Object.entries(filtros).filter(([, v]) => v)).toString();
   const r = await api.get(`/users${qs ? '?' + qs : ''}`);
   usuarios.value = r.data;
+  seleccionados.value = seleccionados.value.filter((id) => usuarios.value.some((u) => u.id === id));
 }
 watch(filtros, cargar, { deep: true });
 onMounted(cargar);

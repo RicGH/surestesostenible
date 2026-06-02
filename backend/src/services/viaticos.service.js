@@ -173,7 +173,7 @@ async function getById(id, colaboradorId = null) {
   if (!solicitud) return null;
   const [gastos, pago, ajustes, bloqueadora] = await Promise.all([
     query(
-      'SELECT id, archivo, monto, rfc_emisor, nombre_emisor, fecha, concepto, created_at FROM viaticos_gastos WHERE solicitud_id = ? ORDER BY fecha DESC',
+      'SELECT id, archivo, xml_path, monto, rfc_emisor, nombre_emisor, fecha, concepto, created_at FROM viaticos_gastos WHERE solicitud_id = ? ORDER BY fecha DESC',
       [id]
     ),
     queryOne(
@@ -257,7 +257,7 @@ async function cerrarViaje(id, adminId) {
   console.log(`[cerrarViaje] viático ${sol.folio} (id=${id}) cerrado por admin ${adminId} (estado anterior: ${sol.estado})`);
 }
 
-async function agregarGasto(solicitudId, colaboradorId, data, archivo) {
+async function agregarGasto(solicitudId, colaboradorId, data, archivo, xmlPath = null) {
   return withTx(async (conn) => {
     const sql = colaboradorId
       ? "SELECT id, colaborador_id, estado, monto_total, monto_gastado, created_at FROM viaticos_solicitudes WHERE id = ? AND colaborador_id = ? FOR UPDATE"
@@ -300,9 +300,9 @@ async function agregarGasto(solicitudId, colaboradorId, data, archivo) {
 
     const [ins] = await conn.execute(
       `INSERT INTO viaticos_gastos
-       (solicitud_id, archivo, monto, rfc_emisor, nombre_emisor, fecha, concepto)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [solicitudId, archivo, monto, data.rfc_emisor || null, data.nombre_emisor || null, data.fecha, data.concepto || null]
+       (solicitud_id, archivo, xml_path, monto, rfc_emisor, nombre_emisor, fecha, concepto)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [solicitudId, archivo, xmlPath, monto, data.rfc_emisor || null, data.nombre_emisor || null, data.fecha, data.concepto || null]
     );
 
     await conn.execute(
