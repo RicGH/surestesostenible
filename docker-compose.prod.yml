@@ -36,10 +36,17 @@ services:
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
       PORT: 4000
       APP_BASE_URL: ${APP_BASE_URL}
+      DOCUSIGN_INTEGRATION_KEY: ${DOCUSIGN_INTEGRATION_KEY}
+      DOCUSIGN_USER_ID: ${DOCUSIGN_USER_ID}
+      DOCUSIGN_ACCOUNT_ID: ${DOCUSIGN_ACCOUNT_ID}
+      DOCUSIGN_BASE_URI: ${DOCUSIGN_BASE_URI}
+      DOCUSIGN_AUTH_SERVER: ${DOCUSIGN_AUTH_SERVER}
+      DOCUSIGN_PRIVATE_KEY_PATH: ${DOCUSIGN_PRIVATE_KEY_PATH}
     ports:
       - "127.0.0.1:4000:4000"
     volumes:
       - ./backend/uploads:/app/uploads
+      - ./backend/secrets:/app/secrets:ro
     depends_on:
       mysql:
         condition: service_healthy
