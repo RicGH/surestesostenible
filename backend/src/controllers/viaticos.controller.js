@@ -19,6 +19,7 @@ const solicitudSchema = z.object({
   proyecto: z.string().max(80).optional(),
   cuenta: z.string().max(80).optional(),
   partida: z.string().max(80).optional(),
+  objetivo_estrategico: z.string().max(160).optional(),
   colaborador_id: z.coerce.number().int().positive().optional(),
 });
 
@@ -55,13 +56,21 @@ async function crear(req, res) {
 }
 
 async function puedoCrear(req, res) {
+  const limite = service.LIMITE_VIATICOS_ABIERTOS;
   let colaboradorId;
   try { colaboradorId = await resolverColaboradorId(req, req.query); }
-  catch { return res.json({ puede: true, activa: null }); }
-  const activa = await service.getActivaDeColaborador(colaboradorId);
+  catch { return res.json({ puede: true, activa: null, abiertos: [], enUso: 0, limite }); }
+  const [activa, abiertos] = await Promise.all([
+    service.getActivaDeColaborador(colaboradorId),
+    service.getAbiertosDeColaborador(colaboradorId),
+  ]);
   res.json({
+    // Crear siempre se permite; al pasar de 3 en uso, los nuevos quedan en cola.
     puede: true,
     activa: activa || null,
+    abiertos,
+    enUso: abiertos.length,
+    limite,
   });
 }
 

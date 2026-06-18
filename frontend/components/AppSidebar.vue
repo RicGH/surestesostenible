@@ -153,6 +153,7 @@ const MENUS = {
     ]},
     { label: 'Administración', links: [
       { to: '/admin/usuarios', label: 'Usuarios', icon: 'users' },
+      { to: '/admin/catalogos', label: 'Catálogos', icon: 'book' },
       { to: '/admin/configuracion', label: 'Configuración', icon: 'send' },
       { to: '/reportes', label: 'Reportes', icon: 'chart' },
     ]},
@@ -170,6 +171,9 @@ const MENUS = {
       { to: '/proveedores/registro', label: 'Mi registro', icon: 'document' },
       { to: '/proveedores/facturas', label: 'Subir factura', icon: 'upload' },
       { to: '/proveedores/historial', label: 'Historial', icon: 'history' },
+    ]},
+    { label: 'Contratos', links: [
+      { to: '/proveedores/contratos', label: 'Mis contratos', icon: 'fileText' },
     ]},
   ],
   finanzas: [

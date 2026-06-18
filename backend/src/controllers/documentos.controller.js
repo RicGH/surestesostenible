@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const { z } = require('zod');
 const { HttpError } = require('../middleware/error');
 const service = require('../services/documentos.service');
+const proveedoresService = require('../services/proveedores.service');
 const docusign = require('../services/docusign.service');
 const pdfService = require('../services/pdf.service');
 const pdfEstampa = require('../services/pdf-estampa.service');
@@ -398,6 +399,95 @@ async function enviarADocusign(req, res) {
   }
 }
 
+async function urlFirma(req, res) {
+  const id = Number(req.params.id);
+  const firmanteId = Number(req.params.firmanteId);
+  const doc = await service.findById(id);
+  if (!doc) throw new HttpError(404, 'Documento no encontrado');
+  if (!doc.envelope_id) throw new HttpError(400, 'El documento aún no se ha enviado a firma');
+  if (!['enviado', 'parcial'].includes(doc.estado)) {
+    throw new HttpError(400, 'El documento no está en proceso de firma');
+  }
+  const firmantes = await service.obtenerFirmantes(id);
+  const firmante = firmantes.find((f) => f.id === firmanteId);
+  if (!firmante) throw new HttpError(404, 'Firmante no encontrado');
+  if (firmante.estado === 'firmado') throw new HttpError(400, 'Este firmante ya firmó');
+  const base = process.env.APP_BASE_URL || 'http://localhost:3000';
+  const returnUrl = `${base}/admin/documentos?firma=ok`;
+  try {
+    const url = await docusign.obtenerUrlFirma({
+      envelopeId: doc.envelope_id,
+      firmante,
+      returnUrl,
+    });
+    res.json({ url });
+  } catch (err) {
+    const body = (err.response && (err.response.data || err.response.body)) || {};
+    if (body.errorCode === 'UNKNOWN_ENVELOPE_RECIPIENT') {
+      throw new HttpError(
+        409,
+        'Este documento se envió antes de activar la firma en sitio, por lo que no admite firma embebida. Crea y envía un documento nuevo para usar "Firmar en sitio".'
+      );
+    }
+    if (body.errorCode === 'RECIPIENT_NOT_IN_SEQUENCE') {
+      throw new HttpError(409, 'Aún no es el turno de este firmante (debe firmar primero el anterior en el orden).');
+    }
+    throw err;
+  }
+}
+
+async function misContratos(req, res) {
+  const data = await service.listarContratosDeProveedor(req.user.sub);
+  res.json({ data });
+}
+
+async function descargarContratoProveedor(req, res) {
+  const id = Number(req.params.id);
+  const doc = await service.findById(id);
+  if (!doc) throw new HttpError(404, 'Contrato no encontrado');
+  const prov = await proveedoresService.getByUserId(req.user.sub);
+  if (!prov || doc.proveedor_id !== prov.id) {
+    throw new HttpError(403, 'Este contrato no está asignado a tu cuenta');
+  }
+  const usarFirmado = req.query.firmado === '1' && doc.archivo_firmado_path;
+  const relPath = usarFirmado ? doc.archivo_firmado_path : doc.archivo_path;
+  const abs = path.resolve(__dirname, '..', '..', relPath);
+  if (!fs.existsSync(abs)) throw new HttpError(404, 'Archivo no disponible');
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `inline; filename="${doc.nombre}.pdf"`);
+  fs.createReadStream(abs).pipe(res);
+}
+
+async function firmarComoProveedor(req, res) {
+  const id = Number(req.params.id);
+  const doc = await service.findById(id);
+  if (!doc) throw new HttpError(404, 'Contrato no encontrado');
+  const prov = await proveedoresService.getByUserId(req.user.sub);
+  if (!prov || doc.proveedor_id !== prov.id) {
+    throw new HttpError(403, 'Este contrato no está asignado a tu cuenta');
+  }
+  if (!doc.envelope_id) throw new HttpError(400, 'El contrato aún no se ha enviado a firma');
+  if (!['enviado', 'parcial'].includes(doc.estado)) {
+    throw new HttpError(400, 'El contrato no está en proceso de firma');
+  }
+  const firmantes = await service.obtenerFirmantes(id);
+  const firmante = firmantes.find((f) => f.tipo === 'proveedor' && f.referencia_id === prov.id);
+  if (!firmante) throw new HttpError(404, 'No estás registrado como firmante de este contrato');
+  if (firmante.estado === 'firmado') throw new HttpError(400, 'Ya firmaste este contrato');
+  const base = process.env.APP_BASE_URL || 'http://localhost:3000';
+  const returnUrl = `${base}/proveedores/contratos?firma=ok`;
+  try {
+    const url = await docusign.obtenerUrlFirma({ envelopeId: doc.envelope_id, firmante, returnUrl });
+    res.json({ url });
+  } catch (err) {
+    const body = (err.response && (err.response.data || err.response.body)) || {};
+    if (body.errorCode === 'RECIPIENT_NOT_IN_SEQUENCE') {
+      throw new HttpError(409, 'Aún no es tu turno de firmar (debe firmar primero quien va antes en el orden).');
+    }
+    throw err;
+  }
+}
+
 async function cancelar(req, res) {
   const id = Number(req.params.id);
   const doc = await service.findById(id);
@@ -419,9 +509,16 @@ async function refrescarEstado(req, res) {
   const doc = await service.findById(id);
   if (!doc) throw new HttpError(404, 'Documento no encontrado');
   if (!doc.envelope_id) throw new HttpError(400, 'El documento aún no se envía');
-  const { status, completedDateTime } = await docusign.obtenerEstado(doc.envelope_id);
+  const { status, completedDateTime, recipients } = await docusign.obtenerEstado(doc.envelope_id);
   const estadoLocal = docusign.mapearEstadoDocusign(status);
   await service.actualizarEstado(id, estadoLocal, estadoLocal === 'firmado' ? completedDateTime : null);
+  for (const r of recipients || []) {
+    if (r.status === 'completed') {
+      await service.marcarFirmantePorEmail(id, r.email, 'firmado', r.signedDateTime);
+    } else if (r.status === 'declined') {
+      await service.marcarFirmantePorEmail(id, r.email, 'declinado', null);
+    }
+  }
   if (estadoLocal === 'firmado' && !doc.archivo_firmado_path) {
     await descargarYGuardarFirmado(doc);
   }
@@ -489,6 +586,10 @@ module.exports = {
   guardarFirmantes,
   guardarTags,
   enviarADocusign,
+  urlFirma,
+  misContratos,
+  descargarContratoProveedor,
+  firmarComoProveedor,
   cancelar,
   refrescarEstado,
   webhookDocusign,

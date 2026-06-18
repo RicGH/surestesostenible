@@ -115,11 +115,21 @@ async function generarContrato({ plantilla, proveedor, valoresExtra, creadoPor }
 
   const nombre = `Contrato - ${proveedor.razon_social}`;
   const result = await query(
-    `INSERT INTO documentos (nombre, tipo, archivo_path, creado_por) VALUES (?, 'contrato', ?, ?)`,
-    [nombre, relPath, creadoPor]
+    `INSERT INTO documentos (nombre, tipo, archivo_path, creado_por, proveedor_id) VALUES (?, 'contrato', ?, ?, ?)`,
+    [nombre, relPath, creadoPor, proveedor.id]
   );
+  const documentoId = result.insertId;
 
-  return { documentoId: result.insertId, nombre };
+  // Pre-asignar al proveedor como firmante del contrato (queda listo para colocar su tag).
+  if (proveedor.email) {
+    await query(
+      `INSERT INTO documento_firmantes (documento_id, tipo, referencia_id, nombre, email, orden, color)
+       VALUES (?, 'proveedor', ?, ?, ?, 1, '#2563eb')`,
+      [documentoId, proveedor.id, proveedor.razon_social || proveedor.nombre || proveedor.email, proveedor.email]
+    );
+  }
+
+  return { documentoId, nombre };
 }
 
 module.exports = { generarContrato };

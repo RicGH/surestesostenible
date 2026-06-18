@@ -9,6 +9,9 @@
           <h2 class="text-base font-semibold text-ink-900">{{ doc.nombre }}</h2>
           <div class="flex items-center gap-2 text-xs text-ink-500">
             <EstadoBadge :estado="doc.estado" />
+            <span v-if="doc.proveedor_nombre" class="inline-flex items-center gap-1 text-ink-600">
+              <Icon name="building" size="w-3.5 h-3.5 text-ink-400" /> {{ doc.proveedor_nombre }}
+            </span>
             <span v-if="doc.envelope_id">Envelope: {{ doc.envelope_id }}</span>
           </div>
         </div>
@@ -390,8 +393,11 @@ function asignarKey(o) { o._key = keyCounter++; return o; }
 
 function setCanvasRef(p, el) {
   if (el) {
+    // Un canvas recién montado siempre está en blanco: hay que (re)dibujarlo aunque
+    // ya se hubiera renderizado antes en el canvas anterior (p.ej. al pasar a "Enviado").
+    const esNuevo = canvasMap[p] !== el;
     canvasMap[p] = el;
-    if (pdfDoc && renderedScale[p] !== escala.value) renderizarPagina(p);
+    if (pdfDoc && (esNuevo || renderedScale[p] !== escala.value)) renderizarPagina(p);
   } else {
     delete canvasMap[p];
   }
@@ -634,7 +640,7 @@ async function cargarListadosFirmantes() {
     try { const r = await api.get('/users?activo=1'); usuarios.value = r.data; } catch (e) { console.warn(e); }
   }
   if (!proveedores.value.length) {
-    try { const r = await api.get('/proveedores/admin'); proveedores.value = r.data || []; } catch (e) { console.warn(e); }
+    try { const r = await api.get('/proveedores'); proveedores.value = r.data || []; } catch (e) { console.warn(e); }
   }
 }
 

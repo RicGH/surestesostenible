@@ -1,5 +1,9 @@
 const { query, queryOne, withTx } = require('../config/db');
 
+// Máximo de viáticos "abiertos" (en uso: pagado/en_proceso) que un colaborador
+// puede tener activos a la vez para registrar gastos. Los demás quedan en cola.
+const LIMITE_VIATICOS_ABIERTOS = 3;
+
 function generarFolio() {
   const ts = Date.now().toString(36).toUpperCase();
   const rnd = Math.random().toString(36).slice(2, 6).toUpperCase();
@@ -34,6 +38,17 @@ async function getActivaDeColaborador(colaboradorId) {
   );
 }
 
+// Viáticos "abiertos" en uso (pagado/en_proceso) del colaborador, los que cuentan al límite.
+async function getAbiertosDeColaborador(colaboradorId) {
+  return query(
+    `SELECT id, folio, destino, estado, created_at
+     FROM viaticos_solicitudes
+     WHERE colaborador_id = ? AND estado IN ('pagado','en_proceso')
+     ORDER BY created_at ASC`,
+    [colaboradorId]
+  );
+}
+
 async function crearSolicitud(colaboradorId, data, justificante = null) {
   const folio = generarFolio();
   const monto_total = sumarMontos(data);
@@ -41,14 +56,15 @@ async function crearSolicitud(colaboradorId, data, justificante = null) {
     `INSERT INTO viaticos_solicitudes
      (folio, colaborador_id, destino, fecha_inicio, fecha_fin, motivo,
       monto_vuelos, monto_hospedaje, monto_alimentos, monto_transporte, monto_otros,
-      monto_total, proyecto, cuenta, partida, justificante_path, estado)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendiente')`,
+      monto_total, proyecto, cuenta, partida, objetivo_estrategico, justificante_path, estado)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendiente')`,
     [
       folio, colaboradorId, data.destino, data.fecha_inicio, data.fecha_fin, data.motivo,
       data.monto_vuelos || 0, data.monto_hospedaje || 0, data.monto_alimentos || 0,
       data.monto_transporte || 0, data.monto_otros || 0,
       monto_total,
-      data.proyecto || null, data.cuenta || null, data.partida || null, justificante || null,
+      data.proyecto || null, data.cuenta || null, data.partida || null,
+      data.objetivo_estrategico || null, justificante || null,
     ]
   );
   return { id: result.insertId, folio };
@@ -146,18 +162,21 @@ async function listarTodosAdmin(filtros = {}) {
   );
 }
 
+// Un viático queda EN COLA si el colaborador ya tiene LIMITE viáticos abiertos
+// (pagado/en_proceso) creados antes que éste. Devuelve la info de bloqueo o null.
 async function getBloqueadoraDeUso(solicitudId, colaboradorId) {
-  return queryOne(
+  const adelante = await query(
     `SELECT id, folio, estado, created_at
      FROM viaticos_solicitudes
      WHERE colaborador_id = ?
        AND id <> ?
        AND estado IN ('pagado','en_proceso')
        AND created_at < (SELECT created_at FROM viaticos_solicitudes WHERE id = ?)
-     ORDER BY created_at ASC
-     LIMIT 1`,
+     ORDER BY created_at ASC`,
     [colaboradorId, solicitudId, solicitudId]
   );
+  if (adelante.length < LIMITE_VIATICOS_ABIERTOS) return null;
+  return { limite: LIMITE_VIATICOS_ABIERTOS, abiertos: adelante };
 }
 
 async function getById(id, colaboradorId = null) {
@@ -217,7 +236,7 @@ async function editarSolicitud(id, colaboradorId, data) {
      SET destino = ?, fecha_inicio = ?, fecha_fin = ?, motivo = ?,
          monto_vuelos = ?, monto_hospedaje = ?, monto_alimentos = ?,
          monto_transporte = ?, monto_otros = ?, monto_total = ?,
-         proyecto = ?, cuenta = ?, partida = ?,
+         proyecto = ?, cuenta = ?, partida = ?, objetivo_estrategico = ?,
          estado = 'pendiente', motivo_rechazo = NULL, permite_edicion = 0
      WHERE id = ? AND colaborador_id = ? AND permite_edicion = 1 AND estado = 'rechazado'`,
     [
@@ -225,6 +244,7 @@ async function editarSolicitud(id, colaboradorId, data) {
       data.monto_vuelos || 0, data.monto_hospedaje || 0, data.monto_alimentos || 0,
       data.monto_transporte || 0, data.monto_otros || 0, monto_total,
       data.proyecto || null, data.cuenta || null, data.partida || null,
+      data.objetivo_estrategico || null,
       id, colaboradorId,
     ]
   );
@@ -270,19 +290,17 @@ async function agregarGasto(solicitudId, colaboradorId, data, archivo, xmlPath =
       throw new Error('Solo puedes subir comprobantes a un viático ya pagado');
     }
 
-    const [bloqRows] = await conn.execute(
-      `SELECT id, folio, estado FROM viaticos_solicitudes
+    const [adelanteRows] = await conn.execute(
+      `SELECT COUNT(*) AS adelante FROM viaticos_solicitudes
        WHERE colaborador_id = ?
          AND id <> ?
          AND estado IN ('pagado','en_proceso')
-         AND created_at < ?
-       ORDER BY created_at ASC LIMIT 1`,
+         AND created_at < ?`,
       [sol.colaborador_id, solicitudId, sol.created_at]
     );
-    if (bloqRows.length) {
-      const b = bloqRows[0];
+    if (Number(adelanteRows[0].adelante) >= LIMITE_VIATICOS_ABIERTOS) {
       const e = new Error(
-        `No puedes registrar gastos en este viático aún. Tienes uno anterior abierto (${b.folio} · ${b.estado}). Ciérralo primero para liberar este.`
+        `No puedes registrar gastos en este viático aún: ya tienes ${LIMITE_VIATICOS_ABIERTOS} viáticos abiertos en uso. Cierra alguno para activar este.`
       );
       e.code = 'BLOQUEADO_POR_USO';
       throw e;
@@ -344,5 +362,6 @@ module.exports = {
   listarActivosAdmin, listarCerradosAdmin, listarRechazadosAdmin, listarTodosAdmin,
   getById,
   aprobar, rechazar, editarSolicitud, cerrarViaje, agregarGasto, duplicar,
-  getActivaDeColaborador, getBloqueadoraDeUso,
+  getActivaDeColaborador, getAbiertosDeColaborador, getBloqueadoraDeUso,
+  LIMITE_VIATICOS_ABIERTOS,
 };

@@ -180,6 +180,7 @@
         <div><dt class="text-xs text-ink-500 uppercase">Proyecto</dt><dd class="mt-1 text-ink-800">{{ sol.proyecto || '—' }}</dd></div>
         <div><dt class="text-xs text-ink-500 uppercase">Cuenta</dt><dd class="mt-1 text-ink-800">{{ sol.cuenta || '—' }}</dd></div>
         <div><dt class="text-xs text-ink-500 uppercase">Partida</dt><dd class="mt-1 text-ink-800">{{ sol.partida || '—' }}</dd></div>
+        <div><dt class="text-xs text-ink-500 uppercase">Objetivo estratégico</dt><dd class="mt-1 text-ink-800">{{ sol.objetivo_estrategico || '—' }}</dd></div>
       </dl>
       <div class="pt-2 border-t border-ink-100">
         <dt class="text-xs text-ink-500 uppercase tracking-wide">Justificante de salida</dt>
@@ -317,9 +318,16 @@
         <div v-if="bloqueadaPorUso" class="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800 mb-4 flex items-start gap-2">
           <Icon name="alert" size="w-4 h-4" class="text-amber-600 mt-0.5 shrink-0" />
           <div class="flex-1">
-            Este viático está en cola. Tienes uno anterior abierto:
-            <NuxtLink :to="`/viaticos/${bloqueadaPorUso.id}`" class="font-semibold underline">{{ bloqueadaPorUso.folio }}</NuxtLink>
-            ({{ bloqueadaPorUso.estado }}). Ciérralo primero para registrar gastos aquí.
+            Este viático está en cola: ya tienes {{ bloqueadaPorUso.limite }} viáticos abiertos en uso.
+            Cierra alguno para registrar gastos aquí.
+            <span class="block mt-1">
+              <NuxtLink
+                v-for="v in bloqueadaPorUso.abiertos"
+                :key="v.id"
+                :to="`/viaticos/${v.id}`"
+                class="font-semibold underline mr-3"
+              >{{ v.folio }}</NuxtLink>
+            </span>
           </div>
         </div>
 
@@ -570,7 +578,7 @@ const edicion = reactive({
   abierto: false, guardando: false, error: '',
   form: { destino: '', fecha_inicio: '', fecha_fin: '', motivo: '',
     monto_vuelos: 0, monto_hospedaje: 0, monto_alimentos: 0, monto_transporte: 0, monto_otros: 0,
-    proyecto: '', cuenta: '', partida: '' },
+    proyecto: '', cuenta: '', partida: '', objetivo_estrategico: '' },
 });
 
 const ajuste = reactive({
@@ -782,6 +790,7 @@ function abrirEdicion() {
     proyecto: sol.value.proyecto || '',
     cuenta: sol.value.cuenta || '',
     partida: sol.value.partida || '',
+    objetivo_estrategico: sol.value.objetivo_estrategico || '',
   });
   edicion.error = '';
   edicion.abierto = true;

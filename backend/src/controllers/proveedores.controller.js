@@ -93,7 +93,17 @@ async function descargarDocumentacion(req, res) {
 }
 
 async function aprobar(req, res) {
-  await service.aprobar(Number(req.params.id), req.user.sub);
+  try {
+    await service.aprobar(Number(req.params.id), req.user.sub);
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY' || err.code === 'EMAIL_TAKEN') {
+      throw new HttpError(409, 'El correo del proveedor ya está en uso por otro usuario. Edítalo antes de aprobar.');
+    }
+    if (err.code === 'PENDING_DATA_MISSING') {
+      throw new HttpError(400, 'Faltan los datos del usuario (correo/contraseña) para crear el acceso del proveedor.');
+    }
+    throw err;
+  }
   const prov = await service.getById(Number(req.params.id));
   if (prov) {
     await notif.crear(prov.user_id, {
@@ -136,20 +146,34 @@ const crearAdminSchema = z.object({
 
 async function crearComoAdmin(req, res) {
   const body = crearAdminSchema.parse(req.body);
-  const existente = await usersService.findByEmail(body.email);
-  if (existente) throw new HttpError(409, 'Ya existe un usuario con ese correo.');
-  const password_hash = await bcrypt.hash(body.password, 10);
-  const userId = await usersService.create({
-    email: body.email,
-    password_hash,
-    nombre: body.nombre,
-    rol: 'proveedor',
-  });
-  const id = await service.crear(userId, body, null);
-  if (body.aprobar) {
-    await service.aprobar(id, req.user.sub);
+  if (await service.emailEnUso(body.email)) {
+    throw new HttpError(409, 'Ya existe un usuario o registro pendiente con ese correo.');
   }
-  res.status(201).json({ id, user_id: userId });
+  const password_hash = await bcrypt.hash(body.password, 10);
+  try {
+    // Se crea SOLO el registro de proveedor (pendiente). El usuario de login se crea al aprobar.
+    const proveedorId = await service.crearComoAdminPendiente({
+      email: body.email,
+      password_hash,
+      nombre: body.nombre,
+      data: body,
+    });
+    if (body.aprobar) {
+      await service.aprobar(proveedorId, req.user.sub);
+    }
+    res.status(201).json({ id: proveedorId });
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') {
+      if (String(err.sqlMessage || '').includes('rfc')) {
+        throw new HttpError(409, 'Ya existe un proveedor con ese RFC.');
+      }
+      throw new HttpError(409, 'Ya existe un usuario con ese correo.');
+    }
+    if (err.code === 'EMAIL_TAKEN') {
+      throw new HttpError(409, 'El correo del proveedor ya está en uso por otro usuario.');
+    }
+    throw err;
+  }
 }
 
 module.exports = { miRegistro, registrar, listarPendientes, listarTodos, detalle, actualizar, descargarDocumentacion, aprobar, rechazar, crearComoAdmin };

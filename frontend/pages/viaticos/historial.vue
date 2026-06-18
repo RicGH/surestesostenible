@@ -7,17 +7,19 @@
       </button>
     </div>
 
-    <div v-if="check.activa && check.cargado" class="card-pad border-amber-200 bg-amber-50/40">
+    <div v-if="check.cargado && check.enUso > 0" class="card-pad border-amber-200 bg-amber-50/40">
       <div class="flex items-start gap-3">
         <div class="w-9 h-9 rounded-lg bg-amber-100 text-amber-700 grid place-items-center shrink-0">
           <Icon name="alert" />
         </div>
         <div class="flex-1">
-          <h3 class="font-semibold text-amber-800">Tienes un viático abierto</h3>
+          <h3 class="font-semibold text-amber-800">
+            {{ check.lleno ? `Llegaste al máximo de ${check.limite} viáticos abiertos` : `Tienes ${check.enUso} de ${check.limite} viáticos abiertos en uso` }}
+          </h3>
           <p class="text-sm text-ink-700 mt-0.5">{{ check.motivo }}</p>
-          <NuxtLink :to="`/viaticos/${check.activa.id}`" class="text-sm text-brand-600 hover:text-brand-700 font-medium mt-2 inline-flex items-center gap-1">
-            <Icon name="eye" size="w-4 h-4" /> Ver solicitud activa
-          </NuxtLink>
+          <button type="button" class="text-sm text-brand-600 hover:text-brand-700 font-medium mt-2 inline-flex items-center gap-1" @click="filtros.soloActiva = true">
+            <Icon name="eye" size="w-4 h-4" /> Ver mis viáticos activos
+          </button>
         </div>
       </div>
     </div>
@@ -40,10 +42,9 @@
         <DateInput v-model="filtros.hasta" placeholder="Hasta" :min-date="filtros.desde || null" />
       </div>
       <label class="flex items-center gap-2 text-sm text-ink-700 cursor-pointer w-fit">
-        <input v-model="filtros.soloActiva" type="checkbox" class="w-4 h-4 rounded border-ink-300 text-brand-600 focus:ring-brand-500" :disabled="!check.activa" />
-        <span>Solo viático activo</span>
-        <span v-if="check.activa" class="text-xs text-ink-500">({{ check.activa.folio }})</span>
-        <span v-else class="text-xs text-ink-400">(sin activo)</span>
+        <input v-model="filtros.soloActiva" type="checkbox" class="w-4 h-4 rounded border-ink-300 text-brand-600 focus:ring-brand-500" />
+        <span>Solo viáticos activos</span>
+        <span class="text-xs text-ink-400">(con factura cargada · en proceso)</span>
       </label>
     </div>
 
@@ -106,12 +107,13 @@ onMounted(() => {
   check.refrescar();
 });
 
+// Un viático está "activo" cuando ya tiene factura(s) cargada(s), es decir en_proceso.
 function esActiva(s) {
-  return check.activa && s.id === check.activa.id;
+  return s.estado === 'en_proceso';
 }
 
 const solicitudesFiltradas = computed(() => {
-  if (!filtros.soloActiva || !check.activa) return solicitudes.value;
+  if (!filtros.soloActiva) return solicitudes.value;
   return solicitudes.value.filter(esActiva);
 });
 

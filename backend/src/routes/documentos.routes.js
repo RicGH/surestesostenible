@@ -6,6 +6,11 @@ const asyncHandler = require('../utils/asyncHandler');
 
 router.post('/webhook/docusign', asyncHandler(ctrl.webhookDocusign));
 
+// Rutas para el rol proveedor (sus propios contratos). Deben ir antes del requireRole('admin').
+router.get('/mis-contratos', verifyToken, requireRole('proveedor'), asyncHandler(ctrl.misContratos));
+router.get('/mis-contratos/:id/archivo', verifyToken, requireRole('proveedor'), asyncHandler(ctrl.descargarContratoProveedor));
+router.post('/mis-contratos/:id/firmar', verifyToken, requireRole('proveedor'), asyncHandler(ctrl.firmarComoProveedor));
+
 router.use(verifyToken, requireRole('admin'));
 
 router.get('/', asyncHandler(ctrl.listar));
@@ -23,6 +28,7 @@ router.put('/:id/tags', asyncHandler(ctrl.guardarTags));
 router.put('/:id/anotaciones', asyncHandler(ctrl.guardarAnotaciones));
 router.put('/:id/campos', asyncHandler(ctrl.guardarCamposImportado));
 router.post('/:id/enviar', asyncHandler(ctrl.enviarADocusign));
+router.post('/:id/firmantes/:firmanteId/url-firma', asyncHandler(ctrl.urlFirma));
 router.post('/:id/cancelar', asyncHandler(ctrl.cancelar));
 router.post('/:id/refrescar', asyncHandler(ctrl.refrescarEstado));
 

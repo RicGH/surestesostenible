@@ -55,7 +55,7 @@ async function obtenerAccessToken() {
       3600
     );
   } catch (err) {
-    const body = err.response && err.response.body;
+    const body = (err.response && (err.response.data || err.response.body)) || null;
     if (body && body.error === 'consent_required') {
       const consentUrl =
         `https://${cfg.authServer}/oauth/auth?response_type=code` +
@@ -118,7 +118,9 @@ function construirRecipients(firmantes, tagsPorFirmante) {
       name: f.nombre,
       recipientId: String(idx + 1),
       routingOrder: String(f.orden || idx + 1),
-      clientUserId: undefined,
+      // clientUserId activa la firma embebida (dentro del sistema, sin correo).
+      // Debe ser estable y coincidir con el usado al generar la URL de firma.
+      clientUserId: String(f.id),
       tabs: docusign.Tabs.constructFromObject({
         signHereTabs,
         initialHereTabs,
@@ -159,11 +161,38 @@ async function crearYEnviarEnvelope({ documento, firmantes, tagsPorFirmante }) {
   return { envelopeId: result.envelopeId, status: result.status };
 }
 
+async function obtenerUrlFirma({ envelopeId, firmante, returnUrl }) {
+  const { apiClient, accountId } = await obtenerApiClient();
+  const envelopesApi = new docusign.EnvelopesApi(apiClient);
+  const viewRequest = docusign.RecipientViewRequest.constructFromObject({
+    returnUrl,
+    authenticationMethod: 'none',
+    email: firmante.email,
+    userName: firmante.nombre,
+    clientUserId: String(firmante.id),
+  });
+  const result = await envelopesApi.createRecipientView(accountId, envelopeId, {
+    recipientViewRequest: viewRequest,
+  });
+  return result.url;
+}
+
 async function obtenerEstado(envelopeId) {
   const { apiClient, accountId } = await obtenerApiClient();
   const envelopesApi = new docusign.EnvelopesApi(apiClient);
   const envelope = await envelopesApi.getEnvelope(accountId, envelopeId);
-  return { status: envelope.status, completedDateTime: envelope.completedDateTime };
+  let recipients = [];
+  try {
+    const r = await envelopesApi.listRecipients(accountId, envelopeId);
+    recipients = (r.signers || []).map((s) => ({
+      email: s.email,
+      status: s.status,
+      signedDateTime: s.signedDateTime || null,
+    }));
+  } catch (_) {
+    /* si falla, seguimos solo con el estado del sobre */
+  }
+  return { status: envelope.status, completedDateTime: envelope.completedDateTime, recipients };
 }
 
 async function descargarPdfFirmado(envelopeId) {
@@ -203,6 +232,7 @@ function reset() {
 module.exports = {
   obtenerAccessToken,
   crearYEnviarEnvelope,
+  obtenerUrlFirma,
   obtenerEstado,
   descargarPdfFirmado,
   cancelarEnvelope,

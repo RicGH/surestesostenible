@@ -3,17 +3,32 @@
 
   <div v-else class="grid grid-cols-1 lg:grid-cols-3 gap-6">
     <form class="lg:col-span-2 space-y-6" @submit.prevent="enviar">
-      <div v-if="check.activa && !esAdmin" class="card-pad bg-amber-50/50 border-amber-200">
+      <div
+        v-if="!esAdmin && check.enUso > 0"
+        :class="['card-pad', check.lleno ? 'bg-amber-50/50 border-amber-200' : 'bg-brand-50/50 border-brand-200']"
+      >
         <div class="flex items-start gap-3">
-          <div class="w-10 h-10 rounded-lg bg-amber-100 text-amber-700 grid place-items-center shrink-0">
+          <div
+            :class="['w-10 h-10 rounded-lg grid place-items-center shrink-0',
+                     check.lleno ? 'bg-amber-100 text-amber-700' : 'bg-brand-100 text-brand-700']"
+          >
             <Icon name="alert" />
           </div>
           <div class="flex-1">
-            <p class="font-semibold text-amber-800 text-sm">Ya tienes un viático abierto</p>
+            <p :class="['font-semibold text-sm', check.lleno ? 'text-amber-800' : 'text-brand-800']">
+              {{ check.lleno ? `Llegaste al máximo de ${check.limite} viáticos abiertos` : `Viáticos abiertos: ${check.enUso} de ${check.limite}` }}
+            </p>
             <p class="text-xs text-ink-700 mt-1">{{ check.motivo }}</p>
-            <NuxtLink :to="`/viaticos/${check.activa.id}`" class="text-xs text-brand-600 hover:text-brand-700 font-medium mt-2 inline-flex items-center gap-1">
-              <Icon name="eye" size="w-3 h-3" /> Ver solicitud activa
-            </NuxtLink>
+            <div class="flex flex-wrap gap-x-3 gap-y-1 mt-2">
+              <NuxtLink
+                v-for="v in check.abiertos"
+                :key="v.id"
+                :to="`/viaticos/${v.id}`"
+                class="text-xs text-brand-600 hover:text-brand-700 font-medium inline-flex items-center gap-1"
+              >
+                <Icon name="eye" size="w-3 h-3" /> {{ v.folio }}
+              </NuxtLink>
+            </div>
           </div>
         </div>
       </div>
@@ -103,11 +118,11 @@
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <CategoriaInput v-model="form.monto_vuelos"     icon="plane"     label="Vuelos / transporte aéreo" />
-          <CategoriaInput v-model="form.monto_hospedaje"  icon="building"  label="Hospedaje" />
-          <CategoriaInput v-model="form.monto_alimentos"  icon="receipt"   label="Alimentos" />
-          <CategoriaInput v-model="form.monto_transporte" icon="briefcase" label="Transporte local" />
-          <CategoriaInput v-model="form.monto_otros"      icon="document"  label="Otros gastos" class="md:col-span-2" />
+          <CategoriaInput v-model="form.monto_vuelos"     icon="plane"     label="Vuelos / transporte aéreo" hint="Boletos de avión y cargos relacionados con vuelos (equipaje, cambios)." />
+          <CategoriaInput v-model="form.monto_hospedaje"  icon="building"  label="Hospedaje" hint="Hotel u otro alojamiento durante el viaje, incluyendo impuestos." />
+          <CategoriaInput v-model="form.monto_alimentos"  icon="receipt"   label="Alimentos" hint="Comidas y bebidas durante el viaje (desayuno, comida, cena)." />
+          <CategoriaInput v-model="form.monto_transporte" icon="briefcase" label="Transporte local" hint="Transporte terrestre en el destino: taxis, autobús, gasolina, casetas, estacionamiento." />
+          <CategoriaInput v-model="form.monto_otros"      icon="document"  label="Otros gastos" class="md:col-span-2" hint="Gastos necesarios no contemplados en las demás categorías." />
         </div>
 
         <div class="flex items-center justify-between pt-3 border-t border-ink-100">
@@ -125,20 +140,43 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label class="block text-sm font-medium text-ink-700 mb-1.5">Proyecto</label>
-            <input v-model="form.proyecto" class="input" />
+            <select v-model="form.proyecto" class="input">
+              <option value="">— Selecciona —</option>
+              <option v-if="form.proyecto && !catalogos.proyecto.includes(form.proyecto)" :value="form.proyecto">{{ form.proyecto }}</option>
+              <option v-for="o in catalogos.proyecto" :key="o" :value="o">{{ o }}</option>
+            </select>
           </div>
           <div>
             <label class="block text-sm font-medium text-ink-700 mb-1.5">Cuenta</label>
-            <input v-model="form.cuenta" class="input" />
+            <select v-model="form.cuenta" class="input">
+              <option value="">— Selecciona —</option>
+              <option v-if="form.cuenta && !catalogos.cuenta.includes(form.cuenta)" :value="form.cuenta">{{ form.cuenta }}</option>
+              <option v-for="o in catalogos.cuenta" :key="o" :value="o">{{ o }}</option>
+            </select>
           </div>
           <div>
             <label class="block text-sm font-medium text-ink-700 mb-1.5">Partida</label>
-            <input v-model="form.partida" class="input" />
+            <select v-model="form.partida" class="input">
+              <option value="">— Selecciona —</option>
+              <option v-if="form.partida && !catalogos.partida.includes(form.partida)" :value="form.partida">{{ form.partida }}</option>
+              <option v-for="o in catalogos.partida" :key="o" :value="o">{{ o }}</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-ink-700 mb-1.5">Objetivo estratégico</label>
+            <select v-model="form.objetivo_estrategico" class="input">
+              <option value="">— Selecciona —</option>
+              <option v-if="form.objetivo_estrategico && !catalogos.objetivo_estrategico.includes(form.objetivo_estrategico)" :value="form.objetivo_estrategico">{{ form.objetivo_estrategico }}</option>
+              <option v-for="o in catalogos.objetivo_estrategico" :key="o" :value="o">{{ o }}</option>
+            </select>
           </div>
         </div>
+        <p v-if="sinCatalogos" class="text-xs text-ink-400">
+          Los valores se administran en <NuxtLink to="/admin/catalogos" class="text-brand-600 hover:underline">Catálogos</NuxtLink>.
+        </p>
       </section>
 
       <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
@@ -203,6 +241,20 @@ const check = usePuedoCrearViatico();
 const esAdmin = computed(() => auth.rol === 'admin');
 const colaboradores = ref([]);
 const colaboradorSeleccionado = ref('');
+const catalogos = reactive({ proyecto: [], cuenta: [], partida: [], objetivo_estrategico: [] });
+const sinCatalogos = computed(() =>
+  !catalogos.proyecto.length && !catalogos.cuenta.length && !catalogos.partida.length && !catalogos.objetivo_estrategico.length
+);
+
+async function cargarCatalogos() {
+  const tipos = ['proyecto', 'cuenta', 'partida', 'objetivo_estrategico'];
+  await Promise.all(tipos.map(async (t) => {
+    try {
+      const r = await api.get(`/catalogos?tipo=${t}`);
+      catalogos[t] = (r.data || []).map((c) => c.nombre);
+    } catch { catalogos[t] = []; }
+  }));
+}
 
 const form = reactive({
   destino: '', fecha_inicio: '', fecha_fin: '', motivo: '',
@@ -218,7 +270,7 @@ const justificante = ref(null);
 const VACIO = {
   destino: '', fecha_inicio: '', fecha_fin: '', motivo: '',
   monto_vuelos: 0, monto_hospedaje: 0, monto_alimentos: 0, monto_transporte: 0, monto_otros: 0,
-  proyecto: '', cuenta: '', partida: '',
+  proyecto: '', cuenta: '', partida: '', objetivo_estrategico: '',
 };
 
 async function cargarDesde(id) {
@@ -238,6 +290,7 @@ async function cargarDesde(id) {
       proyecto: sol.proyecto || '',
       cuenta: sol.cuenta || '',
       partida: sol.partida || '',
+      objetivo_estrategico: sol.objetivo_estrategico || '',
     });
   } catch (e) {
     error.value = `No se pudo cargar la solicitud original: ${e.message}`;
@@ -251,13 +304,14 @@ function limpiarDuplicado() {
 }
 
 onMounted(async () => {
+  cargarCatalogos();
+  // refrescar() marca check.cargado (para no-colaborador lo hace sin llamar a la API).
+  await check.refrescar();
   if (esAdmin.value) {
     try {
       const r = await api.get('/users?rol=colaborador&activo=1');
       colaboradores.value = r.data || [];
     } catch {}
-  } else {
-    await check.refrescar();
   }
   if (route.query.desde) await cargarDesde(route.query.desde);
 });

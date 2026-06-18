@@ -32,11 +32,30 @@ async function listar(filtros = {}) {
   );
 }
 
+async function listarContratosDeProveedor(userId) {
+  return query(
+    `SELECT d.id, d.nombre, d.descripcion, d.estado, d.envelope_id,
+            d.archivo_firmado_path, d.enviado_at, d.completado_at, d.created_at,
+            (SELECT COUNT(*) FROM documento_firmantes f WHERE f.documento_id = d.id) AS total_firmantes,
+            (SELECT COUNT(*) FROM documento_firmantes f WHERE f.documento_id = d.id AND f.estado = 'firmado') AS total_firmados,
+            (SELECT f.estado FROM documento_firmantes f
+              WHERE f.documento_id = d.id AND f.tipo = 'proveedor' AND f.referencia_id = p.id LIMIT 1) AS mi_estado
+     FROM documentos d
+     JOIN proveedores p ON p.id = d.proveedor_id
+     WHERE p.user_id = ? AND d.estado <> 'borrador'
+     ORDER BY d.created_at DESC LIMIT 200`,
+    [userId]
+  );
+}
+
 async function findById(id) {
   return queryOne(
-    `SELECT d.*, u.nombre AS creado_por_nombre
+    `SELECT d.*, u.nombre AS creado_por_nombre,
+            p.razon_social AS proveedor_nombre, pu.email AS proveedor_email
      FROM documentos d
      LEFT JOIN users u ON u.id = d.creado_por
+     LEFT JOIN proveedores p ON p.id = d.proveedor_id
+     LEFT JOIN users pu ON pu.id = p.user_id
      WHERE d.id = ? LIMIT 1`,
     [id]
   );
@@ -287,9 +306,17 @@ async function marcarEnviado(id, envelopeId, estado = 'enviado') {
   );
 }
 
+function aMysqlDatetime(valor) {
+  if (!valor) return null;
+  const d = valor instanceof Date ? valor : new Date(valor);
+  if (isNaN(d.getTime())) return null;
+  return d.toISOString().slice(0, 19).replace('T', ' ');
+}
+
 async function actualizarEstado(id, estado, completadoAt = null) {
-  if (completadoAt) {
-    await query('UPDATE documentos SET estado = ?, completado_at = ? WHERE id = ?', [estado, completadoAt, id]);
+  const fecha = aMysqlDatetime(completadoAt);
+  if (fecha) {
+    await query('UPDATE documentos SET estado = ?, completado_at = ? WHERE id = ?', [estado, fecha, id]);
   } else {
     await query('UPDATE documentos SET estado = ? WHERE id = ?', [estado, id]);
   }
@@ -300,7 +327,7 @@ async function marcarFirmantePorEmail(documentoId, email, estado, firmadoAt = nu
     `UPDATE documento_firmantes
      SET estado = ?, firmado_at = ?
      WHERE documento_id = ? AND email = ?`,
-    [estado, firmadoAt, documentoId, email]
+    [estado, aMysqlDatetime(firmadoAt), documentoId, email]
   );
 }
 
@@ -320,6 +347,7 @@ async function guardarPdfFirmado(id, archivoFirmadoPath) {
 
 module.exports = {
   listar,
+  listarContratosDeProveedor,
   findById,
   detalleCompleto,
   obtenerFirmantes,

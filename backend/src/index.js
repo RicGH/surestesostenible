@@ -32,6 +32,7 @@ app.use('/api/settings', require('./routes/settings.routes'));
 app.use('/api/documentos', require('./routes/documentos.routes'));
 app.use('/api/plantillas', require('./routes/plantillas.routes'));
 app.use('/api/contratos', require('./routes/contratos.routes'));
+app.use('/api/catalogos', require('./routes/catalogos.routes'));
 
 app.use(notFound);
 app.use(errorHandler);
