@@ -22,6 +22,38 @@
       </component>
     </section>
 
+    <section v-if="activos.length">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-base font-semibold text-ink-900">Mis viáticos abiertos</h2>
+        <NuxtLink to="/viaticos/historial" class="text-sm text-brand-600 hover:text-brand-700 font-medium">Ver todos</NuxtLink>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <NuxtLink
+          v-for="v in activos"
+          :key="v.id"
+          :to="`/viaticos/${v.id}`"
+          class="card p-4 block hover:border-brand-300 hover:shadow-card transition-all"
+        >
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <p class="font-semibold text-ink-900 font-mono text-sm truncate">{{ v.folio }}</p>
+              <p class="text-xs text-ink-500 truncate mt-0.5">{{ v.destino || 'Sin destino' }}</p>
+            </div>
+            <EstadoBadge :estado="v.estado" />
+          </div>
+          <div class="mt-4">
+            <div class="h-2 rounded-full bg-ink-100 overflow-hidden">
+              <div class="h-full rounded-full transition-all" :class="barColor(v)" :style="{ width: pct(v) + '%' }"></div>
+            </div>
+            <div class="flex items-center justify-between mt-2 text-xs">
+              <span class="text-ink-500">${{ v.monto_gastado.toFixed(2) }} <span class="text-ink-400">/ ${{ v.monto_total.toFixed(2) }}</span></span>
+              <span class="font-medium text-emerald-600">${{ v.disponible.toFixed(2) }} disp.</span>
+            </div>
+          </div>
+        </NuxtLink>
+      </div>
+    </section>
+
     <section>
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-base font-semibold text-ink-900">Accesos rápidos</h2>
@@ -64,15 +96,28 @@
 const auth = useAuth();
 const api = useApi();
 const cards = ref([]);
+const activos = ref([]);
 const check = usePuedoCrearViatico();
 
 onMounted(async () => {
   try {
     const data = await api.get('/dashboard/resumen');
     cards.value = data.cards || [];
+    activos.value = data.activos || [];
   } catch (e) { console.error(e); }
   if (auth.rol === 'colaborador') check.refrescar();
 });
+
+function pct(v) {
+  if (!v.monto_total) return 0;
+  return Math.min(100, (v.monto_gastado / v.monto_total) * 100);
+}
+function barColor(v) {
+  const p = pct(v);
+  if (p >= 100) return 'bg-red-500';
+  if (p >= 80) return 'bg-amber-500';
+  return 'bg-brand-500';
+}
 
 function onModuloClick(e, m) {
   if (m.disabled) {
@@ -118,8 +163,7 @@ const modulos = computed(() => {
         to: '/viaticos/nueva',
         icon: 'plus',
       },
-      { titulo: 'Historial', descripcion: 'Ver mis viáticos anteriores', to: '/viaticos/historial', icon: 'history' },
-      { titulo: 'Mis viáticos actuales', descripcion: 'Subir comprobantes y revisar gasto', to: '/viaticos/actual', icon: 'briefcase' },
+      { titulo: 'Listado de viáticos', descripcion: 'Ver todas mis solicitudes', to: '/viaticos/historial', icon: 'history' },
     ];
   }
   if (auth.rol === 'proveedor') {

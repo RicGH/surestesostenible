@@ -25,48 +25,57 @@ router.get('/resumen', asyncHandler(async (req, res) => {
   }
 
   if (rol === 'colaborador') {
-    const [ult, activa] = await Promise.all([
+    const [ult, activos] = await Promise.all([
       queryOne(
         "SELECT folio, estado FROM viaticos_solicitudes WHERE colaborador_id=? ORDER BY created_at DESC LIMIT 1",
         [userId]
       ),
-      queryOne(
-        `SELECT id, folio, estado, monto_total, monto_gastado, destino
+      query(
+        `SELECT id, folio, estado, destino, monto_total, monto_gastado
          FROM viaticos_solicitudes
-         WHERE colaborador_id=? AND estado IN ('pendiente','aprobado','pagado','en_proceso')
+         WHERE colaborador_id=? AND estado IN ('aprobado','pagado','en_proceso')
          ORDER BY
            CASE estado
              WHEN 'pagado' THEN 1
              WHEN 'en_proceso' THEN 1
              WHEN 'aprobado' THEN 2
-             WHEN 'pendiente' THEN 3
-             ELSE 4
+             ELSE 3
            END ASC,
-           created_at ASC
-         LIMIT 1`,
+           created_at ASC`,
         [userId]
       ),
     ]);
-    const disp = activa ? Number(activa.monto_total) - Number(activa.monto_gastado) : 0;
+
+    const enUso = activos.filter((a) => a.estado === 'pagado' || a.estado === 'en_proceso').length;
+    const dispTotal = activos.reduce((s, a) => s + (Number(a.monto_total) - Number(a.monto_gastado)), 0);
+    const gastTotal = activos.reduce((s, a) => s + Number(a.monto_gastado), 0);
+
     return res.json({
       cards: [
         {
-          label: 'Viático activo',
-          value: activa ? activa.folio : '—',
-          sub: activa ? activa.destino : 'sin viático en curso',
-          estado: activa ? activa.estado : null,
-          link: activa ? `/viaticos/${activa.id}` : null,
+          label: 'Viáticos abiertos',
+          value: `${enUso} / 3`,
+          sub: enUso > 3 ? 'sobre el máximo' : 'en uso',
           icon: 'briefcase',
-          accent: 'violet',
+          accent: enUso > 3 ? 'red' : 'violet',
         },
+        { label: 'Disponible', value: `$${dispTotal.toFixed(2)}`, sub: 'total', icon: 'wallet', accent: 'emerald' },
+        { label: 'Gastado', value: `$${gastTotal.toFixed(2)}`, sub: 'total', icon: 'chart' },
         {
           label: 'Última solicitud',
           value: ult ? ult.folio : '—',
           estado: ult ? ult.estado : null,
         },
-        { label: 'Disponible', value: activa ? `$${disp.toFixed(2)}` : '—' },
-        { label: 'Gastado', value: activa ? `$${Number(activa.monto_gastado).toFixed(2)}` : '—' },
       ],
+      activos: activos.map((a) => ({
+        id: a.id,
+        folio: a.folio,
+        destino: a.destino,
+        estado: a.estado,
+        monto_total: Number(a.monto_total),
+        monto_gastado: Number(a.monto_gastado),
+        disponible: Number(a.monto_total) - Number(a.monto_gastado),
+      })),
     });
   }
 

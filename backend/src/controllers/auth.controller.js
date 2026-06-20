@@ -1,6 +1,8 @@
 const bcrypt = require('bcrypt');
+const path = require('path');
 const { z } = require('zod');
 const { HttpError } = require('../middleware/error');
+const { UPLOAD_ROOT } = require('../config/upload');
 const { sign } = require('../utils/jwt');
 const usersService = require('../services/users.service');
 const notifService = require('../services/notificaciones.service');
@@ -64,6 +66,60 @@ async function me(req, res) {
   const user = await usersService.findById(req.user.sub);
   if (!user) throw new HttpError(404, 'Usuario no encontrado');
   res.json({ user });
+}
+
+const perfilSchema = z.object({
+  nombre: z.string().min(2).max(120),
+  rfc: z.string().max(20).optional().or(z.literal('')),
+  clabe_bancaria: z.string().max(40).optional().or(z.literal('')),
+  banco: z.string().max(120).optional().or(z.literal('')),
+});
+
+async function actualizarPerfil(req, res) {
+  const data = perfilSchema.parse(req.body);
+  await usersService.actualizarPerfil(req.user.sub, {
+    nombre: data.nombre,
+    rfc: data.rfc || null,
+    clabe_bancaria: data.clabe_bancaria || null,
+    banco: data.banco || null,
+  });
+  const user = await usersService.findById(req.user.sub);
+  res.json({ user });
+}
+
+const cambiarPasswordSchema = z.object({
+  actual: z.string().min(1),
+  nueva: z.string().min(8),
+});
+
+async function subirAvatar(req, res) {
+  if (!req.file) throw new HttpError(400, 'No se recibió ninguna imagen');
+  const avatarPath = `avatars/${req.file.filename}`;
+  await usersService.setAvatar(req.user.sub, avatarPath);
+  const user = await usersService.findById(req.user.sub);
+  res.json({ user });
+}
+
+async function eliminarAvatar(req, res) {
+  await usersService.setAvatar(req.user.sub, null);
+  res.json({ ok: true });
+}
+
+async function descargarAvatar(req, res) {
+  const user = await usersService.findById(req.user.sub);
+  if (!user || !user.avatar_path) throw new HttpError(404, 'Sin foto de perfil');
+  res.sendFile(path.join(UPLOAD_ROOT, user.avatar_path));
+}
+
+async function cambiarPassword(req, res) {
+  const data = cambiarPasswordSchema.parse(req.body);
+  const user = await usersService.findByIdConPassword(req.user.sub);
+  if (!user) throw new HttpError(404, 'Usuario no encontrado');
+  const ok = await bcrypt.compare(data.actual, user.password_hash);
+  if (!ok) throw new HttpError(400, 'La contraseña actual no es correcta');
+  const hash = await bcrypt.hash(data.nueva, 10);
+  await usersService.actualizarPassword(req.user.sub, hash);
+  res.json({ ok: true });
 }
 
 async function forgotPassword(req, res) {
@@ -160,4 +216,4 @@ async function impersonate(req, res) {
   });
 }
 
-module.exports = { login, registerProveedor, me, forgotPassword, resetPassword, validarTokenReset, impersonate };
+module.exports = { login, registerProveedor, me, actualizarPerfil, cambiarPassword, subirAvatar, eliminarAvatar, descargarAvatar, forgotPassword, resetPassword, validarTokenReset, impersonate };

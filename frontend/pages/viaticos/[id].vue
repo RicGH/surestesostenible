@@ -176,22 +176,38 @@
         <dt class="text-xs text-ink-500 uppercase tracking-wide">Motivo</dt>
         <dd class="mt-1 text-ink-800">{{ sol.motivo }}</dd>
       </div>
+      <dl class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+        <div><dt class="text-xs text-ink-500 uppercase">Autoriza</dt><dd class="mt-1 text-ink-800">{{ sol.autoriza_nombre || '—' }}</dd></div>
+        <div><dt class="text-xs text-ink-500 uppercase">Recibe el viático</dt><dd class="mt-1 text-ink-800">{{ sol.recibe_nombre || '—' }}</dd></div>
+        <div><dt class="text-xs text-ink-500 uppercase">CLABE bancaria</dt><dd class="mt-1 text-ink-800">{{ sol.clabe_bancaria || '—' }}</dd></div>
+        <div><dt class="text-xs text-ink-500 uppercase">Banco</dt><dd class="mt-1 text-ink-800">{{ sol.banco || '—' }}</dd></div>
+      </dl>
       <dl class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
         <div><dt class="text-xs text-ink-500 uppercase">Proyecto</dt><dd class="mt-1 text-ink-800">{{ sol.proyecto || '—' }}</dd></div>
         <div><dt class="text-xs text-ink-500 uppercase">Cuenta</dt><dd class="mt-1 text-ink-800">{{ sol.cuenta || '—' }}</dd></div>
         <div><dt class="text-xs text-ink-500 uppercase">Partida</dt><dd class="mt-1 text-ink-800">{{ sol.partida || '—' }}</dd></div>
         <div><dt class="text-xs text-ink-500 uppercase">Objetivo estratégico</dt><dd class="mt-1 text-ink-800">{{ sol.objetivo_estrategico || '—' }}</dd></div>
+        <div><dt class="text-xs text-ink-500 uppercase">Resultado</dt><dd class="mt-1 text-ink-800">{{ sol.resultado || '—' }}</dd></div>
+        <div><dt class="text-xs text-ink-500 uppercase">Donante</dt><dd class="mt-1 text-ink-800">{{ sol.donante || '—' }}</dd></div>
       </dl>
       <div class="pt-2 border-t border-ink-100">
-        <dt class="text-xs text-ink-500 uppercase tracking-wide">Justificante de salida</dt>
+        <dt class="text-xs text-ink-500 uppercase tracking-wide">Justificantes de salida</dt>
         <dd class="mt-1.5">
-          <button
-            v-if="sol.justificante_path"
-            class="btn-secondary text-sm"
-            @click="abrirVisor({ path: `/viaticos/${sol.id}/justificante`, title: 'Justificante de salida', subtitle: sol.folio, downloadName: `justificante-${sol.folio}` })"
-          >
-            <Icon name="eye" size="w-4 h-4" /> Ver justificante
-          </button>
+          <div v-if="(sol.justificantes || []).length" class="flex flex-wrap gap-2">
+            <button
+              v-for="(j, i) in sol.justificantes"
+              :key="j.id ?? `legacy-${i}`"
+              class="btn-secondary text-sm"
+              @click="abrirVisor({
+                path: j.id ? `/viaticos/${sol.id}/justificantes/${j.id}` : `/viaticos/${sol.id}/justificante`,
+                title: j.nombre_original || 'Justificante de salida',
+                subtitle: sol.folio,
+                downloadName: j.nombre_original || `justificante-${sol.folio}-${i + 1}`,
+              })"
+            >
+              <Icon name="eye" size="w-4 h-4" /> {{ j.nombre_original || `Justificante ${i + 1}` }}
+            </button>
+          </div>
           <span v-else class="text-sm text-ink-400 italic">Sin justificante adjunto</span>
         </dd>
       </div>
@@ -506,6 +522,18 @@
         </div>
         <div><label class="block text-sm font-medium text-ink-700 mb-1.5">Motivo</label><textarea v-model="edicion.form.motivo" rows="2" required class="input"></textarea></div>
         <div class="grid grid-cols-2 gap-3">
+          <div><label class="block text-sm font-medium text-ink-700 mb-1.5">Autoriza</label><input v-model="edicion.form.autoriza_nombre" placeholder="Nombre de quien autoriza" class="input" /></div>
+          <div><label class="block text-sm font-medium text-ink-700 mb-1.5">Recibe el viático</label><input v-model="edicion.form.recibe_nombre" placeholder="Nombre de quien recibe" class="input" /></div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="block text-sm font-medium text-ink-700 mb-1.5">CLABE bancaria</label><input v-model="edicion.form.clabe_bancaria" inputmode="numeric" maxlength="18" placeholder="18 dígitos" class="input" /></div>
+          <div><label class="block text-sm font-medium text-ink-700 mb-1.5">Banco</label><input v-model="edicion.form.banco" placeholder="Nombre del banco" class="input" /></div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="block text-sm font-medium text-ink-700 mb-1.5">Resultado</label><input v-model="edicion.form.resultado" placeholder="Resultado" class="input" /></div>
+          <div><label class="block text-sm font-medium text-ink-700 mb-1.5">Donante</label><input v-model="edicion.form.donante" placeholder="Donante" class="input" /></div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
           <CategoriaInput v-model="edicion.form.monto_vuelos"     icon="plane"     label="Vuelos" />
           <CategoriaInput v-model="edicion.form.monto_hospedaje"  icon="building"  label="Hospedaje" />
           <CategoriaInput v-model="edicion.form.monto_alimentos"  icon="receipt"   label="Alimentos" />
@@ -577,8 +605,9 @@ const errorGasto = ref('');
 const edicion = reactive({
   abierto: false, guardando: false, error: '',
   form: { destino: '', fecha_inicio: '', fecha_fin: '', motivo: '',
+    autoriza_nombre: '', recibe_nombre: '', clabe_bancaria: '', banco: '',
     monto_vuelos: 0, monto_hospedaje: 0, monto_alimentos: 0, monto_transporte: 0, monto_otros: 0,
-    proyecto: '', cuenta: '', partida: '', objetivo_estrategico: '' },
+    proyecto: '', cuenta: '', partida: '', objetivo_estrategico: '', resultado: '', donante: '' },
 });
 
 const ajuste = reactive({
@@ -782,6 +811,10 @@ function abrirEdicion() {
     fecha_inicio: (sol.value.fecha_inicio || '').slice(0, 10),
     fecha_fin: (sol.value.fecha_fin || '').slice(0, 10),
     motivo: sol.value.motivo,
+    autoriza_nombre: sol.value.autoriza_nombre || '',
+    recibe_nombre: sol.value.recibe_nombre || '',
+    clabe_bancaria: sol.value.clabe_bancaria || '',
+    banco: sol.value.banco || '',
     monto_vuelos: Number(sol.value.monto_vuelos) || 0,
     monto_hospedaje: Number(sol.value.monto_hospedaje) || 0,
     monto_alimentos: Number(sol.value.monto_alimentos) || 0,
@@ -791,6 +824,8 @@ function abrirEdicion() {
     cuenta: sol.value.cuenta || '',
     partida: sol.value.partida || '',
     objetivo_estrategico: sol.value.objetivo_estrategico || '',
+    resultado: sol.value.resultado || '',
+    donante: sol.value.donante || '',
   });
   edicion.error = '';
   edicion.abierto = true;

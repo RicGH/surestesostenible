@@ -49,25 +49,39 @@ async function getAbiertosDeColaborador(colaboradorId) {
   );
 }
 
-async function crearSolicitud(colaboradorId, data, justificante = null) {
+async function crearSolicitud(colaboradorId, data, justificantes = []) {
   const folio = generarFolio();
   const monto_total = sumarMontos(data);
+  // Se conserva justificante_path (primer archivo) por compatibilidad con registros
+  // y rutas antiguas; el conjunto completo vive en viaticos_justificantes.
+  const primero = justificantes[0]?.archivo || null;
   const result = await query(
     `INSERT INTO viaticos_solicitudes
      (folio, colaborador_id, destino, fecha_inicio, fecha_fin, motivo,
+      autoriza_nombre, recibe_nombre, clabe_bancaria, banco,
       monto_vuelos, monto_hospedaje, monto_alimentos, monto_transporte, monto_otros,
-      monto_total, proyecto, cuenta, partida, objetivo_estrategico, justificante_path, estado)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendiente')`,
+      monto_total, proyecto, cuenta, partida, objetivo_estrategico, resultado, donante, justificante_path, estado)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendiente')`,
     [
       folio, colaboradorId, data.destino, data.fecha_inicio, data.fecha_fin, data.motivo,
+      data.autoriza_nombre || null, data.recibe_nombre || null,
+      data.clabe_bancaria || null, data.banco || null,
       data.monto_vuelos || 0, data.monto_hospedaje || 0, data.monto_alimentos || 0,
       data.monto_transporte || 0, data.monto_otros || 0,
       monto_total,
       data.proyecto || null, data.cuenta || null, data.partida || null,
-      data.objetivo_estrategico || null, justificante || null,
+      data.objetivo_estrategico || null, data.resultado || null, data.donante || null, primero,
     ]
   );
-  return { id: result.insertId, folio };
+  const solicitudId = result.insertId;
+  for (const j of justificantes) {
+    await query(
+      `INSERT INTO viaticos_justificantes (solicitud_id, archivo, nombre_original)
+       VALUES (?, ?, ?)`,
+      [solicitudId, j.archivo, j.nombre_original || null]
+    );
+  }
+  return { id: solicitudId, folio };
 }
 
 async function listarPorColaborador(colaboradorId, filtros = {}) {
@@ -190,7 +204,7 @@ async function getById(id, colaboradorId = null) {
     params
   );
   if (!solicitud) return null;
-  const [gastos, pago, ajustes, bloqueadora] = await Promise.all([
+  const [gastos, pago, ajustes, bloqueadora, justificantes] = await Promise.all([
     query(
       'SELECT id, archivo, xml_path, monto, rfc_emisor, nombre_emisor, fecha, concepto, created_at FROM viaticos_gastos WHERE solicitud_id = ? ORDER BY fecha DESC',
       [id]
@@ -206,8 +220,18 @@ async function getById(id, colaboradorId = null) {
       [id]
     ),
     getBloqueadoraDeUso(id, solicitud.colaborador_id),
+    query(
+      `SELECT id, archivo, nombre_original, created_at
+       FROM viaticos_justificantes WHERE solicitud_id = ? ORDER BY id ASC`,
+      [id]
+    ),
   ]);
-  return { ...solicitud, gastos, pago, ajustes, bloqueada_por_uso: bloqueadora || null };
+  // Fallback: solicitudes antiguas que solo tienen justificante_path (sin filas en la tabla).
+  let listaJustificantes = justificantes;
+  if (!listaJustificantes.length && solicitud.justificante_path) {
+    listaJustificantes = [{ id: null, archivo: solicitud.justificante_path, nombre_original: null, legacy: true }];
+  }
+  return { ...solicitud, gastos, pago, ajustes, justificantes: listaJustificantes, bloqueada_por_uso: bloqueadora || null };
 }
 
 async function aprobar(id, adminId) {
@@ -234,17 +258,20 @@ async function editarSolicitud(id, colaboradorId, data) {
   await query(
     `UPDATE viaticos_solicitudes
      SET destino = ?, fecha_inicio = ?, fecha_fin = ?, motivo = ?,
+         autoriza_nombre = ?, recibe_nombre = ?, clabe_bancaria = ?, banco = ?,
          monto_vuelos = ?, monto_hospedaje = ?, monto_alimentos = ?,
          monto_transporte = ?, monto_otros = ?, monto_total = ?,
-         proyecto = ?, cuenta = ?, partida = ?, objetivo_estrategico = ?,
+         proyecto = ?, cuenta = ?, partida = ?, objetivo_estrategico = ?, resultado = ?, donante = ?,
          estado = 'pendiente', motivo_rechazo = NULL, permite_edicion = 0
      WHERE id = ? AND colaborador_id = ? AND permite_edicion = 1 AND estado = 'rechazado'`,
     [
       data.destino, data.fecha_inicio, data.fecha_fin, data.motivo,
+      data.autoriza_nombre || null, data.recibe_nombre || null,
+      data.clabe_bancaria || null, data.banco || null,
       data.monto_vuelos || 0, data.monto_hospedaje || 0, data.monto_alimentos || 0,
       data.monto_transporte || 0, data.monto_otros || 0, monto_total,
       data.proyecto || null, data.cuenta || null, data.partida || null,
-      data.objetivo_estrategico || null,
+      data.objetivo_estrategico || null, data.resultado || null, data.donante || null,
       id, colaboradorId,
     ]
   );
@@ -346,6 +373,10 @@ async function duplicar(id, colaboradorId) {
     fecha_inicio: orig.fecha_inicio,
     fecha_fin: orig.fecha_fin,
     motivo: orig.motivo,
+    autoriza_nombre: orig.autoriza_nombre,
+    recibe_nombre: orig.recibe_nombre,
+    clabe_bancaria: orig.clabe_bancaria,
+    banco: orig.banco,
     monto_vuelos: orig.monto_vuelos,
     monto_hospedaje: orig.monto_hospedaje,
     monto_alimentos: orig.monto_alimentos,
@@ -354,6 +385,9 @@ async function duplicar(id, colaboradorId) {
     proyecto: orig.proyecto,
     cuenta: orig.cuenta,
     partida: orig.partida,
+    objetivo_estrategico: orig.objetivo_estrategico,
+    resultado: orig.resultado,
+    donante: orig.donante,
   });
 }
 

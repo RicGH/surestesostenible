@@ -54,6 +54,15 @@ const uploadJustificantes = multer({
   },
 });
 
+const uploadAvatars = multer({
+  storage: makeStorage('avatars'),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ok = /\.(jpe?g|png|webp|gif)$/i.test(file.originalname);
+    cb(ok ? null : new Error('La foto debe ser una imagen (JPG, PNG, WEBP o GIF)'), ok);
+  },
+});
+
 const uploadDocsProveedor = multer({
   storage: makeStorage('proveedores'),
   limits: { fileSize: 25 * 1024 * 1024 },
@@ -77,4 +86,4 @@ const uploadDocx = multer({
   },
 });
 
-module.exports = { UPLOAD_ROOT, uploadGastos, uploadFacturas, uploadComprobantes, uploadJustificantes, uploadDocsProveedor, uploadDocumentos, uploadDocx };
+module.exports = { UPLOAD_ROOT, uploadGastos, uploadFacturas, uploadComprobantes, uploadJustificantes, uploadAvatars, uploadDocsProveedor, uploadDocumentos, uploadDocx };

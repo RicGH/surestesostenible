@@ -34,6 +34,10 @@ export const useAuthStore = defineStore('auth', {
         }
       }
     },
+    updateUser(partial) {
+      this.user = { ...this.user, ...partial };
+      if (process.client) localStorage.setItem('user', JSON.stringify(this.user));
+    },
     setSession(token, user) {
       this.token = token;
       this.user = user;

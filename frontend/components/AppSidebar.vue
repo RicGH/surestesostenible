@@ -63,14 +63,17 @@
 
     <div class="p-3 border-t border-white/5">
       <div class="flex items-center gap-3 p-2">
-        <div class="w-9 h-9 rounded-full bg-brand-600/30 ring-1 ring-brand-400/40 grid place-items-center text-sm font-semibold text-white">
-          {{ initials }}
-        </div>
-        <div class="min-w-0 flex-1">
-          <p class="text-sm font-medium text-white truncate">{{ auth.user?.nombre }}</p>
-          <p class="text-xs text-ink-400 capitalize">{{ auth.rol }}</p>
-        </div>
-        <button class="text-ink-400 hover:text-white" title="Cerrar sesión" @click="logout">
+        <NuxtLink to="/perfil" class="flex items-center gap-3 min-w-0 flex-1 rounded-lg hover:bg-white/5 -m-1 p-1 transition-colors" title="Mi perfil" @click="$emit('close')">
+          <div class="w-9 h-9 rounded-full overflow-hidden ring-1 ring-brand-400/40 bg-brand-600/30 grid place-items-center text-sm font-semibold text-white shrink-0">
+            <img v-if="avatar.url" :src="avatar.url" alt="Foto de perfil" class="w-full h-full object-cover" />
+            <span v-else>{{ initials }}</span>
+          </div>
+          <div class="min-w-0 flex-1">
+            <p class="text-sm font-medium text-white truncate">{{ auth.user?.nombre }}</p>
+            <p class="text-xs text-ink-400 capitalize">{{ auth.rol }}</p>
+          </div>
+        </NuxtLink>
+        <button class="text-ink-400 hover:text-white shrink-0" title="Cerrar sesión" @click="logout">
           <Icon name="logout" size="w-4 h-4" />
         </button>
       </div>
@@ -88,14 +91,22 @@ const auth = useAuth();
 const route = useRoute();
 const router = useRouter();
 const check = usePuedoCrearViatico();
+const avatar = useAvatar();
 
 onMounted(() => {
   if (auth.rol === 'colaborador') check.refrescar();
+  if (auth.isAuthenticated) avatar.refrescar();
 });
 
 watch(() => auth.rol, (rol) => {
   if (rol === 'colaborador') check.refrescar();
   else check.reset();
+});
+
+// Al cambiar de usuario (login/impersonación) recargar la foto.
+watch(() => auth.user?.id, (id) => {
+  if (id) avatar.refrescar();
+  else avatar.reset();
 });
 
 const initials = computed(() => {
@@ -161,8 +172,7 @@ const MENUS = {
   colaborador: [
     { label: 'General', links: [{ to: '/', label: 'Panel', icon: 'dashboard' }, { to: '/manual', label: 'Manual', icon: 'book' }] },
     { label: 'Viáticos', links: [
-      { to: '/viaticos/actual', label: 'Mis viáticos actuales', icon: 'briefcase' },
-      { to: '/viaticos/historial', label: 'Historial', icon: 'history' },
+      { to: '/viaticos/historial', label: 'Listado de viáticos', icon: 'history' },
     ]},
   ],
   proveedor: [

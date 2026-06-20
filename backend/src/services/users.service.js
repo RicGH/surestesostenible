@@ -9,7 +9,18 @@ async function findByEmail(email) {
 
 async function findById(id) {
   return queryOne(
-    'SELECT id, email, nombre, rol, activo, created_at FROM users WHERE id = ? AND eliminado = 0 LIMIT 1',
+    'SELECT id, email, nombre, rfc, clabe_bancaria, banco, avatar_path, rol, activo, created_at FROM users WHERE id = ? AND eliminado = 0 LIMIT 1',
+    [id]
+  );
+}
+
+async function setAvatar(id, avatarPath) {
+  await query('UPDATE users SET avatar_path = ? WHERE id = ?', [avatarPath, id]);
+}
+
+async function findByIdConPassword(id) {
+  return queryOne(
+    'SELECT id, email, nombre, password_hash, rol FROM users WHERE id = ? AND eliminado = 0 LIMIT 1',
     [id]
   );
 }
@@ -35,7 +46,7 @@ async function listar(filtros = {}) {
     params.push(`%${filtros.q}%`, `%${filtros.q}%`);
   }
   return query(
-    `SELECT id, email, nombre, rol, activo, created_at
+    `SELECT id, email, nombre, rfc, clabe_bancaria, banco, rol, activo, created_at
      FROM users
      WHERE ${where.join(' AND ')}
      ORDER BY created_at DESC LIMIT 200`,
@@ -66,6 +77,13 @@ async function actualizar(id, { email, nombre, rol }) {
   );
 }
 
+async function actualizarPerfil(id, { nombre, rfc, clabe_bancaria, banco }) {
+  await query(
+    'UPDATE users SET nombre = ?, rfc = ?, clabe_bancaria = ?, banco = ? WHERE id = ?',
+    [nombre, rfc, clabe_bancaria, banco, id]
+  );
+}
+
 async function tieneProveedor(id) {
   const row = await queryOne('SELECT id FROM proveedores WHERE user_id = ? LIMIT 1', [id]);
   return !!row;
@@ -86,6 +104,6 @@ async function eliminarVarios(ids) {
 }
 
 module.exports = {
-  findByEmail, findById, create, listar, setActivo, actualizarPassword,
-  existeEmailEnOtro, actualizar, tieneProveedor, eliminar, eliminarVarios,
+  findByEmail, findById, findByIdConPassword, create, listar, setActivo, actualizarPassword,
+  existeEmailEnOtro, actualizar, actualizarPerfil, setAvatar, tieneProveedor, eliminar, eliminarVarios,
 };

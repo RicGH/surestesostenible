@@ -89,6 +89,28 @@
           <label class="block text-sm font-medium text-ink-700 mb-1.5">Motivo del viaje</label>
           <textarea v-model="form.motivo" required rows="3" placeholder="Describe brevemente el objetivo del viaje" class="input"></textarea>
         </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-ink-700 mb-1.5">Autoriza</label>
+            <input v-model="form.autoriza_nombre" placeholder="Nombre de quien autoriza" class="input" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-ink-700 mb-1.5">Recibe el viático</label>
+            <input v-model="form.recibe_nombre" @input="recibeAutollenado = false" placeholder="Nombre de quien recibe" class="input" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-ink-700 mb-1.5">CLABE bancaria</label>
+            <input v-model="form.clabe_bancaria" @input="bancariosAutollenado = false" inputmode="numeric" maxlength="18" placeholder="18 dígitos" class="input" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-ink-700 mb-1.5">Banco</label>
+            <input v-model="form.banco" @input="bancariosAutollenado = false" placeholder="Nombre del banco" class="input" />
+          </div>
+        </div>
       </section>
 
       <section class="card-pad space-y-5">
@@ -96,15 +118,15 @@
           <div class="w-10 h-10 rounded-lg bg-brand-50 text-brand-600 grid place-items-center"><Icon name="document" /></div>
           <div>
             <h3 class="font-semibold text-ink-900">Justificante de salida</h3>
-            <p class="text-xs text-ink-500">Documento de respaldo para el administrador (opcional)</p>
+            <p class="text-xs text-ink-500">Documentos de respaldo para el administrador (opcional · puedes subir varios)</p>
           </div>
         </div>
-        <FileDrop
-          v-model="justificante"
+        <MultiFileDrop
+          v-model="justificantes"
           accept=".pdf,image/*"
           icon="upload"
-          label="Justificante de salida"
-          hint="PDF o imagen · arrastra o haz clic para seleccionar"
+          label="Justificantes de salida"
+          hint="PDF o imagen · arrastra o haz clic · puedes seleccionar varios"
         />
       </section>
 
@@ -144,7 +166,7 @@
           <div>
             <label class="block text-sm font-medium text-ink-700 mb-1.5">Proyecto</label>
             <select v-model="form.proyecto" class="input">
-              <option value="">— Selecciona —</option>
+              <option value="">Selecciona una opción</option>
               <option v-if="form.proyecto && !catalogos.proyecto.includes(form.proyecto)" :value="form.proyecto">{{ form.proyecto }}</option>
               <option v-for="o in catalogos.proyecto" :key="o" :value="o">{{ o }}</option>
             </select>
@@ -152,7 +174,7 @@
           <div>
             <label class="block text-sm font-medium text-ink-700 mb-1.5">Cuenta</label>
             <select v-model="form.cuenta" class="input">
-              <option value="">— Selecciona —</option>
+              <option value="">Selecciona una opción</option>
               <option v-if="form.cuenta && !catalogos.cuenta.includes(form.cuenta)" :value="form.cuenta">{{ form.cuenta }}</option>
               <option v-for="o in catalogos.cuenta" :key="o" :value="o">{{ o }}</option>
             </select>
@@ -160,7 +182,7 @@
           <div>
             <label class="block text-sm font-medium text-ink-700 mb-1.5">Partida</label>
             <select v-model="form.partida" class="input">
-              <option value="">— Selecciona —</option>
+              <option value="">Selecciona una opción</option>
               <option v-if="form.partida && !catalogos.partida.includes(form.partida)" :value="form.partida">{{ form.partida }}</option>
               <option v-for="o in catalogos.partida" :key="o" :value="o">{{ o }}</option>
             </select>
@@ -168,10 +190,18 @@
           <div>
             <label class="block text-sm font-medium text-ink-700 mb-1.5">Objetivo estratégico</label>
             <select v-model="form.objetivo_estrategico" class="input">
-              <option value="">— Selecciona —</option>
+              <option value="">Selecciona una opción</option>
               <option v-if="form.objetivo_estrategico && !catalogos.objetivo_estrategico.includes(form.objetivo_estrategico)" :value="form.objetivo_estrategico">{{ form.objetivo_estrategico }}</option>
               <option v-for="o in catalogos.objetivo_estrategico" :key="o" :value="o">{{ o }}</option>
             </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-ink-700 mb-1.5">Resultado</label>
+            <input v-model="form.resultado" placeholder="Resultado" class="input" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-ink-700 mb-1.5">Donante</label>
+            <input v-model="form.donante" placeholder="Donante" class="input" />
           </div>
         </div>
         <p v-if="sinCatalogos" class="text-xs text-ink-400">
@@ -241,6 +271,34 @@ const check = usePuedoCrearViatico();
 const esAdmin = computed(() => auth.rol === 'admin');
 const colaboradores = ref([]);
 const colaboradorSeleccionado = ref('');
+
+// "Recibe el viático" = el colaborador que recibe. Para el colaborador es su propio
+// nombre; para el admin, el del colaborador seleccionado. Se autollenará mientras el
+// usuario no escriba algo distinto a mano.
+const nombreColaborador = computed(() => {
+  if (esAdmin.value) {
+    const c = colaboradores.value.find((x) => x.id === Number(colaboradorSeleccionado.value));
+    return c?.nombre || '';
+  }
+  return auth.user?.nombre || '';
+});
+const recibeAutollenado = ref(true);
+
+// Datos bancarios (CLABE/banco) que se autorrellenan desde el perfil del colaborador
+// que recibe: el propio usuario, o el seleccionado por el admin.
+const perfilUsuario = ref(null);
+const datosBancarios = computed(() => {
+  if (esAdmin.value) {
+    const c = colaboradores.value.find((x) => x.id === Number(colaboradorSeleccionado.value));
+    return { clabe_bancaria: c?.clabe_bancaria || '', banco: c?.banco || '' };
+  }
+  return {
+    clabe_bancaria: perfilUsuario.value?.clabe_bancaria || '',
+    banco: perfilUsuario.value?.banco || '',
+  };
+});
+const bancariosAutollenado = ref(true);
+
 const catalogos = reactive({ proyecto: [], cuenta: [], partida: [], objetivo_estrategico: [] });
 const sinCatalogos = computed(() =>
   !catalogos.proyecto.length && !catalogos.cuenta.length && !catalogos.partida.length && !catalogos.objetivo_estrategico.length
@@ -258,30 +316,37 @@ async function cargarCatalogos() {
 
 const form = reactive({
   destino: '', fecha_inicio: '', fecha_fin: '', motivo: '',
+  autoriza_nombre: '', recibe_nombre: '', clabe_bancaria: '', banco: '',
   monto_vuelos: 0, monto_hospedaje: 0, monto_alimentos: 0, monto_transporte: 0, monto_otros: 0,
-  proyecto: '', cuenta: '', partida: '',
+  proyecto: '', cuenta: '', partida: '', objetivo_estrategico: '', resultado: '', donante: '',
 });
 const loading = ref(false);
 const error = ref('');
 const ok = ref('');
 const duplicadoDesde = ref('');
-const justificante = ref(null);
+const justificantes = ref([]);
 
 const VACIO = {
   destino: '', fecha_inicio: '', fecha_fin: '', motivo: '',
+  autoriza_nombre: '', recibe_nombre: '', clabe_bancaria: '', banco: '',
   monto_vuelos: 0, monto_hospedaje: 0, monto_alimentos: 0, monto_transporte: 0, monto_otros: 0,
-  proyecto: '', cuenta: '', partida: '', objetivo_estrategico: '',
+  proyecto: '', cuenta: '', partida: '', objetivo_estrategico: '', resultado: '', donante: '',
 };
 
 async function cargarDesde(id) {
   try {
     const sol = await api.get(`/viaticos/${id}`);
     duplicadoDesde.value = sol.folio;
+    // Al duplicar se respetan los datos bancarios de la solicitud original.
+    bancariosAutollenado.value = false;
     Object.assign(form, {
       destino: sol.destino || '',
       fecha_inicio: '',
       fecha_fin: '',
       motivo: sol.motivo || '',
+      autoriza_nombre: sol.autoriza_nombre || '',
+      clabe_bancaria: sol.clabe_bancaria || '',
+      banco: sol.banco || '',
       monto_vuelos: Number(sol.monto_vuelos) || 0,
       monto_hospedaje: Number(sol.monto_hospedaje) || 0,
       monto_alimentos: Number(sol.monto_alimentos) || 0,
@@ -291,6 +356,8 @@ async function cargarDesde(id) {
       cuenta: sol.cuenta || '',
       partida: sol.partida || '',
       objetivo_estrategico: sol.objetivo_estrategico || '',
+      resultado: sol.resultado || '',
+      donante: sol.donante || '',
     });
   } catch (e) {
     error.value = `No se pudo cargar la solicitud original: ${e.message}`;
@@ -300,6 +367,11 @@ async function cargarDesde(id) {
 function limpiarDuplicado() {
   duplicadoDesde.value = '';
   Object.assign(form, VACIO);
+  recibeAutollenado.value = true;
+  form.recibe_nombre = nombreColaborador.value;
+  bancariosAutollenado.value = true;
+  form.clabe_bancaria = datosBancarios.value.clabe_bancaria;
+  form.banco = datosBancarios.value.banco;
   router.replace({ query: {} });
 }
 
@@ -307,6 +379,10 @@ onMounted(async () => {
   cargarCatalogos();
   // refrescar() marca check.cargado (para no-colaborador lo hace sin llamar a la API).
   await check.refrescar();
+  try {
+    const { user } = await api.get('/auth/me');
+    perfilUsuario.value = user;
+  } catch {}
   if (esAdmin.value) {
     try {
       const r = await api.get('/users?rol=colaborador&activo=1');
@@ -315,6 +391,17 @@ onMounted(async () => {
   }
   if (route.query.desde) await cargarDesde(route.query.desde);
 });
+
+watch(nombreColaborador, (nombre) => {
+  if (recibeAutollenado.value) form.recibe_nombre = nombre;
+}, { immediate: true });
+
+watch(datosBancarios, (datos) => {
+  if (bancariosAutollenado.value) {
+    form.clabe_bancaria = datos.clabe_bancaria;
+    form.banco = datos.banco;
+  }
+}, { immediate: true, deep: true });
 
 const total = computed(() =>
   Number(form.monto_vuelos || 0)
@@ -351,12 +438,17 @@ async function enviar() {
     const fd = new FormData();
     Object.entries(form).forEach(([k, v]) => fd.append(k, v ?? ''));
     if (esAdmin.value) fd.append('colaborador_id', colaboradorSeleccionado.value);
-    if (justificante.value) fd.append('justificante', justificante.value);
+    justificantes.value.forEach((f) => fd.append('justificantes', f));
     const r = await api.upload('/viaticos', fd);
     ok.value = r.folio;
     toast.success('Solicitud enviada', `Folio ${r.folio} · pendiente de aprobación`);
     Object.assign(form, VACIO);
-    justificante.value = null;
+    recibeAutollenado.value = true;
+    form.recibe_nombre = nombreColaborador.value;
+    bancariosAutollenado.value = true;
+    form.clabe_bancaria = datosBancarios.value.clabe_bancaria;
+    form.banco = datosBancarios.value.banco;
+    justificantes.value = [];
     duplicadoDesde.value = '';
     if (route.query.desde) router.replace({ query: {} });
     await check.refrescar();

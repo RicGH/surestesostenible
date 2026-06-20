@@ -2,6 +2,7 @@ const { z } = require('zod');
 const path = require('path');
 const { HttpError } = require('../middleware/error');
 const service = require('../services/viaticos.service');
+const oficioService = require('../services/viaticos-oficio.service');
 const pagosService = require('../services/viaticos-pagos.service');
 const notifService = require('../services/notificaciones.service');
 const { UPLOAD_ROOT } = require('../config/upload');
@@ -11,6 +12,10 @@ const solicitudSchema = z.object({
   fecha_inicio: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   fecha_fin: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   motivo: z.string().min(5),
+  autoriza_nombre: z.string().max(160).optional(),
+  recibe_nombre: z.string().max(160).optional(),
+  clabe_bancaria: z.string().max(40).optional(),
+  banco: z.string().max(120).optional(),
   monto_vuelos: z.coerce.number().nonnegative().default(0),
   monto_hospedaje: z.coerce.number().nonnegative().default(0),
   monto_alimentos: z.coerce.number().nonnegative().default(0),
@@ -20,6 +25,8 @@ const solicitudSchema = z.object({
   cuenta: z.string().max(80).optional(),
   partida: z.string().max(80).optional(),
   objetivo_estrategico: z.string().max(160).optional(),
+  resultado: z.string().max(160).optional(),
+  donante: z.string().max(160).optional(),
   colaborador_id: z.coerce.number().int().positive().optional(),
 });
 
@@ -36,8 +43,11 @@ async function crear(req, res) {
   const data = solicitudSchema.parse(req.body);
   const colaboradorId = await resolverColaboradorId(req, data);
   const { colaborador_id: _ignore, ...payload } = data;
-  const justificante = req.file ? `justificantes/${req.file.filename}` : null;
-  const result = await service.crearSolicitud(colaboradorId, payload, justificante);
+  const justificantes = (req.files || []).map((f) => ({
+    archivo: `justificantes/${f.filename}`,
+    nombre_original: f.originalname,
+  }));
+  const result = await service.crearSolicitud(colaboradorId, payload, justificantes);
   await notifService.crearParaRol('admin', {
     tipo: 'viaticos_nueva',
     titulo: 'Nueva solicitud de viáticos',
@@ -176,6 +186,29 @@ async function descargarJustificante(req, res) {
   if (!sol) throw new HttpError(404, 'Solicitud no encontrada');
   if (!sol.justificante_path) throw new HttpError(404, 'Sin justificante');
   res.sendFile(path.join(UPLOAD_ROOT, sol.justificante_path));
+}
+
+async function descargarOficio(req, res) {
+  const id = Number(req.params.id);
+  if (req.user.rol === 'colaborador') {
+    const sol = await service.getById(id, req.user.sub);
+    if (!sol) throw new HttpError(404, 'Solicitud no encontrada');
+  }
+  const { pdf, folio } = await oficioService.generarPdf(id);
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `inline; filename="oficio-${folio}.pdf"`);
+  res.send(pdf);
+}
+
+async function descargarJustificanteItem(req, res) {
+  const id = Number(req.params.id);
+  const jid = Number(req.params.jid);
+  const restringir = req.user.rol === 'colaborador' ? req.user.sub : null;
+  const sol = await service.getById(id, restringir);
+  if (!sol) throw new HttpError(404, 'Solicitud no encontrada');
+  const item = (sol.justificantes || []).find((j) => j.id === jid);
+  if (!item) throw new HttpError(404, 'Justificante no encontrado');
+  res.sendFile(path.join(UPLOAD_ROOT, item.archivo));
 }
 
 async function descargarGasto(req, res) {
@@ -319,5 +352,5 @@ module.exports = {
   listarRechazados, listarTodos, detalle,
   aprobar, rechazar, editar, duplicar, cerrar, subirGasto, puedoCrear,
   listarPorPagar, listarPagosHistorial, pagarSolicitud, descargarComprobantePago,
-  descargarGasto, descargarGastoXml, descargarJustificante,
+  descargarGasto, descargarGastoXml, descargarJustificante, descargarJustificanteItem, descargarOficio,
 };

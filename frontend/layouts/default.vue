@@ -41,7 +41,7 @@ const TITLES = {
   '/admin/usuarios': { title: 'Usuarios', subtitle: 'Gestión del sistema' },
   '/admin/configuracion': { title: 'Configuración', subtitle: 'Servidor de correo y ajustes del sistema' },
   '/viaticos/nueva': { title: 'Solicitar viáticos', subtitle: 'Crear una nueva solicitud' },
-  '/viaticos/historial': { title: 'Historial', subtitle: 'Mis solicitudes anteriores' },
+  '/viaticos/historial': { title: 'Listado de viáticos', subtitle: 'Todas mis solicitudes' },
   '/viaticos/actual': { title: 'Mis viáticos actuales', subtitle: 'Comprobantes y gasto' },
   '/proveedores/registro': { title: 'Mi registro', subtitle: 'Datos fiscales y bancarios' },
   '/proveedores/facturas': { title: 'Subir factura', subtitle: 'PDF + XML CFDI' },
@@ -51,6 +51,7 @@ const TITLES = {
   '/finanzas/historial': { title: 'Historial', subtitle: 'Pagos de facturas realizados' },
   '/reportes': { title: 'Reportes', subtitle: 'Generar PDF' },
   '/manual': { title: 'Manual de uso', subtitle: 'Guía del sistema y flujos por rol' },
+  '/perfil': { title: 'Mi perfil', subtitle: 'Datos personales, bancarios y contraseña' },
 };
 
 const matched = computed(() => {
