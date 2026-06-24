@@ -152,4 +152,36 @@ async function reporteProveedores(filtros = {}) {
   );
 }
 
-module.exports = { reporteViaticos, reporteProveedores, dashboard };
+async function reporteViaticosDetallado(filtros = {}) {
+  const { desde, hasta } = rangoDefault(filtros);
+  return query(
+    `SELECT
+       s.cuenta            AS cta_contable,
+       s.proyecto,
+       s.donante,
+       s.partida,
+       s.resultado,
+       s.objetivo_estrategico,
+       s.fecha_inicio,
+       s.fecha_fin,
+       s.destino,
+       s.motivo,
+       u.nombre            AS nombre_solicita,
+       s.autoriza_nombre   AS nombre_autoriza,
+       s.clabe_bancaria,
+       s.banco,
+       s.monto_vuelos,
+       s.monto_hospedaje,
+       s.monto_alimentos,
+       s.monto_transporte,
+       s.monto_otros,
+       s.monto_total
+     FROM viaticos_solicitudes s
+     JOIN users u ON u.id = s.colaborador_id
+     WHERE s.fecha_inicio >= ? AND s.fecha_inicio <= ?
+     ORDER BY s.fecha_inicio ASC`,
+    [desde, hasta]
+  );
+}
+
+module.exports = { reporteViaticos, reporteProveedores, dashboard, reporteViaticosDetallado };

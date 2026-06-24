@@ -343,4 +343,39 @@ async function dashboardCsv(req, res) {
   res.send('﻿' + lines.join('\n'));
 }
 
-module.exports = { generar, dashboard, dashboardPdf, dashboardCsv };
+async function viaticosReporteCsv(req, res) {
+  const filtros = dashboardSchema.parse(req.query);
+  const rows = await service.reporteViaticosDetallado(filtros);
+
+  const HEADERS = [
+    'CTA CONTABLE', 'PROYECTO', 'DONANTE', 'PARTIDA', 'RESULTADO', 'OBJETIVO',
+    'FECHA INICIO', 'FECHA FIN', 'DESTINO', 'MOTIVO DE VIAJE',
+    'NOMBRE DE QUIEN SOLICITA', 'NOMBRE DE QUIEN AUTORIZA',
+    'CLABE INTERBANCARIA', 'BANCO',
+    'MONTO DE VUELOS', 'MONTO DE HOSPEDAJE', 'MONTO DE ALIMENTOS',
+    'MONTO DE TRANSPORTE', 'MONTO OTROS', 'TOTAL',
+  ];
+  const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const fmtFecha = (d) => d ? new Date(d).toLocaleDateString('es-MX') : '';
+  const fmtNum = (n) => n != null ? Number(n).toFixed(2) : '';
+
+  const lines = ['', '', ''];
+  lines.push(HEADERS.map(esc).join(','));
+  for (const r of rows) {
+    lines.push([
+      r.cta_contable, r.proyecto, r.donante, r.partida, r.resultado, r.objetivo_estrategico,
+      fmtFecha(r.fecha_inicio), fmtFecha(r.fecha_fin),
+      r.destino, r.motivo,
+      r.nombre_solicita, r.nombre_autoriza,
+      r.clabe_bancaria, r.banco,
+      fmtNum(r.monto_vuelos), fmtNum(r.monto_hospedaje), fmtNum(r.monto_alimentos),
+      fmtNum(r.monto_transporte), fmtNum(r.monto_otros), fmtNum(r.monto_total),
+    ].map(esc).join(','));
+  }
+
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="REPORTE VIATICOS.csv"');
+  res.send('﻿' + lines.join('\n'));
+}
+
+module.exports = { generar, dashboard, dashboardPdf, dashboardCsv, viaticosReporteCsv };

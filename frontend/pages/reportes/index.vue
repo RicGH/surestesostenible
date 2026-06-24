@@ -244,8 +244,12 @@ async function descargarDashboardCsv() {
   descargandoCsv.value = true;
   try {
     const qs = new URLSearchParams(Object.entries(filtros).filter(([, v]) => v)).toString();
-    await api.download(`/reportes/dashboard.csv${qs ? '?' + qs : ''}`, `dashboard-${filtros.desde}-${filtros.hasta}.csv`);
-    toast.success('CSV descargado', 'Datos del dashboard exportados');
+    if (tab.value === 'viaticos') {
+      await api.download(`/reportes/viaticos.csv${qs ? '?' + qs : ''}`, 'REPORTE VIATICOS.csv');
+    } else {
+      await api.download(`/reportes/dashboard.csv${qs ? '?' + qs : ''}`, `dashboard-${filtros.desde}-${filtros.hasta}.csv`);
+    }
+    toast.success('CSV descargado', 'Reporte exportado correctamente');
   } catch (e) { toast.error('No se pudo generar', e.message); }
   finally { descargandoCsv.value = false; }
 }
