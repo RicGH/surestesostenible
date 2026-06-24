@@ -57,6 +57,7 @@
               <td>
                 <div class="flex gap-1 justify-center">
                   <IconButton icon="eye" tooltip="Ver detalle" variant="primary" @click="$router.push(`/viaticos/${s.id}?from=admin`)" />
+                  <IconButton icon="fileText" tooltip="Ver oficio de comisión (PDF)" @click="verOficio(s)" />
                   <IconButton icon="check" tooltip="Aprobar" variant="success" @click="aprobar(s.id)" />
                   <IconButton icon="x" tooltip="Rechazar" variant="danger" @click="abrirRechazo(s)" />
                 </div>
@@ -81,6 +82,7 @@
               <td>
                 <div class="flex gap-1 justify-center">
                   <IconButton icon="eye" tooltip="Ver viaje" variant="primary" @click="$router.push(`/viaticos/${a.solicitud_id}?from=admin`)" />
+                  <IconButton icon="fileText" tooltip="Ver oficio de comisión (PDF)" @click="verOficio({id: a.solicitud_id, folio: a.solicitud_folio})" />
                   <IconButton icon="check" tooltip="Aprobar ajuste" variant="success" @click="aprobarAjuste(a.id)" />
                   <IconButton icon="x" tooltip="Rechazar ajuste" variant="danger" @click="abrirRechazoAjuste(a)" />
                 </div>
@@ -107,6 +109,7 @@
               <td>
                 <div class="flex gap-1 justify-center">
                   <IconButton icon="eye" tooltip="Ver comprobantes" variant="primary" @click="$router.push(`/viaticos/${s.id}?from=admin`)" />
+                  <IconButton icon="fileText" tooltip="Ver oficio de comisión (PDF)" @click="verOficio(s)" />
                   <IconButton icon="check" tooltip="Cerrar viáticos" variant="success" @click="abrirCerrar(s)" />
                 </div>
               </td>
@@ -135,6 +138,7 @@
               <td>
                 <div class="flex gap-1 justify-center">
                   <IconButton icon="eye" tooltip="Ver detalle" variant="primary" @click="$router.push(`/viaticos/${s.id}?from=admin`)" />
+                  <IconButton icon="fileText" tooltip="Ver oficio de comisión (PDF)" @click="verOficio(s)" />
                 </div>
               </td>
             </tr>
@@ -182,6 +186,7 @@
               <td>
                 <div class="flex gap-1 justify-center">
                   <IconButton icon="eye" tooltip="Ver detalle" variant="primary" @click="$router.push(`/viaticos/${s.id}?from=admin`)" />
+                  <IconButton icon="fileText" tooltip="Ver oficio de comisión (PDF)" @click="verOficio(s)" />
                 </div>
               </td>
             </tr>

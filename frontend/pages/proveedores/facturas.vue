@@ -126,6 +126,55 @@
         />
       </section>
 
+      <section class="card-pad space-y-5">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-violet-50 text-violet-600 grid place-items-center"><Icon name="briefcase" /></div>
+          <div>
+            <h3 class="font-semibold text-ink-900">Contabilidad</h3>
+            <p class="text-xs text-ink-500">Asignación contable (opcional)</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-ink-700 mb-1.5">Proyecto</label>
+            <select v-model="contab.proyecto" class="input">
+              <option value="">Selecciona una opción</option>
+              <option v-for="o in catalogos.proyecto" :key="o" :value="o">{{ o }}</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-ink-700 mb-1.5">Cuenta</label>
+            <select v-model="contab.cuenta" class="input">
+              <option value="">Selecciona una opción</option>
+              <option v-for="o in catalogos.cuenta" :key="o" :value="o">{{ o }}</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-ink-700 mb-1.5">Partida</label>
+            <select v-model="contab.partida" class="input">
+              <option value="">Selecciona una opción</option>
+              <option v-for="o in catalogos.partida" :key="o" :value="o">{{ o }}</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-ink-700 mb-1.5">Objetivo estratégico</label>
+            <select v-model="contab.objetivo_estrategico" class="input">
+              <option value="">Selecciona una opción</option>
+              <option v-for="o in catalogos.objetivo_estrategico" :key="o" :value="o">{{ o }}</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-ink-700 mb-1.5">Resultado</label>
+            <input v-model="contab.resultado" placeholder="Resultado" class="input" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-ink-700 mb-1.5">Concepto</label>
+            <input v-model="contab.concepto" placeholder="Concepto de la factura" class="input" />
+          </div>
+        </div>
+      </section>
+
       <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
     </form>
 
@@ -207,6 +256,8 @@ const registro = ref(null);
 
 const pdf = ref(null);
 const xml = ref(null);
+const contab = reactive({ proyecto: '', cuenta: '', partida: '', objetivo_estrategico: '', resultado: '', concepto: '' });
+const catalogos = reactive({ proyecto: [], cuenta: [], partida: [], objetivo_estrategico: [] });
 const preview = ref(null);
 const loading = ref(false);
 const error = ref('');
@@ -216,13 +267,15 @@ const proveedorSeleccionado = ref('');
 
 onMounted(async () => {
   try {
-    if (esAdmin.value) {
-      const r = await api.get('/proveedores?activo=1');
-      proveedoresAprobados.value = (r.data || []).filter((p) => p.estado === 'aprobado');
-    } else {
-      const r = await api.get('/proveedores/mio');
-      registro.value = r.data;
-    }
+    const tiposCatalogo = ['proyecto', 'cuenta', 'partida', 'objetivo_estrategico'];
+    const [, ...catResults] = await Promise.allSettled([
+      esAdmin.value
+        ? api.get('/proveedores?activo=1').then((r) => { proveedoresAprobados.value = (r.data || []).filter((p) => p.estado === 'aprobado'); })
+        : api.get('/proveedores/mio').then((r) => { registro.value = r.data; }),
+      ...tiposCatalogo.map((t) =>
+        api.get(`/catalogos?tipo=${t}`).then((r) => { catalogos[t] = (r.data || []).map((c) => c.nombre); })
+      ),
+    ]);
   } finally { cargando.value = false; }
 });
 
@@ -252,10 +305,17 @@ async function subir() {
     fd.append('pdf', pdf.value);
     fd.append('xml', xml.value);
     if (esAdmin.value) fd.append('proveedor_id', String(proveedorSeleccionado.value));
+    if (contab.proyecto)             fd.append('proyecto',             contab.proyecto);
+    if (contab.cuenta)               fd.append('cuenta',               contab.cuenta);
+    if (contab.partida)              fd.append('partida',              contab.partida);
+    if (contab.objetivo_estrategico) fd.append('objetivo_estrategico', contab.objetivo_estrategico);
+    if (contab.resultado)            fd.append('resultado',            contab.resultado);
+    if (contab.concepto)             fd.append('concepto',             contab.concepto);
     const r = await api.upload('/facturas', fd);
     ok.value = r.folio;
     toast.success('Factura enviada', `Folio ${r.folio} · en revisión`);
     pdf.value = null; xml.value = null; preview.value = null;
+    Object.assign(contab, { proyecto: '', cuenta: '', partida: '', objetivo_estrategico: '', resultado: '', concepto: '' });
   } catch (e) {
     error.value = e.message;
     toast.error('No se pudo enviar la factura', e.message);

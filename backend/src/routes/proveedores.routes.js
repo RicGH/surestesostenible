@@ -7,6 +7,7 @@ const asyncHandler = require('../utils/asyncHandler');
 router.use(verifyToken);
 
 router.get('/mio', requireRole('proveedor'), asyncHandler(ctrl.miRegistro));
+router.put('/mio', requireRole('proveedor'), uploadDocsProveedor.single('documentacion'), asyncHandler(ctrl.actualizarMio));
 router.post('/', requireRole('proveedor'), uploadDocsProveedor.single('documentacion'), asyncHandler(ctrl.registrar));
 router.post('/admin-crear', requireRole('admin'), asyncHandler(ctrl.crearComoAdmin));
 router.get('/pendientes', requireRole('admin'), asyncHandler(ctrl.listarPendientes));

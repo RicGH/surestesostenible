@@ -5,8 +5,8 @@ const asyncHandler = require('../utils/asyncHandler');
 
 router.use(verifyToken);
 
-// Lectura: admin (gestión) y colaborador (selectores al crear viático).
-router.get('/', requireRole('admin', 'colaborador'), asyncHandler(ctrl.listar));
+// Lectura: admin (gestión), colaborador (viáticos) y proveedor (facturas).
+router.get('/', requireRole('admin', 'colaborador', 'proveedor'), asyncHandler(ctrl.listar));
 
 // Gestión: solo admin.
 router.post('/', requireRole('admin'), asyncHandler(ctrl.crear));

@@ -3,7 +3,9 @@ const { query, queryOne, withTx } = require('../config/db');
 async function getByUserId(userId) {
   return queryOne(
     `SELECT id, user_id, rfc, razon_social, direccion, banco, cuenta_clabe,
-            documentacion, estado, motivo_rechazo, created_at
+            documentacion, estado, motivo_rechazo, created_at,
+            fecha_nacimiento, estado_civil, nacionalidad,
+            codigo_postal, municipio, estado_republica, sucursal_banco
      FROM proveedores WHERE user_id = ?`,
     [userId]
   );
@@ -116,21 +118,24 @@ async function listarTodos(filtros = {}) {
   return query(sql, params);
 }
 
-async function actualizar(id, data) {
+async function actualizar(id, data, documentacion) {
+  const docSet = documentacion ? ', documentacion = ?' : '';
+  const params = [
+    data.rfc, data.razon_social,
+    data.direccion || null, data.banco || null, data.cuenta_clabe || null,
+    data.fecha_nacimiento || null, data.estado_civil || null, data.nacionalidad || null,
+    data.codigo_postal || null, data.municipio || null, data.estado_republica || null,
+    data.sucursal_banco || null,
+  ];
+  if (documentacion) params.push(documentacion);
+  params.push(id);
   await query(
     `UPDATE proveedores
      SET rfc = ?, razon_social = ?, direccion = ?, banco = ?, cuenta_clabe = ?,
          fecha_nacimiento = ?, estado_civil = ?, nacionalidad = ?,
-         codigo_postal = ?, municipio = ?, estado_republica = ?, sucursal_banco = ?
+         codigo_postal = ?, municipio = ?, estado_republica = ?, sucursal_banco = ?${docSet}
      WHERE id = ?`,
-    [
-      data.rfc, data.razon_social,
-      data.direccion || null, data.banco || null, data.cuenta_clabe || null,
-      data.fecha_nacimiento || null, data.estado_civil || null, data.nacionalidad || null,
-      data.codigo_postal || null, data.municipio || null, data.estado_republica || null,
-      data.sucursal_banco || null,
-      id,
-    ]
+    params
   );
   if (typeof data.activo === 'boolean') {
     await query(

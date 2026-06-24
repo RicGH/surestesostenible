@@ -6,13 +6,15 @@ function generarFolio() {
   return `F-${ts}-${rnd}`;
 }
 
-async function crear(proveedorId, cfdi, pdfPath, xmlPath) {
+async function crear(proveedorId, cfdi, pdfPath, xmlPath, contabilidad = {}) {
   const folio = generarFolio();
   const result = await query(
     `INSERT INTO facturas_proveedor
-     (folio, proveedor_id, uuid_cfdi, rfc_emisor, nombre_emisor, monto, moneda, fecha_emision, pdf_path, xml_path, estado)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'en_revision')`,
-    [folio, proveedorId, cfdi.uuid, cfdi.rfc_emisor, cfdi.nombre_emisor, cfdi.monto, cfdi.moneda, cfdi.fecha_emision, pdfPath, xmlPath]
+     (folio, proveedor_id, uuid_cfdi, rfc_emisor, nombre_emisor, monto, moneda, fecha_emision, pdf_path, xml_path,
+      proyecto, cuenta, partida, objetivo_estrategico, resultado, concepto, estado)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'en_revision')`,
+    [folio, proveedorId, cfdi.uuid, cfdi.rfc_emisor, cfdi.nombre_emisor, cfdi.monto, cfdi.moneda, cfdi.fecha_emision, pdfPath, xmlPath,
+     contabilidad.proyecto, contabilidad.cuenta, contabilidad.partida, contabilidad.objetivo_estrategico, contabilidad.resultado, contabilidad.concepto]
   );
   return { id: result.insertId, folio };
 }

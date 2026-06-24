@@ -29,6 +29,7 @@
             <td>
               <div class="flex gap-1 justify-center">
                 <IconButton icon="eye" tooltip="Ver detalle" variant="primary" @click="abrir(f.id)" />
+                <IconButton icon="fileText" tooltip="Oficio de pago a proveedores (PDF)" @click="verOficio(f)" />
                 <IconButton v-if="f.estado === 'en_revision'" icon="check" tooltip="Aprobar" variant="success" @click="aprobar(f.id)" />
                 <IconButton v-if="f.estado === 'en_revision'" icon="x" tooltip="Rechazar" variant="danger" @click="abrirRechazo(f)" />
               </div>
@@ -55,6 +56,29 @@
         <button class="btn-secondary" @click="api.download(`/facturas/${detalle.id}/archivo/xml`, `${detalle.folio}.xml`)">
           <Icon name="fileText" size="w-4 h-4" /> Descargar XML
         </button>
+      </div>
+    </Modal>
+
+    <Modal v-if="oficioModal.abierto" title="Oficio de pago a proveedores" size="sm" @close="oficioModal.abierto = false">
+      <div class="py-4 text-center">
+        <template v-if="oficioModal.estado === 'generando'">
+          <div class="mx-auto w-12 h-12 rounded-full border-[3px] border-brand-100 border-t-brand-600 animate-spin"></div>
+          <p class="mt-4 font-semibold text-ink-800">Generando documento…</p>
+          <p class="text-sm text-ink-500 mt-1">Preparando el oficio de <span class="font-mono">{{ oficioModal.folio }}</span>. Esto puede tardar unos segundos.</p>
+        </template>
+        <template v-else-if="oficioModal.estado === 'listo'">
+          <div class="mx-auto w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 grid place-items-center"><Icon name="check" /></div>
+          <p class="mt-4 font-semibold text-ink-800">Documento listo</p>
+          <p class="text-sm text-ink-500 mt-1">Tu navegador bloqueó la pestaña automática. Ábrelo manualmente.</p>
+          <a :href="oficioModal.url" target="_blank" class="btn-primary mt-4 inline-flex" @click="oficioModal.abierto = false">
+            <Icon name="eye" size="w-4 h-4" /> Abrir documento
+          </a>
+        </template>
+        <template v-else>
+          <div class="mx-auto w-12 h-12 rounded-full bg-red-50 text-red-600 grid place-items-center"><Icon name="alert" /></div>
+          <p class="mt-4 font-semibold text-ink-800">No se pudo generar</p>
+          <p class="text-sm text-red-600 mt-1">{{ oficioModal.error }}</p>
+        </template>
       </div>
     </Modal>
 
@@ -96,6 +120,22 @@ async function aprobar(id) {
     cargar();
   } catch (e) { toast.error('No se pudo aprobar', e.message); }
 }
+const oficioModal = reactive({ abierto: false, estado: '', url: null, folio: '', error: '' });
+
+async function verOficio(f) {
+  Object.assign(oficioModal, { abierto: true, estado: 'generando', url: null, folio: f.folio, error: '' });
+  try {
+    const { url } = await api.viewBlob(`/facturas/${f.id}/oficio`);
+    oficioModal.url = url;
+    oficioModal.estado = 'listo';
+    const win = window.open(url, '_blank');
+    if (win) oficioModal.abierto = false;
+  } catch (e) {
+    oficioModal.estado = 'error';
+    oficioModal.error = e.message;
+  }
+}
+
 function abrirRechazo(f) { Object.assign(modal, { abierto: true, id: f.id, folio: f.folio, motivo: '' }); }
 async function rechazar() {
   try {

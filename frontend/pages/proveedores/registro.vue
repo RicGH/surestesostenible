@@ -1,7 +1,7 @@
 <template>
   <div v-if="cargando" class="card-pad text-ink-500">Cargando...</div>
 
-  <div v-else-if="registro" class="space-y-6">
+  <div v-else-if="registro && !editando" class="space-y-6">
     <section class="card-pad bg-gradient-to-br from-ink-900 via-brand-900 to-brand-700 text-white border-transparent">
       <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div class="space-y-1">
@@ -12,7 +12,15 @@
             <span class="font-mono">{{ registro.rfc }}</span>
           </div>
         </div>
-        <EstadoBadge :estado="registro.estado" class="!bg-white/15 !text-white !ring-white/20" />
+        <div class="flex items-center gap-3">
+          <EstadoBadge :estado="registro.estado" class="!bg-white/15 !text-white !ring-white/20" />
+          <button
+            class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-white/40 text-white text-sm font-medium bg-white/10 hover:bg-white/20 transition-colors"
+            @click="iniciarEdicion"
+          >
+            <Icon name="edit" size="w-4 h-4" /> Editar datos
+          </button>
+        </div>
       </div>
     </section>
 
@@ -47,7 +55,7 @@
         </div>
         <div>
           <h3 class="font-semibold text-emerald-700">Registro aprobado</h3>
-          <p class="text-sm text-ink-700 mt-0.5">Ya puedes subir facturas. Tu información queda fija — para cambios solicita al administrador.</p>
+          <p class="text-sm text-ink-700 mt-0.5">Ya puedes subir facturas. Puedes editar tus datos usando el botón <strong>Editar datos</strong>.</p>
         </div>
       </div>
     </section>
@@ -107,6 +115,46 @@
       </section>
     </div>
 
+    <section v-if="registro.fecha_nacimiento || registro.nacionalidad || registro.municipio || registro.sucursal_banco" class="card-pad space-y-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-lg bg-amber-50 text-amber-600 grid place-items-center"><Icon name="users" /></div>
+        <div>
+          <h3 class="font-semibold text-ink-900">Datos personales</h3>
+          <p class="text-xs text-ink-500">Información para generación de contratos</p>
+        </div>
+      </div>
+      <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-0 text-sm">
+        <div v-if="registro.fecha_nacimiento" class="flex items-center justify-between gap-3 py-2 border-b border-ink-100">
+          <dt class="text-ink-500">Fecha de nacimiento</dt>
+          <dd class="font-medium text-ink-900">{{ registro.fecha_nacimiento }}</dd>
+        </div>
+        <div v-if="registro.estado_civil" class="flex items-center justify-between gap-3 py-2 border-b border-ink-100">
+          <dt class="text-ink-500">Estado civil</dt>
+          <dd class="font-medium text-ink-900">{{ registro.estado_civil }}</dd>
+        </div>
+        <div v-if="registro.nacionalidad" class="flex items-center justify-between gap-3 py-2 border-b border-ink-100">
+          <dt class="text-ink-500">Nacionalidad</dt>
+          <dd class="font-medium text-ink-900">{{ registro.nacionalidad }}</dd>
+        </div>
+        <div v-if="registro.codigo_postal" class="flex items-center justify-between gap-3 py-2 border-b border-ink-100">
+          <dt class="text-ink-500">Código postal</dt>
+          <dd class="font-mono font-medium text-ink-900">{{ registro.codigo_postal }}</dd>
+        </div>
+        <div v-if="registro.municipio" class="flex items-center justify-between gap-3 py-2 border-b border-ink-100">
+          <dt class="text-ink-500">Municipio</dt>
+          <dd class="font-medium text-ink-900">{{ registro.municipio }}</dd>
+        </div>
+        <div v-if="registro.estado_republica" class="flex items-center justify-between gap-3 py-2 border-b border-ink-100">
+          <dt class="text-ink-500">Estado</dt>
+          <dd class="font-medium text-ink-900">{{ registro.estado_republica }}</dd>
+        </div>
+        <div v-if="registro.sucursal_banco" class="flex items-center justify-between gap-3 py-2 sm:col-span-2">
+          <dt class="text-ink-500">Sucursal bancaria</dt>
+          <dd class="font-medium text-ink-900 text-right">{{ registro.sucursal_banco }}</dd>
+        </div>
+      </dl>
+    </section>
+
     <section v-if="registro.estado === 'aprobado'" class="card-pad bg-brand-50/40 border-brand-100">
       <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div class="flex items-center gap-3">
@@ -125,6 +173,11 @@
 
   <div v-else class="grid grid-cols-1 lg:grid-cols-3 gap-6">
     <form class="lg:col-span-2 space-y-6" @submit.prevent="enviar">
+      <div v-if="editando" class="flex items-center gap-3 p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
+        <Icon name="edit" size="w-4 h-4" />
+        Estás editando tu registro. Los cambios se guardarán al confirmar.
+        <button type="button" class="ml-auto text-xs underline hover:no-underline" @click="cancelarEdicion">Cancelar</button>
+      </div>
       <section class="card-pad space-y-5">
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 rounded-lg bg-brand-50 text-brand-600 grid place-items-center"><Icon name="document" /></div>
@@ -270,10 +323,15 @@
         </div>
 
         <button class="btn-primary w-full" :disabled="loading" @click.prevent="enviar">
-          <Icon name="send" size="w-4 h-4" /> {{ loading ? 'Enviando...' : 'Enviar registro' }}
+          <Icon name="send" size="w-4 h-4" />
+          {{ loading ? (editando ? 'Guardando...' : 'Enviando...') : (editando ? 'Guardar cambios' : 'Enviar registro') }}
         </button>
 
-        <p class="text-xs text-ink-500 leading-relaxed pt-2 border-t border-ink-100">
+        <button v-if="editando" type="button" class="btn-secondary w-full" @click="cancelarEdicion">
+          Cancelar edición
+        </button>
+
+        <p v-if="!editando" class="text-xs text-ink-500 leading-relaxed pt-2 border-t border-ink-100">
           Tu información será revisada por el administrador. Una vez aprobada no podrás modificarla — para cambios contacta al administrador.
         </p>
       </div>
@@ -288,6 +346,7 @@ const registro = ref(null);
 const documentacion = ref(null);
 const loading = ref(false);
 const error = ref('');
+const editando = ref(false);
 const form = reactive({
   rfc: '', razon_social: '', direccion: '', banco: '', cuenta_clabe: '',
   fecha_nacimiento: '', estado_civil: '', nacionalidad: '',
@@ -312,6 +371,31 @@ onMounted(cargar);
 
 const toast = useToast();
 
+function iniciarEdicion() {
+  const r = registro.value;
+  Object.assign(form, {
+    rfc: r.rfc || '',
+    razon_social: r.razon_social || '',
+    direccion: r.direccion || '',
+    banco: r.banco || '',
+    cuenta_clabe: r.cuenta_clabe || '',
+    fecha_nacimiento: r.fecha_nacimiento || '',
+    estado_civil: r.estado_civil || '',
+    nacionalidad: r.nacionalidad || '',
+    codigo_postal: r.codigo_postal || '',
+    municipio: r.municipio || '',
+    estado_republica: r.estado_republica || '',
+    sucursal_banco: r.sucursal_banco || '',
+  });
+  documentacion.value = null;
+  editando.value = true;
+}
+
+function cancelarEdicion() {
+  editando.value = false;
+  error.value = '';
+}
+
 async function enviar() {
   error.value = '';
   if (!rfcValido.value) {
@@ -325,13 +409,19 @@ async function enviar() {
     const fd = new FormData();
     Object.entries(form).forEach(([k, v]) => v && fd.append(k, v));
     if (documentacion.value) fd.append('documentacion', documentacion.value);
-    await api.upload('/proveedores', fd);
-    toast.success('Registro enviado', 'En espera de aprobación del administrador.');
+    if (editando.value) {
+      await api.put('/proveedores/mio', fd);
+      toast.success('Datos actualizados', 'Tu registro ha sido actualizado correctamente.');
+      editando.value = false;
+    } else {
+      await api.upload('/proveedores', fd);
+      toast.success('Registro enviado', 'En espera de aprobación del administrador.');
+    }
     await cargar();
     try { await useRegistroProveedor().refrescar(); } catch {}
   } catch (e) {
     error.value = e.message;
-    toast.error('No se pudo enviar el registro', e.message);
+    toast.error('No se pudo guardar el registro', e.message);
   }
   finally { loading.value = false; }
 }

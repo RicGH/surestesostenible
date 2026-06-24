@@ -176,4 +176,13 @@ async function crearComoAdmin(req, res) {
   }
 }
 
-module.exports = { miRegistro, registrar, listarPendientes, listarTodos, detalle, actualizar, descargarDocumentacion, aprobar, rechazar, crearComoAdmin };
+async function actualizarMio(req, res) {
+  const prov = await service.getByUserId(req.user.sub);
+  if (!prov) throw new HttpError(404, 'No tienes un registro de proveedor');
+  const body = registroSchema.parse(req.body);
+  const documentacion = req.file ? `proveedores/${req.file.filename}` : undefined;
+  await service.actualizar(prov.id, body, documentacion);
+  res.json({ ok: true });
+}
+
+module.exports = { miRegistro, registrar, actualizarMio, listarPendientes, listarTodos, detalle, actualizar, descargarDocumentacion, aprobar, rechazar, crearComoAdmin };

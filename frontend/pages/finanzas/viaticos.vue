@@ -93,9 +93,36 @@
     <Modal v-if="modal.abierto" :title="`Registrar abono · ${modal.folio}`" @close="modal.abierto = false">
       <div class="space-y-4">
         <div class="rounded-lg bg-ink-50 border border-ink-200 p-3 text-sm">
-          <div class="flex justify-between"><span class="text-ink-500">Tipo</span><span class="font-medium">{{ modal.tipo === 'ajuste' ? 'Ajuste' : 'Solicitud' }}</span></div>
-          <div class="flex justify-between mt-1"><span class="text-ink-500">Colaborador</span><span class="font-medium">{{ modal.colaborador }}</span></div>
+          <div class="flex justify-between"><span class="text-ink-500">Colaborador</span><span class="font-medium">{{ modal.colaborador }}</span></div>
+          <div class="flex justify-between mt-1"><span class="text-ink-500">Destino</span><span class="font-medium">{{ modal.destino }}</span></div>
           <div class="flex justify-between mt-1"><span class="text-ink-500">Monto a abonar</span><span class="font-semibold text-ink-900">${{ Number(modal.monto).toFixed(2) }}</span></div>
+          <template v-if="modal.clabe_bancaria || modal.banco">
+            <div class="border-t border-ink-200 mt-2 pt-2">
+              <div v-if="modal.banco" class="flex justify-between mt-1"><span class="text-ink-500">Banco</span><span class="font-medium">{{ modal.banco }}</span></div>
+              <div v-if="modal.clabe_bancaria" class="flex justify-between mt-1"><span class="text-ink-500">CLABE</span><span class="font-mono text-xs font-medium tracking-wide">{{ modal.clabe_bancaria }}</span></div>
+            </div>
+          </template>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-ink-700 mb-1.5">Forma de pago <span class="text-red-500">*</span></label>
+          <div class="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              :class="['flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-medium transition-colors',
+                       modal.metodo === 'transferencia' ? 'border-brand-500 bg-brand-50 text-brand-700 ring-1 ring-brand-200' : 'border-ink-200 text-ink-600 hover:bg-ink-50']"
+              @click="modal.metodo = 'transferencia'"
+            >
+              <Icon name="send" size="w-4 h-4" /> Transferencia
+            </button>
+            <button
+              type="button"
+              :class="['flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-medium transition-colors',
+                       modal.metodo === 'tarjeta' ? 'border-brand-500 bg-brand-50 text-brand-700 ring-1 ring-brand-200' : 'border-ink-200 text-ink-600 hover:bg-ink-50']"
+              @click="modal.metodo = 'tarjeta'"
+            >
+              <Icon name="wallet" size="w-4 h-4" /> Tarjeta
+            </button>
+          </div>
         </div>
         <div>
           <label class="block text-sm font-medium text-ink-700 mb-1.5">Referencia <span class="text-ink-400 text-xs font-normal">(opcional)</span></label>
@@ -115,7 +142,7 @@
       </div>
       <template #footer>
         <button class="btn-secondary" @click="modal.abierto = false">Cancelar</button>
-        <button class="btn-success" :disabled="enviando" @click="confirmar">{{ enviando ? 'Subiendo...' : 'Confirmar abono' }}</button>
+        <button class="btn-success" :disabled="enviando || !modal.metodo" @click="confirmar">{{ enviando ? 'Registrando...' : 'Confirmar abono' }}</button>
       </template>
     </Modal>
   </div>
@@ -133,7 +160,7 @@ const porPagar = ref([]);
 const historial = ref([]);
 const comprobante = ref(null);
 const enviando = ref(false);
-const modal = reactive({ abierto: false, tipo: '', id: null, ajuste_id: null, folio: '', colaborador: '', monto: 0, referencia: '' });
+const modal = reactive({ abierto: false, tipo: '', id: null, ajuste_id: null, folio: '', colaborador: '', destino: '', monto: 0, referencia: '', clabe_bancaria: '', banco: '', metodo: '' });
 
 const counts = computed(() => ({ por_pagar: porPagar.value.length, historial: historial.value.length }));
 
@@ -154,8 +181,12 @@ function abrirPago(r) {
     ajuste_id: r.ajuste_id,
     folio: r.folio,
     colaborador: r.colaborador_nombre,
+    destino: r.destino || '',
     monto: r.monto_total,
     referencia: '',
+    clabe_bancaria: r.clabe_bancaria || '',
+    banco: r.banco || '',
+    metodo: '',
   });
   comprobante.value = null;
 }
@@ -163,9 +194,11 @@ function abrirPago(r) {
 const toast = useToast();
 
 async function confirmar() {
+  if (!modal.metodo) return;
   enviando.value = true;
   try {
     const fd = new FormData();
+    fd.append('metodo_pago', modal.metodo);
     if (comprobante.value) fd.append('comprobante', comprobante.value);
     if (modal.referencia) fd.append('referencia', modal.referencia);
     const url = modal.tipo === 'ajuste'

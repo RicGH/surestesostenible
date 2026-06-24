@@ -415,13 +415,19 @@
 
     <Modal v-if="abonoModal.abierto" :title="`Registrar abono · ${sol.folio}`" @close="cerrarAbono">
       <div class="space-y-4">
-        <div class="rounded-lg bg-ink-50 border border-ink-200 p-3 text-sm space-y-1">
+        <div class="rounded-lg bg-ink-50 border border-ink-200 p-3 text-sm">
           <div class="flex justify-between"><span class="text-ink-500">Colaborador</span><span class="font-medium">{{ sol.colaborador_nombre }}</span></div>
-          <div class="flex justify-between"><span class="text-ink-500">Destino</span><span class="font-medium">{{ sol.destino }}</span></div>
-          <div class="flex justify-between border-t border-ink-200 pt-1 mt-1">
+          <div class="flex justify-between mt-1"><span class="text-ink-500">Destino</span><span class="font-medium">{{ sol.destino }}</span></div>
+          <div class="flex justify-between mt-1">
             <span class="text-ink-500">Monto a abonar</span>
             <strong class="text-ink-900">${{ Number(sol.monto_total).toFixed(2) }}</strong>
           </div>
+          <template v-if="sol.banco || sol.clabe_bancaria">
+            <div class="border-t border-ink-200 mt-2 pt-2">
+              <div v-if="sol.banco" class="flex justify-between"><span class="text-ink-500">Banco</span><span class="font-medium">{{ sol.banco }}</span></div>
+              <div v-if="sol.clabe_bancaria" class="flex justify-between mt-1"><span class="text-ink-500">CLABE</span><span class="font-mono text-xs font-medium tracking-wide">{{ sol.clabe_bancaria }}</span></div>
+            </div>
+          </template>
         </div>
         <div>
           <label class="block text-sm font-medium text-ink-700 mb-1.5">Forma de pago <span class="text-red-500">*</span></label>

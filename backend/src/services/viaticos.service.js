@@ -197,7 +197,9 @@ async function getById(id, colaboradorId = null) {
   const where = colaboradorId ? 'WHERE s.id = ? AND s.colaborador_id = ?' : 'WHERE s.id = ?';
   const params = colaboradorId ? [id, colaboradorId] : [id];
   const solicitud = await queryOne(
-    `SELECT s.*, u.nombre AS colaborador_nombre
+    `SELECT s.*, u.nombre AS colaborador_nombre,
+            COALESCE(s.clabe_bancaria, u.clabe_bancaria) AS clabe_bancaria,
+            COALESCE(s.banco, u.banco) AS banco
      FROM viaticos_solicitudes s
      JOIN users u ON u.id = s.colaborador_id
      ${where}`,

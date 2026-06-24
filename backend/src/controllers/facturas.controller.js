@@ -7,6 +7,7 @@ const proveedores = require('../services/proveedores.service');
 const notif = require('../services/notificaciones.service');
 const { parseCfdi } = require('../utils/cfdi-parser');
 const { UPLOAD_ROOT } = require('../config/upload');
+const oficioService = require('../services/facturas-oficio.service');
 
 async function subir(req, res) {
   let prov;
@@ -33,7 +34,16 @@ async function subir(req, res) {
     throw new HttpError(400, `XML inválido: ${e.message}`);
   }
 
-  const result = await facturas.crear(prov.id, cfdi, `facturas/${pdf.filename}`, `facturas/${xml.filename}`);
+  const contabilidad = {
+    proyecto:             req.body.proyecto             || null,
+    cuenta:               req.body.cuenta               || null,
+    partida:              req.body.partida              || null,
+    objetivo_estrategico: req.body.objetivo_estrategico || null,
+    resultado:            req.body.resultado            || null,
+    concepto:             req.body.concepto             || null,
+  };
+
+  const result = await facturas.crear(prov.id, cfdi, `facturas/${pdf.filename}`, `facturas/${xml.filename}`, contabilidad);
 
   await notif.crearParaRol('admin', {
     tipo: 'factura_nueva',
@@ -155,7 +165,20 @@ async function descargarFactura(req, res) {
   res.sendFile(path.join(UPLOAD_ROOT, factura[tipo]));
 }
 
+async function descargarOficio(req, res) {
+  const id = Number(req.params.id);
+  if (req.user.rol === 'proveedor') {
+    const prov = await proveedores.getByUserId(req.user.sub);
+    const f = await facturas.getById(id);
+    if (!f || !prov || f.proveedor_id !== prov.id) throw new HttpError(404, 'Factura no encontrada');
+  }
+  const { pdf, folio } = await oficioService.generarPdf(id);
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `inline; filename="oficio-${folio}.pdf"`);
+  res.send(pdf);
+}
+
 module.exports = {
   subir, preview, misFacturas, listarAdmin, detalle,
-  aprobar, rechazar, pagar, descargarComprobante, descargarFactura,
+  aprobar, rechazar, pagar, descargarComprobante, descargarFactura, descargarOficio,
 };
