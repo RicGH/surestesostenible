@@ -9,12 +9,14 @@ const crearSchema = z.object({
   password: z.string().min(8),
   nombre: z.string().min(2).max(120),
   rol: z.enum(['admin', 'colaborador', 'proveedor', 'finanzas']),
+  es_aprobador_viaticos: z.boolean().optional().default(false),
 });
 
 const actualizarSchema = z.object({
   email: z.string().email(),
   nombre: z.string().min(2).max(120),
   rol: z.enum(['admin', 'colaborador', 'proveedor', 'finanzas']),
+  es_aprobador_viaticos: z.boolean().optional().default(false),
 });
 
 const passwordSchema = z.object({ password: z.string().min(8) });
@@ -33,6 +35,7 @@ async function crear(req, res) {
     password_hash,
     nombre: data.nombre,
     rol: data.rol,
+    es_aprobador_viaticos: data.es_aprobador_viaticos,
   });
   await notifService.crear(id, {
     tipo: 'usuario_creado',
@@ -60,6 +63,7 @@ async function actualizar(req, res) {
 
   await service.actualizar(id, data);
 
+
   const cambios = [];
   if (usuario.email !== data.email) cambios.push(`correo cambiado a ${data.email}`);
   if (usuario.nombre !== data.nombre) cambios.push(`nombre actualizado`);
@@ -82,6 +86,17 @@ async function setActivo(req, res) {
   if (id === req.user.sub) throw new HttpError(400, 'No puedes desactivarte a ti mismo');
   await service.setActivo(id, activo);
   res.json({ ok: true });
+}
+
+async function setAprobador(req, res) {
+  const id = Number(req.params.id);
+  const { es_aprobador_viaticos } = z.object({ es_aprobador_viaticos: z.boolean() }).parse(req.body);
+  await service.setAprobador(id, es_aprobador_viaticos);
+  res.json({ ok: true });
+}
+
+async function listarAutorizadores(req, res) {
+  res.json({ data: await service.listarAutorizadores() });
 }
 
 async function resetPassword(req, res) {
@@ -122,4 +137,4 @@ async function eliminarVarios(req, res) {
   res.json({ ok: true, eliminados });
 }
 
-module.exports = { listar, crear, actualizar, setActivo, resetPassword, eliminar, eliminarVarios };
+module.exports = { listar, crear, actualizar, setActivo, setAprobador, resetPassword, eliminar, eliminarVarios, listarAutorizadores };

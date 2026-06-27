@@ -25,6 +25,8 @@
       </main>
     </div>
     <ToastContainer />
+    <ConfirmDialog />
+    <ProfileCompleteModal />
   </div>
 </template>
 

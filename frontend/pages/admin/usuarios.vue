@@ -48,7 +48,14 @@
                 @change="toggleTodos"
               />
             </th>
-            <th>Nombre</th><th>Correo</th><th>Rol</th><th>Estado</th>
+            <th>Nombre</th><th>Correo</th><th>Rol</th>
+            <th class="!text-center">
+              <span class="inline-flex items-center gap-0.5">
+                Autoriza
+                <IconButton icon="help" tooltip="Usuario responsable de autorizar los viáticos. Aparecerá en el listado de personas que autorizan al crear una solicitud." />
+              </span>
+            </th>
+            <th>Estado</th>
             <th>Creado</th><th class="!text-center">Acciones</th>
           </tr>
         </thead>
@@ -66,6 +73,16 @@
             <td class="font-medium text-ink-800">{{ u.nombre }}</td>
             <td>{{ u.email }}</td>
             <td><span :class="rolClass(u.rol)">{{ u.rol }}</span></td>
+            <td class="!text-center">
+              <button
+                :class="['relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none',
+                         u.es_aprobador_viaticos ? 'bg-brand-600' : 'bg-ink-200']"
+                @click="toggleAprobador(u)"
+              >
+                <span :class="['inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform shadow',
+                               u.es_aprobador_viaticos ? 'translate-x-4' : 'translate-x-0.5']" />
+              </button>
+            </td>
             <td><EstadoBadge :estado="u.activo ? 'activo' : 'inactivo'" /></td>
             <td class="text-ink-500 text-xs">{{ u.created_at }}</td>
             <td>
@@ -95,7 +112,7 @@
               </div>
             </td>
           </tr>
-          <tr v-if="!usuarios.length"><td colspan="7" class="py-12 text-center text-ink-400">Sin usuarios</td></tr>
+          <tr v-if="!usuarios.length"><td colspan="8" class="py-12 text-center text-ink-400">Sin usuarios</td></tr>
         </tbody>
       </table>
     </div>
@@ -123,6 +140,23 @@
         <div>
           <label class="block text-sm font-medium text-ink-700 mb-1.5">Contraseña</label>
           <input v-model="modalCrear.password" type="text" required minlength="8" class="input font-mono" />
+        </div>
+        <div class="flex items-center justify-between py-1 rounded-lg border border-ink-100 bg-ink-50 px-3">
+          <div class="flex-1 min-w-0 pr-4">
+            <div class="flex items-center gap-1.5">
+              <p class="text-sm font-medium text-ink-700">Autoriza viáticos</p>
+              <IconButton icon="help" tooltip="Usuario responsable de autorizar los viáticos. Aparecerá en el listado de personas que autorizan al crear una solicitud." />
+            </div>
+          </div>
+          <button
+            type="button"
+            :class="['relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none',
+                     modalCrear.es_aprobador_viaticos ? 'bg-brand-600' : 'bg-ink-200']"
+            @click="modalCrear.es_aprobador_viaticos = !modalCrear.es_aprobador_viaticos"
+          >
+            <span :class="['inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow',
+                           modalCrear.es_aprobador_viaticos ? 'translate-x-6' : 'translate-x-1']" />
+          </button>
         </div>
         <p v-if="modalCrear.error" class="text-sm text-red-600">{{ modalCrear.error }}</p>
       </form>
@@ -246,6 +280,23 @@
           </select>
           <p v-if="modalEditar.esYoMismo" class="text-xs text-ink-500 mt-1">No puedes cambiar tu propio rol.</p>
         </div>
+        <div class="flex items-center justify-between py-1 rounded-lg border border-ink-100 bg-ink-50 px-3">
+          <div class="flex-1 min-w-0 pr-4">
+            <div class="flex items-center gap-1.5">
+              <p class="text-sm font-medium text-ink-700">Autoriza viáticos</p>
+              <IconButton icon="help" tooltip="Usuario responsable de autorizar los viáticos. Aparecerá en el listado de personas que autorizan al crear una solicitud." />
+            </div>
+          </div>
+          <button
+            type="button"
+            :class="['relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none',
+                     modalEditar.es_aprobador_viaticos ? 'bg-brand-600' : 'bg-ink-200']"
+            @click="modalEditar.es_aprobador_viaticos = !modalEditar.es_aprobador_viaticos"
+          >
+            <span :class="['inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow',
+                           modalEditar.es_aprobador_viaticos ? 'translate-x-6' : 'translate-x-1']" />
+          </button>
+        </div>
         <p v-if="modalEditar.error" class="text-sm text-red-600">{{ modalEditar.error }}</p>
       </form>
       <template #footer>
@@ -263,9 +314,9 @@ const api = useApi();
 const auth = useAuth();
 const usuarios = ref([]);
 const filtros = reactive({ q: '', rol: '', activo: '' });
-const modalCrear = reactive({ abierto: false, nombre: '', email: '', rol: '', password: '', loading: false, error: '' });
+const modalCrear = reactive({ abierto: false, nombre: '', email: '', rol: '', password: '', es_aprobador_viaticos: false, loading: false, error: '' });
 const modalReset = reactive({ abierto: false, id: null, email: '', password: '', error: '' });
-const modalEditar = reactive({ abierto: false, id: null, nombre: '', email: '', rol: '', esYoMismo: false, guardando: false, error: '' });
+const modalEditar = reactive({ abierto: false, id: null, nombre: '', email: '', rol: '', es_aprobador_viaticos: false, esYoMismo: false, guardando: false, error: '' });
 const modalEliminar = reactive({ abierto: false, id: null, nombre: '', email: '', cargando: false, error: '' });
 const modalEliminarBulk = reactive({ abierto: false, cargando: false, error: '' });
 const seleccionados = ref([]);
@@ -308,11 +359,11 @@ onMounted(cargar);
 
 const toast = useToast();
 
-function abrirCrear() { Object.assign(modalCrear, { abierto: true, nombre: '', email: '', rol: '', password: '', error: '' }); }
+function abrirCrear() { Object.assign(modalCrear, { abierto: true, nombre: '', email: '', rol: '', password: '', es_aprobador_viaticos: false, error: '' }); }
 async function crear() {
   modalCrear.loading = true; modalCrear.error = '';
   try {
-    await api.post('/users', { nombre: modalCrear.nombre, email: modalCrear.email, rol: modalCrear.rol, password: modalCrear.password });
+    await api.post('/users', { nombre: modalCrear.nombre, email: modalCrear.email, rol: modalCrear.rol, password: modalCrear.password, es_aprobador_viaticos: modalCrear.es_aprobador_viaticos });
     toast.success('Usuario creado', `${modalCrear.email} (${modalCrear.rol})`);
     modalCrear.abierto = false; cargar();
   } catch (e) {
@@ -329,6 +380,7 @@ function abrirEditar(u) {
     nombre: u.nombre,
     email: u.email,
     rol: u.rol,
+    es_aprobador_viaticos: !!u.es_aprobador_viaticos,
     esYoMismo: u.id === auth.user?.id,
     guardando: false,
     error: '',
@@ -342,6 +394,7 @@ async function guardarEdicion() {
       nombre: modalEditar.nombre,
       email: modalEditar.email,
       rol: modalEditar.rol,
+      es_aprobador_viaticos: modalEditar.es_aprobador_viaticos,
     });
     toast.success('Usuario actualizado', modalEditar.email);
     modalEditar.abierto = false;
@@ -358,6 +411,13 @@ async function toggleActivo(u) {
     await api.put(`/users/${u.id}/activo`, { activo: !u.activo });
     toast.success(u.activo ? 'Usuario desactivado' : 'Usuario activado', u.email);
     cargar();
+  } catch (e) { toast.error('Error', e.message); }
+}
+
+async function toggleAprobador(u) {
+  try {
+    await api.put(`/users/${u.id}/aprobador`, { es_aprobador_viaticos: !u.es_aprobador_viaticos });
+    u.es_aprobador_viaticos = !u.es_aprobador_viaticos;
   } catch (e) { toast.error('Error', e.message); }
 }
 function abrirReset(u) { Object.assign(modalReset, { abierto: true, id: u.id, email: u.email, password: '', error: '' }); }

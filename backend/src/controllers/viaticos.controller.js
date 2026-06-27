@@ -260,15 +260,19 @@ async function rechazar(req, res) {
 async function editar(req, res) {
   const id = Number(req.params.id);
   const data = solicitudSchema.parse(req.body);
-  await service.editarSolicitud(id, req.user.sub, data);
-  const sol = await service.getById(id);
-  if (sol) {
-    await notifService.crearParaRol('admin', {
-      tipo: 'viaticos_corregido',
-      titulo: 'Solicitud corregida y reenviada',
-      mensaje: `${sol.colaborador_nombre} corrigió la solicitud ${sol.folio}. Vuelve a estar pendiente de aprobación.`,
-      url: '/admin/viaticos',
-    });
+  if (req.user.rol === 'admin') {
+    await service.editarSolicitudAdmin(id, data);
+  } else {
+    await service.editarSolicitud(id, req.user.sub, data);
+    const sol = await service.getById(id);
+    if (sol) {
+      await notifService.crearParaRol('admin', {
+        tipo: 'viaticos_corregido',
+        titulo: 'Solicitud corregida y reenviada',
+        mensaje: `${sol.colaborador_nombre} corrigió la solicitud ${sol.folio}. Vuelve a estar pendiente de aprobación.`,
+        url: '/admin/viaticos',
+      });
+    }
   }
   res.json({ ok: true });
 }
@@ -324,6 +328,7 @@ const gastoSchema = z.object({
   monto: z.coerce.number().positive(),
   fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   rfc_emisor: z.string().min(12).max(13).optional().or(z.literal('')),
+  razon_social: z.string().max(255).optional(),
   nombre_emisor: z.string().max(200).optional(),
   concepto: z.string().max(255).optional(),
 });
@@ -347,10 +352,21 @@ async function subirGasto(req, res) {
   }
 }
 
+async function subirJustificantes(req, res) {
+  const id = Number(req.params.id);
+  const archivos = (req.files || []).map((f) => ({
+    archivo: `justificantes/${f.filename}`,
+    nombre_original: f.originalname,
+  }));
+  if (!archivos.length) return res.json({ ok: true, count: 0 });
+  await service.agregarJustificantes(id, archivos);
+  res.json({ ok: true, count: archivos.length });
+}
+
 module.exports = {
   crear, listarMios, listarPendientes, listarActivos, listarCerrados,
   listarRechazados, listarTodos, detalle,
-  aprobar, rechazar, editar, duplicar, cerrar, subirGasto, puedoCrear,
+  aprobar, rechazar, editar, duplicar, cerrar, subirGasto, subirJustificantes, puedoCrear,
   listarPorPagar, listarPagosHistorial, pagarSolicitud, descargarComprobantePago,
   descargarGasto, descargarGastoXml, descargarJustificante, descargarJustificanteItem, descargarOficio,
 };

@@ -29,7 +29,7 @@
     </div>
 
     <div
-      v-if="puedeCerrar || puedeSubir || puedeAprobar || puedeAbonar"
+      v-if="puedeCerrar || puedeSubir || puedeAprobar || puedeAbonar || puedeEditar"
       class="sticky top-0 z-30 -mt-6 lg:-mt-8 -mx-6 lg:-mx-8 px-6 lg:px-8 py-3 bg-white/95 backdrop-blur-md border-b border-ink-200 flex items-center justify-between gap-3"
     >
       <div class="flex items-center gap-2 min-w-0 flex-wrap">
@@ -39,6 +39,9 @@
         <span class="hidden sm:inline text-xs text-ink-500 truncate">{{ sol.destino }}</span>
       </div>
       <div class="flex items-center gap-2 shrink-0">
+        <button v-if="puedeEditar" class="btn-secondary text-sm" @click="abrirEdicion">
+          <Icon name="edit" size="w-4 h-4" /> Editar
+        </button>
         <button v-if="puedeAprobar" class="btn-danger text-sm" :disabled="aprobando" @click="abrirRechazo">
           <Icon name="x" size="w-4 h-4" /> Rechazar
         </button>
@@ -177,7 +180,7 @@
         <dd class="mt-1 text-ink-800">{{ sol.motivo }}</dd>
       </div>
       <dl class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-        <div><dt class="text-xs text-ink-500 uppercase">Autoriza</dt><dd class="mt-1 text-ink-800">{{ sol.autoriza_nombre || '—' }}</dd></div>
+        <div><dt class="text-xs text-ink-500 uppercase">Autorizado por</dt><dd class="mt-1 text-ink-800">{{ sol.autoriza_nombre || '—' }}</dd></div>
         <div><dt class="text-xs text-ink-500 uppercase">Recibe el viático</dt><dd class="mt-1 text-ink-800">{{ sol.recibe_nombre || '—' }}</dd></div>
         <div><dt class="text-xs text-ink-500 uppercase">CLABE bancaria</dt><dd class="mt-1 text-ink-800">{{ sol.clabe_bancaria || '—' }}</dd></div>
         <div><dt class="text-xs text-ink-500 uppercase">Banco</dt><dd class="mt-1 text-ink-800">{{ sol.banco || '—' }}</dd></div>
@@ -267,7 +270,7 @@
         <span class="text-sm text-ink-500">{{ sol.gastos?.length || 0 }} registro(s)</span>
       </div>
       <table class="table">
-        <thead><tr><th>Comprobante</th><th>Fecha</th><th>Emisor</th><th>RFC</th><th>Concepto</th><th class="text-right">Monto</th></tr></thead>
+        <thead><tr><th>Comprobante</th><th>Fecha</th><th>Razón social</th><th>RFC</th><th>Concepto</th><th class="text-right">Monto</th></tr></thead>
         <tbody>
           <tr v-for="g in sol.gastos" :key="g.id">
             <td>
@@ -288,7 +291,7 @@
               <span v-else class="text-ink-300 text-xs">—</span>
             </td>
             <td>{{ g.fecha }}</td>
-            <td class="font-medium text-ink-800">{{ g.nombre_emisor || '—' }}</td>
+            <td class="font-medium text-ink-800">{{ g.razon_social || g.nombre_emisor || '—' }}</td>
             <td class="font-mono text-xs">{{ g.rfc_emisor || '—' }}</td>
             <td>{{ g.concepto || '—' }}</td>
             <td class="text-right font-medium">${{ Number(g.monto).toFixed(2) }}</td>
@@ -366,18 +369,14 @@
               </div>
             </div>
             <div>
-              <label class="block text-xs font-medium text-ink-600 mb-1">Fecha <span class="text-red-500">*</span></label>
+              <label class="block text-xs font-medium text-ink-600 mb-1">Fecha de comprobante <span class="text-red-500">*</span></label>
               <DateInput v-model="gasto.fecha" />
             </div>
             <div>
-              <label class="block text-xs font-medium text-ink-600 mb-1">RFC emisor</label>
-              <input v-model="gasto.rfc_emisor" class="input uppercase font-mono" placeholder="XAXX010101000" />
+              <label class="block text-xs font-medium text-ink-600 mb-1">Razón social</label>
+              <input v-model="gasto.razon_social" class="input" placeholder="Nombre o razón social del emisor" />
             </div>
             <div>
-              <label class="block text-xs font-medium text-ink-600 mb-1">Emisor</label>
-              <input v-model="gasto.nombre_emisor" class="input" placeholder="Nombre del emisor" />
-            </div>
-            <div class="sm:col-span-2">
               <label class="block text-xs font-medium text-ink-600 mb-1">Concepto</label>
               <input v-model="gasto.concepto" class="input" placeholder="Detalle del gasto" />
             </div>
@@ -528,7 +527,7 @@
         </div>
         <div><label class="block text-sm font-medium text-ink-700 mb-1.5">Motivo</label><textarea v-model="edicion.form.motivo" rows="2" required class="input"></textarea></div>
         <div class="grid grid-cols-2 gap-3">
-          <div><label class="block text-sm font-medium text-ink-700 mb-1.5">Autoriza</label><input v-model="edicion.form.autoriza_nombre" placeholder="Nombre de quien autoriza" class="input" /></div>
+          <div><label class="block text-sm font-medium text-ink-700 mb-1.5">Autorizado por</label><input v-model="edicion.form.autoriza_nombre" placeholder="Nombre de quien autoriza" class="input" /></div>
           <div><label class="block text-sm font-medium text-ink-700 mb-1.5">Recibe el viático</label><input v-model="edicion.form.recibe_nombre" placeholder="Nombre de quien recibe" class="input" /></div>
         </div>
         <div class="grid grid-cols-2 gap-3">
@@ -536,8 +535,22 @@
           <div><label class="block text-sm font-medium text-ink-700 mb-1.5">Banco</label><input v-model="edicion.form.banco" placeholder="Nombre del banco" class="input" /></div>
         </div>
         <div class="grid grid-cols-2 gap-3">
-          <div><label class="block text-sm font-medium text-ink-700 mb-1.5">Resultado</label><input v-model="edicion.form.resultado" placeholder="Resultado" class="input" /></div>
-          <div><label class="block text-sm font-medium text-ink-700 mb-1.5">Donante</label><input v-model="edicion.form.donante" placeholder="Donante" class="input" /></div>
+          <div>
+            <label class="block text-sm font-medium text-ink-700 mb-1.5">Resultado</label>
+            <select v-model="edicion.form.resultado" class="input">
+              <option value="">Selecciona una opción</option>
+              <option v-if="edicion.form.resultado && !catalogosEdicion.resultado.includes(edicion.form.resultado)" :value="edicion.form.resultado">{{ edicion.form.resultado }}</option>
+              <option v-for="o in catalogosEdicion.resultado" :key="o" :value="o">{{ o }}</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-ink-700 mb-1.5">Donante</label>
+            <select v-model="edicion.form.donante" class="input">
+              <option value="">Selecciona una opción</option>
+              <option v-if="edicion.form.donante && !catalogosEdicion.donante.includes(edicion.form.donante)" :value="edicion.form.donante">{{ edicion.form.donante }}</option>
+              <option v-for="o in catalogosEdicion.donante" :key="o" :value="o">{{ o }}</option>
+            </select>
+          </div>
         </div>
         <div class="grid grid-cols-2 gap-3">
           <CategoriaInput v-model="edicion.form.monto_vuelos"     icon="plane"     label="Vuelos" />
@@ -603,7 +616,7 @@ const errorCarga = ref('');
 const archivoGasto = ref(null);
 const xmlGasto = ref(null);
 const errorXml = ref('');
-const gasto = reactive({ monto: 0, fecha: '', rfc_emisor: '', nombre_emisor: '', concepto: '' });
+const gasto = reactive({ monto: 0, fecha: '', rfc_emisor: '', razon_social: '', nombre_emisor: '', concepto: '' });
 const subiendo = ref(false);
 const progreso = ref(0);
 const errorGasto = ref('');
@@ -615,6 +628,17 @@ const edicion = reactive({
     monto_vuelos: 0, monto_hospedaje: 0, monto_alimentos: 0, monto_transporte: 0, monto_otros: 0,
     proyecto: '', cuenta: '', partida: '', objetivo_estrategico: '', resultado: '', donante: '' },
 });
+
+const catalogosEdicion = reactive({ resultado: [], donante: [] });
+
+async function cargarCatalogosEdicion() {
+  await Promise.all(['resultado', 'donante'].map(async (t) => {
+    try {
+      const r = await api.get(`/catalogos?tipo=${t}`);
+      catalogosEdicion[t] = (r.data || []).map((c) => c.nombre);
+    } catch { catalogosEdicion[t] = []; }
+  }));
+}
 
 const ajuste = reactive({
   abierto: false, guardando: false, error: '',
@@ -658,7 +682,7 @@ function abrirSubir() {
 function cerrarSubir() {
   if (subiendo.value) return;
   subirModal.abierto = false;
-  Object.assign(gasto, { monto: 0, fecha: '', rfc_emisor: '', nombre_emisor: '', concepto: '' });
+  Object.assign(gasto, { monto: 0, fecha: '', rfc_emisor: '', razon_social: '', nombre_emisor: '', concepto: '' });
   archivoGasto.value = null;
   xmlGasto.value = null;
   errorXml.value = '';
@@ -767,7 +791,13 @@ const bloqueadaPorUso = computed(() => sol.value?.bloqueada_por_uso || null);
 const puedeCerrar = computed(() => sol.value && ['aprobado', 'pagado', 'en_proceso'].includes(sol.value.estado) && (esColaborador.value || esAdmin.value) && !bloqueadaPorUso.value);
 const puedeSubir = computed(() => estaActivo.value && (esColaborador.value || esAdmin.value));
 const puedeAprobar = computed(() => sol.value?.estado === 'pendiente' && esAdmin.value);
-const puedeAbonar = computed(() => sol.value?.estado === 'aprobado' && !sol.value?.pago && auth.rol === 'finanzas');
+const puedeAbonar = computed(() => sol.value?.estado === 'aprobado' && !sol.value?.pago && (auth.rol === 'finanzas' || esAdmin.value));
+const puedeEditar = computed(() => {
+  if (!sol.value) return false;
+  if (esAdmin.value) return true;
+  const s = sol.value;
+  return s.estado === 'pendiente' || (s.estado === 'rechazado' && s.permite_edicion);
+});
 const disponible = computed(() => sol.value ? Number(sol.value.monto_total) - Number(sol.value.monto_gastado) : 0);
 const necesitaAjuste = computed(() => disponible.value <= 0);
 const comprobantesLabel = computed(() => {
@@ -807,10 +837,22 @@ async function cargar() {
 
 onMounted(async () => {
   await cargar();
-  if (route.query.editar === '1' && sol.value?.estado === 'rechazado' && sol.value.permite_edicion) abrirEdicion();
+  cargarCatalogosEdicion();
+  if (route.query.editar === '1') {
+    const s = sol.value;
+    if (s && (esAdmin.value || s.estado === 'pendiente' || (s.estado === 'rechazado' && s.permite_edicion))) {
+      const from = route.query.from || (esAdmin.value ? 'admin' : 'historial');
+      router.replace(`/viaticos/nueva?editar=${route.params.id}&from=${from}`);
+    }
+  }
 });
 
 function abrirEdicion() {
+  const from = route.query.from || (esAdmin.value ? 'admin' : 'historial');
+  router.push(`/viaticos/nueva?editar=${route.params.id}&from=${from}`);
+}
+
+function _abrirEdicionModal() {
   if (!sol.value) return;
   Object.assign(edicion.form, {
     destino: sol.value.destino,
@@ -924,7 +966,7 @@ watch(xmlGasto, async (file) => {
     if (cfdi.total) gasto.monto = Number(cfdi.total);
     if (cfdi.fecha) gasto.fecha = cfdi.fecha.slice(0, 10);
     if (cfdi.rfc) gasto.rfc_emisor = cfdi.rfc.toUpperCase();
-    if (cfdi.nombre) gasto.nombre_emisor = cfdi.nombre;
+    if (cfdi.nombre) { gasto.razon_social = cfdi.nombre; gasto.nombre_emisor = cfdi.nombre; }
     if (cfdi.concepto) gasto.concepto = cfdi.concepto;
     toast.success('XML leído', 'Se llenaron los datos del comprobante');
   } catch (e) {
@@ -959,11 +1001,12 @@ async function subirGasto() {
     fd.append('monto', String(gasto.monto));
     fd.append('fecha', gasto.fecha);
     if (gasto.rfc_emisor) fd.append('rfc_emisor', gasto.rfc_emisor);
+    if (gasto.razon_social) fd.append('razon_social', gasto.razon_social);
     if (gasto.nombre_emisor) fd.append('nombre_emisor', gasto.nombre_emisor);
     if (gasto.concepto) fd.append('concepto', gasto.concepto);
     await api.uploadWithProgress(`/viaticos/${route.params.id}/gastos`, fd, (p) => { progreso.value = p; });
     toast.success('Comprobante subido', `Monto $${Number(gasto.monto).toFixed(2)}`);
-    Object.assign(gasto, { monto: 0, fecha: '', rfc_emisor: '', nombre_emisor: '', concepto: '' });
+    Object.assign(gasto, { monto: 0, fecha: '', rfc_emisor: '', razon_social: '', nombre_emisor: '', concepto: '' });
     archivoGasto.value = null;
     xmlGasto.value = null;
     errorXml.value = '';

@@ -9,9 +9,13 @@ async function findByEmail(email) {
 
 async function findById(id) {
   return queryOne(
-    'SELECT id, email, nombre, rfc, clabe_bancaria, banco, avatar_path, rol, activo, created_at FROM users WHERE id = ? AND eliminado = 0 LIMIT 1',
+    'SELECT id, email, nombre, rfc, clabe_bancaria, banco, avatar_path, rol, activo, nag_perfil_ignorado, created_at FROM users WHERE id = ? AND eliminado = 0 LIMIT 1',
     [id]
   );
+}
+
+async function setNagPerfilIgnorado(id, valor) {
+  await query('UPDATE users SET nag_perfil_ignorado = ? WHERE id = ?', [valor ? 1 : 0, id]);
 }
 
 async function setAvatar(id, avatarPath) {
@@ -25,10 +29,10 @@ async function findByIdConPassword(id) {
   );
 }
 
-async function create({ email, password_hash, nombre, rol }) {
+async function create({ email, password_hash, nombre, rol, es_aprobador_viaticos = false }) {
   const result = await query(
-    'INSERT INTO users (email, password_hash, nombre, rol) VALUES (?, ?, ?, ?)',
-    [email, password_hash, nombre, rol]
+    'INSERT INTO users (email, password_hash, nombre, rol, es_aprobador_viaticos) VALUES (?, ?, ?, ?, ?)',
+    [email, password_hash, nombre, rol, es_aprobador_viaticos ? 1 : 0]
   );
   return result.insertId;
 }
@@ -46,7 +50,7 @@ async function listar(filtros = {}) {
     params.push(`%${filtros.q}%`, `%${filtros.q}%`);
   }
   return query(
-    `SELECT id, email, nombre, rfc, clabe_bancaria, banco, rol, activo, created_at
+    `SELECT id, email, nombre, rfc, clabe_bancaria, banco, rol, es_aprobador_viaticos, activo, created_at
      FROM users
      WHERE ${where.join(' AND ')}
      ORDER BY created_at DESC LIMIT 200`,
@@ -70,10 +74,20 @@ async function existeEmailEnOtro(email, exceptId) {
   return !!row;
 }
 
-async function actualizar(id, { email, nombre, rol }) {
+async function actualizar(id, { email, nombre, rol, es_aprobador_viaticos }) {
   await query(
-    'UPDATE users SET email = ?, nombre = ?, rol = ? WHERE id = ?',
-    [email, nombre, rol, id]
+    'UPDATE users SET email = ?, nombre = ?, rol = ?, es_aprobador_viaticos = ? WHERE id = ?',
+    [email, nombre, rol, es_aprobador_viaticos ? 1 : 0, id]
+  );
+}
+
+async function setAprobador(id, valor) {
+  await query('UPDATE users SET es_aprobador_viaticos = ? WHERE id = ?', [valor ? 1 : 0, id]);
+}
+
+async function listarAutorizadores() {
+  return query(
+    `SELECT id, nombre FROM users WHERE es_aprobador_viaticos = 1 AND activo = 1 AND eliminado = 0 ORDER BY nombre ASC`
   );
 }
 
@@ -106,4 +120,5 @@ async function eliminarVarios(ids) {
 module.exports = {
   findByEmail, findById, findByIdConPassword, create, listar, setActivo, actualizarPassword,
   existeEmailEnOtro, actualizar, actualizarPerfil, setAvatar, tieneProveedor, eliminar, eliminarVarios,
+  setAprobador, listarAutorizadores, setNagPerfilIgnorado,
 };

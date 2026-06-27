@@ -1,10 +1,10 @@
 <template>
-  <div v-if="!check.cargado" class="card-pad text-ink-500">Cargando...</div>
+  <div v-if="!check.cargado && !modoEdicion" class="card-pad text-ink-500">Cargando...</div>
 
   <div v-else class="grid grid-cols-1 lg:grid-cols-3 gap-6">
     <form class="lg:col-span-2 space-y-6" @submit.prevent="enviar">
       <div
-        v-if="!esAdmin && check.enUso > 0"
+        v-if="!modoEdicion && !esAdmin && check.enUso > 0"
         :class="['card-pad', check.lleno ? 'bg-amber-50/50 border-amber-200' : 'bg-brand-50/50 border-brand-200']"
       >
         <div class="flex items-start gap-3">
@@ -33,6 +33,19 @@
         </div>
       </div>
 
+      <div v-if="modoEdicion" class="card-pad bg-amber-50/50 border-amber-200">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-amber-100 text-amber-700 grid place-items-center shrink-0">
+            <Icon name="edit" />
+          </div>
+          <div class="flex-1">
+            <p class="font-semibold text-amber-800 text-sm">Editando viático <span class="font-mono">{{ editandoFolio }}</span></p>
+            <p class="text-xs text-ink-600 mt-0.5">Modifica los datos y guarda los cambios.</p>
+          </div>
+          <button type="button" class="btn-ghost text-xs" @click="cancelarEdicion">Cancelar</button>
+        </div>
+      </div>
+
       <div v-if="duplicadoDesde" class="card-pad bg-brand-50/50 border-brand-200">
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 rounded-lg bg-brand-100 text-brand-700 grid place-items-center shrink-0">
@@ -50,11 +63,11 @@
         <div class="flex items-center gap-3 mb-3">
           <div class="w-10 h-10 rounded-lg bg-violet-100 text-violet-700 grid place-items-center"><Icon name="users" /></div>
           <div>
-            <h3 class="font-semibold text-ink-900">Crear a nombre de</h3>
-            <p class="text-xs text-ink-500">Selecciona el colaborador para esta solicitud</p>
+            <h3 class="font-semibold text-ink-900">{{ modoEdicion ? 'Colaborador' : 'Crear a nombre de' }}</h3>
+            <p class="text-xs text-ink-500">{{ modoEdicion ? 'Titular de esta solicitud' : 'Selecciona el colaborador para esta solicitud' }}</p>
           </div>
         </div>
-        <select v-model="colaboradorSeleccionado" class="input" @change="check.activa = null; check.refrescar?.()">
+        <select v-model="colaboradorSeleccionado" :disabled="modoEdicion" class="input disabled:bg-ink-50 disabled:text-ink-500 disabled:cursor-not-allowed" @change="check.activa = null; check.refrescar?.()">
           <option value="">— Selecciona colaborador —</option>
           <option v-for="c in colaboradores" :key="c.id" :value="c.id">{{ c.nombre }} · {{ c.email }}</option>
         </select>
@@ -92,24 +105,68 @@
 
         <div class="grid grid-cols-2 gap-4">
           <div>
-            <label class="block text-sm font-medium text-ink-700 mb-1.5">Autoriza</label>
-            <input v-model="form.autoriza_nombre" placeholder="Nombre de quien autoriza" class="input" />
+            <label class="block text-sm font-medium text-ink-700 mb-1.5">Autorizado por</label>
+            <select v-model="form.autoriza_nombre" class="input">
+              <option value="">Selecciona quien autoriza</option>
+              <option v-for="a in autorizadores" :key="a.id" :value="a.nombre">{{ a.nombre }}</option>
+            </select>
           </div>
           <div>
             <label class="block text-sm font-medium text-ink-700 mb-1.5">Recibe el viático</label>
-            <input v-model="form.recibe_nombre" @input="recibeAutollenado = false" placeholder="Nombre de quien recibe" class="input" />
+            <input v-model="form.recibe_nombre" disabled placeholder="Nombre de quien recibe" class="input disabled:bg-ink-50 disabled:text-ink-400 disabled:cursor-not-allowed" />
           </div>
         </div>
 
         <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-ink-700 mb-1.5">CLABE bancaria</label>
-            <input v-model="form.clabe_bancaria" @input="bancariosAutollenado = false" inputmode="numeric" maxlength="18" placeholder="18 dígitos" class="input" />
+          <!-- Selector de cuenta guardada -->
+          <div v-if="cuentasBancarias.length && !cambiarBancarios" class="col-span-2">
+            <label class="block text-sm font-medium text-ink-700 mb-1.5">Cuenta bancaria</label>
+            <select v-model="cuentaSeleccionada" class="input" @change="seleccionarCuenta">
+              <option value="">— Selecciona una cuenta —</option>
+              <option v-for="c in cuentasBancarias" :key="c.id" :value="String(c.id)">
+                {{ c.clabe_bancaria }}{{ c.banco ? ' — ' + c.banco : '' }}
+              </option>
+            </select>
           </div>
-          <div>
-            <label class="block text-sm font-medium text-ink-700 mb-1.5">Banco</label>
-            <input v-model="form.banco" @input="bancariosAutollenado = false" placeholder="Nombre del banco" class="input" />
-          </div>
+
+          <!-- Inputs manuales cuando cambiarBancarios o sin cuentas guardadas -->
+          <template v-else>
+            <div>
+              <label class="block text-sm font-medium text-ink-700 mb-1.5">CLABE bancaria</label>
+              <input v-model="form.clabe_bancaria" inputmode="numeric" maxlength="18" placeholder="18 dígitos" class="input" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-ink-700 mb-1.5">Banco</label>
+              <select v-model="form.banco" class="input">
+                <option value="">Selecciona banco</option>
+                <option v-if="form.banco && !catalogos.banco.includes(form.banco)" :value="form.banco">{{ form.banco }}</option>
+                <option v-for="b in catalogos.banco" :key="b" :value="b">{{ b }}</option>
+              </select>
+            </div>
+          </template>
+        </div>
+
+        <div class="flex items-center justify-between mt-1">
+          <p class="text-xs text-ink-500 flex items-center gap-1.5">
+            <Icon name="sparkles" size="w-3 h-3" class="text-brand-500" />
+            <span v-if="!cuentasBancarias.length">Sin cuentas guardadas — los datos se guardarán al enviar</span>
+            <span v-else-if="cambiarBancarios">Datos nuevos — se guardarán al enviar</span>
+            <span v-else>{{ cuentasBancarias.length }} cuenta{{ cuentasBancarias.length > 1 ? 's' : '' }} guardada{{ cuentasBancarias.length > 1 ? 's' : '' }}</span>
+          </p>
+          <label v-if="cuentasBancarias.length" class="flex items-center gap-2 cursor-pointer select-none">
+            <span class="text-xs text-ink-600">{{ cambiarBancarios ? 'Usar cuenta guardada' : 'Usar datos diferentes' }}</span>
+            <button
+              type="button"
+              :class="['relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors',
+                       cambiarBancarios ? 'bg-brand-600' : 'bg-ink-200']"
+              @click="toggleCambiarBancarios"
+            >
+              <span
+                :class="['inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform',
+                         cambiarBancarios ? 'translate-x-4' : 'translate-x-0.5']"
+              ></span>
+            </button>
+          </label>
         </div>
       </section>
 
@@ -123,6 +180,7 @@
         </div>
         <MultiFileDrop
           v-model="justificantes"
+          :existentes="justificantesExistentes"
           accept=".pdf,image/*"
           icon="upload"
           label="Justificantes de salida"
@@ -197,11 +255,19 @@
           </div>
           <div>
             <label class="block text-sm font-medium text-ink-700 mb-1.5">Resultado</label>
-            <input v-model="form.resultado" placeholder="Resultado" class="input" />
+            <select v-model="form.resultado" class="input">
+              <option value="">Selecciona una opción</option>
+              <option v-if="form.resultado && !catalogos.resultado.includes(form.resultado)" :value="form.resultado">{{ form.resultado }}</option>
+              <option v-for="o in catalogos.resultado" :key="o" :value="o">{{ o }}</option>
+            </select>
           </div>
           <div>
             <label class="block text-sm font-medium text-ink-700 mb-1.5">Donante</label>
-            <input v-model="form.donante" placeholder="Donante" class="input" />
+            <select v-model="form.donante" class="input">
+              <option value="">Selecciona una opción</option>
+              <option v-if="form.donante && !catalogos.donante.includes(form.donante)" :value="form.donante">{{ form.donante }}</option>
+              <option v-for="o in catalogos.donante" :key="o" :value="o">{{ o }}</option>
+            </select>
           </div>
         </div>
         <p v-if="sinCatalogos" class="text-xs text-ink-400">
@@ -247,14 +313,18 @@
 
         <div class="space-y-2">
           <button class="btn-primary w-full" :disabled="loading" @click.prevent="enviar">
-            <Icon name="send" size="w-4 h-4" /> {{ loading ? 'Enviando...' : 'Enviar solicitud' }}
+            <Icon :name="modoEdicion ? 'check' : 'send'" size="w-4 h-4" />
+            {{ loading ? (modoEdicion ? 'Guardando...' : 'Enviando...') : (modoEdicion ? 'Guardar cambios' : 'Enviar solicitud') }}
           </button>
-          <NuxtLink to="/viaticos/historial" class="btn-secondary w-full">
+          <button v-if="modoEdicion" type="button" class="btn-secondary w-full" @click="cancelarEdicion">
+            <Icon name="x" size="w-4 h-4" /> Cancelar
+          </button>
+          <NuxtLink v-else to="/viaticos/historial" class="btn-secondary w-full">
             <Icon name="history" size="w-4 h-4" /> Ver historial
           </NuxtLink>
         </div>
 
-        <p class="text-xs text-ink-500 leading-relaxed pt-2 border-t border-ink-100">
+        <p v-if="!modoEdicion" class="text-xs text-ink-500 leading-relaxed pt-2 border-t border-ink-100">
           Tu solicitud será revisada por el administrador. Recibirás una notificación con la decisión.
         </p>
       </div>
@@ -270,6 +340,7 @@ const auth = useAuth();
 const check = usePuedoCrearViatico();
 const esAdmin = computed(() => auth.rol === 'admin');
 const colaboradores = ref([]);
+const autorizadores = ref([]);
 const colaboradorSeleccionado = ref('');
 
 // "Recibe el viático" = el colaborador que recibe. Para el colaborador es su propio
@@ -284,28 +355,45 @@ const nombreColaborador = computed(() => {
 });
 const recibeAutollenado = ref(true);
 
-// Datos bancarios (CLABE/banco) que se autorrellenan desde el perfil del colaborador
-// que recibe: el propio usuario, o el seleccionado por el admin.
-const perfilUsuario = ref(null);
-const datosBancarios = computed(() => {
-  if (esAdmin.value) {
-    const c = colaboradores.value.find((x) => x.id === Number(colaboradorSeleccionado.value));
-    return { clabe_bancaria: c?.clabe_bancaria || '', banco: c?.banco || '' };
-  }
-  return {
-    clabe_bancaria: perfilUsuario.value?.clabe_bancaria || '',
-    banco: perfilUsuario.value?.banco || '',
-  };
-});
-const bancariosAutollenado = ref(true);
+// Modo edición
+const editandoId = ref(null);
+const editandoFolio = ref('');
+const modoEdicion = computed(() => !!editandoId.value);
+const justificantesExistentes = ref([]); // archivos ya guardados en el servidor
 
-const catalogos = reactive({ proyecto: [], cuenta: [], partida: [], objetivo_estrategico: [] });
+// Cuentas bancarias guardadas del usuario/colaborador
+const cuentasBancarias = ref([]);
+const cuentaSeleccionada = ref('');
+const cambiarBancarios = ref(false);
+
+async function cargarCuentasBancarias(userId = null) {
+  try {
+    const url = userId ? `/users/${userId}/cuentas-bancarias` : '/auth/cuentas-bancarias';
+    const r = await api.get(url);
+    cuentasBancarias.value = r.data || [];
+    cambiarBancarios.value = false;
+    if (cuentasBancarias.value.length > 0) {
+      cuentaSeleccionada.value = String(cuentasBancarias.value[0].id);
+      form.clabe_bancaria = cuentasBancarias.value[0].clabe_bancaria;
+      form.banco = cuentasBancarias.value[0].banco;
+    } else {
+      cuentaSeleccionada.value = '';
+      form.clabe_bancaria = '';
+      form.banco = '';
+    }
+  } catch {
+    cuentasBancarias.value = [];
+  }
+}
+
+const catalogos = reactive({ proyecto: [], cuenta: [], partida: [], objetivo_estrategico: [], resultado: [], donante: [], banco: [] });
 const sinCatalogos = computed(() =>
-  !catalogos.proyecto.length && !catalogos.cuenta.length && !catalogos.partida.length && !catalogos.objetivo_estrategico.length
+  !catalogos.proyecto.length && !catalogos.cuenta.length && !catalogos.partida.length &&
+  !catalogos.objetivo_estrategico.length && !catalogos.resultado.length && !catalogos.donante.length
 );
 
 async function cargarCatalogos() {
-  const tipos = ['proyecto', 'cuenta', 'partida', 'objetivo_estrategico'];
+  const tipos = ['proyecto', 'cuenta', 'partida', 'objetivo_estrategico', 'resultado', 'donante', 'banco'];
   await Promise.all(tipos.map(async (t) => {
     try {
       const r = await api.get(`/catalogos?tipo=${t}`);
@@ -333,12 +421,76 @@ const VACIO = {
   proyecto: '', cuenta: '', partida: '', objetivo_estrategico: '', resultado: '', donante: '',
 };
 
+async function cargarParaEdicion(id) {
+  try {
+    const sol = await api.get(`/viaticos/${id}`);
+    editandoId.value = id;
+    editandoFolio.value = sol.folio || '';
+    if (esAdmin.value && sol.colaborador_id) {
+      colaboradorSeleccionado.value = sol.colaborador_id;
+      await cargarCuentasBancarias(sol.colaborador_id);
+    } else {
+      await cargarCuentasBancarias();
+    }
+
+    // Cargar justificantes existentes con preview para imágenes
+    const jList = sol.justificantes || [];
+    justificantesExistentes.value = jList.map((j) => {
+      const nombre = j.nombre_original || j.archivo?.split('/').pop() || 'archivo';
+      const esImagen = /\.(jpe?g|png|gif|webp|bmp|svg)$/i.test(nombre);
+      return { id: j.id, nombre, esImagen, blobUrl: null };
+    });
+    // Fetch async de thumbnails autenticados
+    jList.forEach(async (j, idx) => {
+      const entry = justificantesExistentes.value[idx];
+      if (!entry) return;
+      try {
+        const { url } = await api.viewBlob(`/viaticos/${id}/justificantes/${j.id}`);
+        entry.blobUrl = url;
+      } catch {}
+    });
+
+    Object.assign(form, {
+      destino: sol.destino || '',
+      fecha_inicio: (sol.fecha_inicio || '').slice(0, 10),
+      fecha_fin: (sol.fecha_fin || '').slice(0, 10),
+      motivo: sol.motivo || '',
+      autoriza_nombre: sol.autoriza_nombre || '',
+      recibe_nombre: sol.recibe_nombre || '',
+      clabe_bancaria: sol.clabe_bancaria || '',
+      banco: sol.banco || '',
+      monto_vuelos: Number(sol.monto_vuelos) || 0,
+      monto_hospedaje: Number(sol.monto_hospedaje) || 0,
+      monto_alimentos: Number(sol.monto_alimentos) || 0,
+      monto_transporte: Number(sol.monto_transporte) || 0,
+      monto_otros: Number(sol.monto_otros) || 0,
+      proyecto: sol.proyecto || '',
+      cuenta: sol.cuenta || '',
+      partida: sol.partida || '',
+      objetivo_estrategico: sol.objetivo_estrategico || '',
+      resultado: sol.resultado || '',
+      donante: sol.donante || '',
+    });
+    // Mostrar inputs manuales con los valores guardados
+    cambiarBancarios.value = true;
+    recibeAutollenado.value = false;
+  } catch (e) {
+    error.value = `No se pudo cargar el viático: ${e.message}`;
+  }
+}
+
+function cancelarEdicion() {
+  const from = route.query.from;
+  if (from === 'admin') router.push('/admin/viaticos');
+  else router.push('/viaticos/historial');
+}
+
 async function cargarDesde(id) {
   try {
     const sol = await api.get(`/viaticos/${id}`);
     duplicadoDesde.value = sol.folio;
-    // Al duplicar se respetan los datos bancarios de la solicitud original.
-    bancariosAutollenado.value = false;
+    // Al duplicar se usan los datos bancarios de la solicitud original.
+    cambiarBancarios.value = true;
     Object.assign(form, {
       destino: sol.destino || '',
       fecha_inicio: '',
@@ -369,39 +521,35 @@ function limpiarDuplicado() {
   Object.assign(form, VACIO);
   recibeAutollenado.value = true;
   form.recibe_nombre = nombreColaborador.value;
-  bancariosAutollenado.value = true;
-  form.clabe_bancaria = datosBancarios.value.clabe_bancaria;
-  form.banco = datosBancarios.value.banco;
+  cargarCuentasBancarias(esAdmin.value && colaboradorSeleccionado.value ? Number(colaboradorSeleccionado.value) : null);
   router.replace({ query: {} });
 }
 
 onMounted(async () => {
   cargarCatalogos();
-  // refrescar() marca check.cargado (para no-colaborador lo hace sin llamar a la API).
-  await check.refrescar();
-  try {
-    const { user } = await api.get('/auth/me');
-    perfilUsuario.value = user;
-  } catch {}
+  try { const r = await api.get('/users/autorizadores'); autorizadores.value = r.data || []; } catch {}
   if (esAdmin.value) {
     try {
       const r = await api.get('/users?rol=colaborador&activo=1');
       colaboradores.value = r.data || [];
     } catch {}
   }
-  if (route.query.desde) await cargarDesde(route.query.desde);
+  if (route.query.editar) {
+    await cargarParaEdicion(Number(route.query.editar));
+  } else {
+    await check.refrescar();
+    await cargarCuentasBancarias();
+    if (route.query.desde) await cargarDesde(route.query.desde);
+  }
 });
 
 watch(nombreColaborador, (nombre) => {
   if (recibeAutollenado.value) form.recibe_nombre = nombre;
 }, { immediate: true });
 
-watch(datosBancarios, (datos) => {
-  if (bancariosAutollenado.value) {
-    form.clabe_bancaria = datos.clabe_bancaria;
-    form.banco = datos.banco;
-  }
-}, { immediate: true, deep: true });
+watch(colaboradorSeleccionado, async (id) => {
+  await cargarCuentasBancarias(id ? Number(id) : null);
+});
 
 const total = computed(() =>
   Number(form.monto_vuelos || 0)
@@ -422,19 +570,66 @@ const duracionTexto = computed(() => {
 
 const toast = useToast();
 
+function seleccionarCuenta() {
+  const cuenta = cuentasBancarias.value.find((c) => String(c.id) === cuentaSeleccionada.value);
+  if (cuenta) {
+    form.clabe_bancaria = cuenta.clabe_bancaria;
+    form.banco = cuenta.banco;
+  }
+}
+
+function toggleCambiarBancarios() {
+  cambiarBancarios.value = !cambiarBancarios.value;
+  if (cambiarBancarios.value) {
+    form.clabe_bancaria = '';
+    form.banco = '';
+  } else {
+    const cuenta = cuentasBancarias.value.find((c) => String(c.id) === cuentaSeleccionada.value)
+      || cuentasBancarias.value[0];
+    if (cuenta) {
+      cuentaSeleccionada.value = String(cuenta.id);
+      form.clabe_bancaria = cuenta.clabe_bancaria;
+      form.banco = cuenta.banco;
+    }
+  }
+}
+
 async function enviar() {
   if (total.value <= 0) {
     error.value = 'Debes asignar un monto en al menos una categoría';
     toast.warning('Falta información', error.value);
     return;
   }
-  if (esAdmin.value && !colaboradorSeleccionado.value) {
+  if (!modoEdicion.value && esAdmin.value && !colaboradorSeleccionado.value) {
     error.value = 'Selecciona el colaborador para esta solicitud';
     toast.warning('Falta colaborador', error.value);
     return;
   }
   error.value = ''; ok.value = ''; loading.value = true;
   try {
+    // Modo edición: PUT con JSON + subir justificantes nuevos
+    if (modoEdicion.value) {
+      await api.put(`/viaticos/${editandoId.value}`, { ...form });
+      if (justificantes.value.length > 0) {
+        const fd = new FormData();
+        justificantes.value.forEach((f) => fd.append('justificantes', f));
+        await api.upload(`/viaticos/${editandoId.value}/justificantes`, fd);
+      }
+      // Guardar cuenta bancaria nueva si ingresó datos diferentes
+      if (cambiarBancarios.value && form.clabe_bancaria) {
+        const existe = cuentasBancarias.value.some((c) => c.clabe_bancaria === form.clabe_bancaria);
+        if (!existe) {
+          try {
+            const uid = esAdmin.value && colaboradorSeleccionado.value ? Number(colaboradorSeleccionado.value) : null;
+            const url = uid ? `/users/${uid}/cuentas-bancarias` : '/auth/cuentas-bancarias';
+            await api.post(url, { clabe_bancaria: form.clabe_bancaria, banco: form.banco });
+          } catch {}
+        }
+      }
+      toast.success('Viático actualizado', `${editandoFolio.value} actualizado correctamente.`);
+      cancelarEdicion();
+      return;
+    }
     const fd = new FormData();
     Object.entries(form).forEach(([k, v]) => fd.append(k, v ?? ''));
     if (esAdmin.value) fd.append('colaborador_id', colaboradorSeleccionado.value);
@@ -442,15 +637,26 @@ async function enviar() {
     const r = await api.upload('/viaticos', fd);
     ok.value = r.folio;
     toast.success('Solicitud enviada', `Folio ${r.folio} · pendiente de aprobación`);
+
+    // Guardar cuenta bancaria si es nueva
+    if (cambiarBancarios.value && form.clabe_bancaria) {
+      const existe = cuentasBancarias.value.some((c) => c.clabe_bancaria === form.clabe_bancaria);
+      if (!existe) {
+        try {
+          const userId = esAdmin.value && colaboradorSeleccionado.value ? Number(colaboradorSeleccionado.value) : null;
+          const url = userId ? `/users/${userId}/cuentas-bancarias` : '/auth/cuentas-bancarias';
+          await api.post(url, { clabe_bancaria: form.clabe_bancaria, banco: form.banco });
+        } catch {}
+      }
+    }
+
     Object.assign(form, VACIO);
     recibeAutollenado.value = true;
     form.recibe_nombre = nombreColaborador.value;
-    bancariosAutollenado.value = true;
-    form.clabe_bancaria = datosBancarios.value.clabe_bancaria;
-    form.banco = datosBancarios.value.banco;
     justificantes.value = [];
     duplicadoDesde.value = '';
     if (route.query.desde) router.replace({ query: {} });
+    await cargarCuentasBancarias(esAdmin.value && colaboradorSeleccionado.value ? Number(colaboradorSeleccionado.value) : null);
     await check.refrescar();
   } catch (e) {
     error.value = e.message;

@@ -216,4 +216,9 @@ async function impersonate(req, res) {
   });
 }
 
-module.exports = { login, registerProveedor, me, actualizarPerfil, cambiarPassword, subirAvatar, eliminarAvatar, descargarAvatar, forgotPassword, resetPassword, validarTokenReset, impersonate };
+async function ignorarNagPerfil(req, res) {
+  await usersService.setNagPerfilIgnorado(req.user.sub, true);
+  res.json({ ok: true });
+}
+
+module.exports = { login, registerProveedor, me, actualizarPerfil, cambiarPassword, subirAvatar, eliminarAvatar, descargarAvatar, forgotPassword, resetPassword, validarTokenReset, impersonate, ignorarNagPerfil };

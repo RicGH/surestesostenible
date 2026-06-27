@@ -49,6 +49,7 @@ definePageMeta({ middleware: ['admin'] });
 
 const api = useApi();
 const toast = useToast();
+const { abrir: confirmar } = useConfirm();
 const plantillas = ref([]);
 const busqueda = ref('');
 
@@ -63,7 +64,7 @@ async function cargar() {
 }
 
 async function eliminar(p) {
-  if (!confirm(`¿Eliminar la plantilla "${p.nombre}"?`)) return;
+  if (!await confirmar(`¿Eliminar la plantilla "${p.nombre}"? Esta acción no se puede deshacer.`, { titulo: 'Eliminar plantilla', accion: 'Eliminar' })) return;
   try {
     await api.del(`/plantillas/${p.id}`);
     toast.success('Plantilla eliminada', p.nombre);

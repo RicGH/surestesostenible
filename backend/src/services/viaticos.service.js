@@ -84,6 +84,15 @@ async function crearSolicitud(colaboradorId, data, justificantes = []) {
   return { id: solicitudId, folio };
 }
 
+async function agregarJustificantes(solicitudId, archivos) {
+  for (const j of archivos) {
+    await query(
+      `INSERT INTO viaticos_justificantes (solicitud_id, archivo, nombre_original) VALUES (?, ?, ?)`,
+      [solicitudId, j.archivo, j.nombre_original || null]
+    );
+  }
+}
+
 async function listarPorColaborador(colaboradorId, filtros = {}) {
   const where = ['colaborador_id = ?'];
   const params = [colaboradorId];
@@ -208,7 +217,7 @@ async function getById(id, colaboradorId = null) {
   if (!solicitud) return null;
   const [gastos, pago, ajustes, bloqueadora, justificantes] = await Promise.all([
     query(
-      'SELECT id, archivo, xml_path, monto, rfc_emisor, nombre_emisor, fecha, concepto, created_at FROM viaticos_gastos WHERE solicitud_id = ? ORDER BY fecha DESC',
+      'SELECT id, archivo, xml_path, monto, rfc_emisor, razon_social, nombre_emisor, fecha, concepto, created_at FROM viaticos_gastos WHERE solicitud_id = ? ORDER BY fecha DESC',
       [id]
     ),
     queryOne(
@@ -265,7 +274,8 @@ async function editarSolicitud(id, colaboradorId, data) {
          monto_transporte = ?, monto_otros = ?, monto_total = ?,
          proyecto = ?, cuenta = ?, partida = ?, objetivo_estrategico = ?, resultado = ?, donante = ?,
          estado = 'pendiente', motivo_rechazo = NULL, permite_edicion = 0
-     WHERE id = ? AND colaborador_id = ? AND permite_edicion = 1 AND estado = 'rechazado'`,
+     WHERE id = ? AND colaborador_id = ?
+       AND ((estado = 'rechazado' AND permite_edicion = 1) OR estado = 'pendiente')`,
     [
       data.destino, data.fecha_inicio, data.fecha_fin, data.motivo,
       data.autoriza_nombre || null, data.recibe_nombre || null,
@@ -275,6 +285,29 @@ async function editarSolicitud(id, colaboradorId, data) {
       data.proyecto || null, data.cuenta || null, data.partida || null,
       data.objetivo_estrategico || null, data.resultado || null, data.donante || null,
       id, colaboradorId,
+    ]
+  );
+}
+
+async function editarSolicitudAdmin(id, data) {
+  const monto_total = sumarMontos(data);
+  await query(
+    `UPDATE viaticos_solicitudes
+     SET destino = ?, fecha_inicio = ?, fecha_fin = ?, motivo = ?,
+         autoriza_nombre = ?, recibe_nombre = ?, clabe_bancaria = ?, banco = ?,
+         monto_vuelos = ?, monto_hospedaje = ?, monto_alimentos = ?,
+         monto_transporte = ?, monto_otros = ?, monto_total = ?,
+         proyecto = ?, cuenta = ?, partida = ?, objetivo_estrategico = ?, resultado = ?, donante = ?
+     WHERE id = ?`,
+    [
+      data.destino, data.fecha_inicio, data.fecha_fin, data.motivo,
+      data.autoriza_nombre || null, data.recibe_nombre || null,
+      data.clabe_bancaria || null, data.banco || null,
+      data.monto_vuelos || 0, data.monto_hospedaje || 0, data.monto_alimentos || 0,
+      data.monto_transporte || 0, data.monto_otros || 0, monto_total,
+      data.proyecto || null, data.cuenta || null, data.partida || null,
+      data.objetivo_estrategico || null, data.resultado || null, data.donante || null,
+      id,
     ]
   );
 }
@@ -347,9 +380,9 @@ async function agregarGasto(solicitudId, colaboradorId, data, archivo, xmlPath =
 
     const [ins] = await conn.execute(
       `INSERT INTO viaticos_gastos
-       (solicitud_id, archivo, xml_path, monto, rfc_emisor, nombre_emisor, fecha, concepto)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [solicitudId, archivo, xmlPath, monto, data.rfc_emisor || null, data.nombre_emisor || null, data.fecha, data.concepto || null]
+       (solicitud_id, archivo, xml_path, monto, rfc_emisor, razon_social, nombre_emisor, fecha, concepto)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [solicitudId, archivo, xmlPath, monto, data.rfc_emisor || null, data.razon_social || null, data.nombre_emisor || null, data.fecha, data.concepto || null]
     );
 
     await conn.execute(
@@ -397,7 +430,7 @@ module.exports = {
   crearSolicitud, listarPorColaborador, listarPendientesAdmin,
   listarActivosAdmin, listarCerradosAdmin, listarRechazadosAdmin, listarTodosAdmin,
   getById,
-  aprobar, rechazar, editarSolicitud, cerrarViaje, agregarGasto, duplicar,
+  aprobar, rechazar, editarSolicitud, editarSolicitudAdmin, cerrarViaje, agregarGasto, agregarJustificantes, duplicar,
   getActivaDeColaborador, getAbiertosDeColaborador, getBloqueadoraDeUso,
   LIMITE_VIATICOS_ABIERTOS,
 };

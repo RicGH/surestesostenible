@@ -71,7 +71,8 @@
               <div class="flex gap-1 justify-center">
                 <IconButton icon="eye" tooltip="Ver detalle" variant="primary" @click="$router.push(`/viaticos/${s.id}?from=historial`)" />
                 <IconButton icon="copy" tooltip="Duplicar viaje" @click="duplicar(s.id)" />
-                <IconButton v-if="s.estado === 'rechazado' && s.permite_edicion" icon="edit" tooltip="Corregir solicitud" variant="warning" @click="$router.push(`/viaticos/${s.id}?from=historial&editar=1`)" />
+                <IconButton v-if="s.estado === 'pendiente'" icon="edit" tooltip="Editar solicitud" variant="warning" @click="$router.push(`/viaticos/nueva?editar=${s.id}&from=historial`)" />
+                <IconButton v-if="s.estado === 'rechazado' && s.permite_edicion" icon="edit" tooltip="Corregir solicitud" variant="warning" @click="$router.push(`/viaticos/nueva?editar=${s.id}&from=historial`)" />
               </div>
             </td>
           </tr>

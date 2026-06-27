@@ -206,6 +206,7 @@ definePageMeta({ middleware: ['admin'] });
 
 const api = useApi();
 const toast = useToast();
+const { abrir: confirmar } = useConfirm();
 const router = useRouter();
 const documentos = ref([]);
 const filtros = reactive({ q: '', estado: '' });
@@ -283,7 +284,7 @@ async function descargar(d, firmado) {
 }
 
 async function eliminar(d) {
-  if (!confirm(`¿Eliminar el documento "${d.nombre}"? Esta acción no se puede deshacer.`)) return;
+  if (!await confirmar(`¿Eliminar el documento "${d.nombre}"? Esta acción no se puede deshacer.`, { titulo: 'Eliminar documento', accion: 'Eliminar' })) return;
   try {
     await api.del(`/documentos/${d.id}`);
     toast.success('Documento eliminado', d.nombre);

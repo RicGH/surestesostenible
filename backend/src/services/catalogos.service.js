@@ -1,6 +1,6 @@
 const { query, queryOne } = require('../config/db');
 
-const TIPOS = ['proyecto', 'cuenta', 'partida', 'objetivo_estrategico'];
+const TIPOS = ['proyecto', 'cuenta', 'partida', 'objetivo_estrategico', 'resultado', 'donante', 'banco'];
 
 function esTipoValido(tipo) {
   return TIPOS.includes(tipo);

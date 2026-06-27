@@ -26,6 +26,7 @@ router.get('/:id/gastos/:gastoId/archivo', requireRole('admin', 'finanzas', 'col
 router.get('/:id/gastos/:gastoId/xml', requireRole('admin', 'finanzas', 'colaborador'), asyncHandler(ctrl.descargarGastoXml));
 router.get('/:id', requireRole('admin', 'colaborador', 'finanzas'), asyncHandler(ctrl.detalle));
 router.put('/:id', requireRole('admin', 'colaborador'), asyncHandler(ctrl.editar));
+router.post('/:id/justificantes', requireRole('admin', 'colaborador'), uploadJustificantes.array('justificantes', 10), asyncHandler(ctrl.subirJustificantes));
 router.post('/:id/duplicar', requireRole('admin', 'colaborador'), asyncHandler(ctrl.duplicar));
 router.post('/:id/aprobar', requireRole('admin'), asyncHandler(ctrl.aprobar));
 router.post('/:id/rechazar', requireRole('admin'), asyncHandler(ctrl.rechazar));

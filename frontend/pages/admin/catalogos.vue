@@ -76,12 +76,16 @@ definePageMeta({ middleware: ['admin'] });
 
 const api = useApi();
 const toast = useToast();
+const { abrir: confirmar } = useConfirm();
 
 const TABS = [
   { id: 'proyecto', label: 'Proyecto' },
   { id: 'cuenta', label: 'Cuenta' },
   { id: 'partida', label: 'Partida' },
   { id: 'objetivo_estrategico', label: 'Objetivo estratégico' },
+  { id: 'resultado', label: 'Resultado' },
+  { id: 'donante', label: 'Donante' },
+  { id: 'banco', label: 'Banco' },
 ];
 
 const CAMPO_LABEL = {
@@ -89,6 +93,9 @@ const CAMPO_LABEL = {
   cuenta: 'Nombre de la cuenta',
   partida: 'Nombre de la partida',
   objetivo_estrategico: 'Nombre del objetivo estratégico',
+  resultado: 'Nombre del resultado',
+  donante: 'Nombre del donante',
+  banco: 'Nombre del banco',
 };
 
 const tab = ref('proyecto');
@@ -159,7 +166,7 @@ async function toggleActivo(it) {
 }
 
 async function eliminar(it) {
-  if (!confirm(`¿Eliminar "${it.nombre}" del catálogo?`)) return;
+  if (!await confirmar(`¿Eliminar "${it.nombre}" del catálogo? Esta acción no se puede deshacer.`, { titulo: 'Eliminar elemento', accion: 'Eliminar' })) return;
   try {
     await api.del(`/catalogos/${it.id}`);
     toast.success('Eliminado');

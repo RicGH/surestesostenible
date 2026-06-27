@@ -57,6 +57,7 @@
               <td>
                 <div class="flex gap-1 justify-center">
                   <IconButton icon="eye" tooltip="Ver detalle" variant="primary" @click="$router.push(`/viaticos/${s.id}?from=admin`)" />
+                  <IconButton icon="edit" tooltip="Editar solicitud" variant="warning" @click="$router.push(`/viaticos/nueva?editar=${s.id}&from=admin`)" />
                   <IconButton icon="fileText" tooltip="Ver oficio de comisión (PDF)" @click="verOficio(s)" />
                   <IconButton icon="check" tooltip="Aprobar" variant="success" @click="aprobar(s.id)" />
                   <IconButton icon="x" tooltip="Rechazar" variant="danger" @click="abrirRechazo(s)" />
@@ -109,6 +110,7 @@
               <td>
                 <div class="flex gap-1 justify-center">
                   <IconButton icon="eye" tooltip="Ver comprobantes" variant="primary" @click="$router.push(`/viaticos/${s.id}?from=admin`)" />
+                  <IconButton icon="edit" tooltip="Editar solicitud" variant="warning" @click="$router.push(`/viaticos/nueva?editar=${s.id}&from=admin`)" />
                   <IconButton icon="fileText" tooltip="Ver oficio de comisión (PDF)" @click="verOficio(s)" />
                   <IconButton icon="check" tooltip="Cerrar viáticos" variant="success" @click="abrirCerrar(s)" />
                 </div>
@@ -138,6 +140,7 @@
               <td>
                 <div class="flex gap-1 justify-center">
                   <IconButton icon="eye" tooltip="Ver detalle" variant="primary" @click="$router.push(`/viaticos/${s.id}?from=admin`)" />
+                  <IconButton icon="edit" tooltip="Editar solicitud" variant="warning" @click="$router.push(`/viaticos/nueva?editar=${s.id}&from=admin`)" />
                   <IconButton icon="fileText" tooltip="Ver oficio de comisión (PDF)" @click="verOficio(s)" />
                 </div>
               </td>
@@ -161,6 +164,7 @@
               <td>
                 <div class="flex gap-1 justify-center">
                   <IconButton icon="eye" tooltip="Ver detalle" variant="primary" @click="$router.push(`/viaticos/${s.id}?from=admin`)" />
+                  <IconButton icon="edit" tooltip="Editar solicitud" variant="warning" @click="$router.push(`/viaticos/nueva?editar=${s.id}&from=admin`)" />
                   <IconButton icon="fileText" tooltip="Ver oficio de comisión (PDF)" @click="verOficio(s)" />
                 </div>
               </td>
@@ -186,6 +190,7 @@
               <td>
                 <div class="flex gap-1 justify-center">
                   <IconButton icon="eye" tooltip="Ver detalle" variant="primary" @click="$router.push(`/viaticos/${s.id}?from=admin`)" />
+                  <IconButton icon="edit" tooltip="Editar solicitud" variant="warning" @click="$router.push(`/viaticos/nueva?editar=${s.id}&from=admin`)" />
                   <IconButton icon="fileText" tooltip="Ver oficio de comisión (PDF)" @click="verOficio(s)" />
                 </div>
               </td>

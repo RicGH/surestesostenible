@@ -57,7 +57,7 @@
         <form class="space-y-6" @submit.prevent="guardarPerfil">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
-              <label class="lbl">Nombre <span class="text-red-500">*</span></label>
+              <label class="lbl">Nombre completo <span class="text-red-500">*</span></label>
               <input v-model="perfil.nombre" required class="input" placeholder="Tu nombre completo" />
             </div>
             <div>
@@ -69,31 +69,80 @@
                 </span>
               </div>
             </div>
+            <div>
+              <label class="lbl">RFC</label>
+              <input v-model="perfil.rfc" maxlength="20" class="input uppercase tracking-wide" placeholder="RFC" />
+            </div>
           </div>
 
           <div>
-            <div class="flex items-center justify-between gap-3 mb-1">
-              <h3 class="text-sm font-semibold text-ink-900">Datos fiscales y bancarios</h3>
-              <span class="badge-green shrink-0"><Icon name="sparkles" size="w-3 h-3" /> Autollenado en viáticos</span>
-            </div>
-            <p class="text-xs text-ink-500 mb-4">Se usan para depositar tus viáticos.</p>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div class="flex items-start justify-between gap-3 mb-3">
               <div>
-                <label class="lbl">RFC</label>
-                <input v-model="perfil.rfc" maxlength="20" class="input uppercase tracking-wide" placeholder="RFC" />
+                <h3 class="text-sm font-semibold text-ink-900">Cuentas bancarias</h3>
+                <p class="text-xs text-ink-500 mt-0.5">CLABE y banco para depositar tus viáticos. Puedes tener varias.</p>
               </div>
+              <div class="flex flex-col items-end gap-2 shrink-0">
+                <span class="badge-green"><Icon name="sparkles" size="w-3 h-3" /> Autollenado en viáticos</span>
+                <button type="button" class="btn-secondary py-1 px-2.5 text-xs" @click="modalCuenta = true">
+                  <Icon name="plus" size="w-3 h-3" /> Nueva cuenta bancaria
+                </button>
+              </div>
+            </div>
+
+            <div v-if="cuentasBancarias.length" class="card overflow-hidden">
+              <div class="overflow-y-auto max-h-[176px]">
+                <table class="table text-sm">
+                  <thead class="sticky top-0 bg-white z-10">
+                    <tr>
+                      <th>CLABE bancaria</th>
+                      <th>Banco</th>
+                      <th class="!text-center w-16">Eliminar</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="c in cuentasBancarias" :key="c.id">
+                      <td class="font-mono tracking-wider">{{ c.clabe_bancaria }}</td>
+                      <td>{{ c.banco || '—' }}</td>
+                      <td>
+                        <div class="flex justify-center">
+                          <IconButton icon="trash" tooltip="Eliminar cuenta" variant="danger" @click="eliminarCuenta(c.id)" />
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <p v-else class="text-sm text-ink-400">Sin cuentas bancarias guardadas.</p>
+          </div>
+
+          <!-- Modal nueva cuenta bancaria -->
+          <Modal v-if="modalCuenta" title="Nueva cuenta bancaria" size="sm" @close="cerrarModalCuenta">
+            <div class="space-y-4">
               <div>
                 <label class="lbl">CLABE bancaria</label>
-                <input v-model="perfil.clabe_bancaria" inputmode="numeric" maxlength="18" class="input tracking-wider" placeholder="18 dígitos" />
-                <p class="text-[11px] text-ink-400 mt-1">{{ perfil.clabe_bancaria.length }}/18 dígitos</p>
+                <input v-model="nuevaCuenta.clabe" inputmode="numeric" maxlength="18" class="input tracking-wider" placeholder="18 dígitos" />
               </div>
               <div>
                 <label class="lbl">Banco</label>
-                <input v-model="perfil.banco" maxlength="120" class="input" placeholder="Nombre del banco" />
+                <select v-model="nuevaCuenta.banco" class="input">
+                  <option value="">Selecciona banco</option>
+                  <option v-for="b in bancosOpciones" :key="b" :value="b">{{ b }}</option>
+                </select>
               </div>
             </div>
-          </div>
+            <template #footer>
+              <button type="button" class="btn-secondary" @click="cerrarModalCuenta">Cancelar</button>
+              <button
+                type="button"
+                class="btn-primary"
+                :disabled="!nuevaCuenta.clabe.trim() || agregandoCuenta"
+                @click="agregarCuenta"
+              >
+                <Icon name="plus" size="w-4 h-4" /> {{ agregandoCuenta ? 'Agregando…' : 'Agregar' }}
+              </button>
+            </template>
+          </Modal>
 
           <div class="flex items-center gap-3 pt-2">
             <button class="btn-primary" :disabled="guardando">
@@ -182,7 +231,13 @@ const guardando = ref(false);
 const guardadoOk = ref(false);
 const cambiando = ref(false);
 
-const perfil = reactive({ nombre: '', rfc: '', clabe_bancaria: '', banco: '' });
+const perfil = reactive({ nombre: '', rfc: '' });
+const bancosOpciones = ref([]);
+const cuentasBancarias = ref([]);
+const nuevaCuenta = reactive({ clabe: '', banco: '' });
+const agregandoCuenta = ref(false);
+const modalCuenta = ref(false);
+const { abrir: confirmar } = useConfirm();
 const pwd = reactive({ actual: '', nueva: '', confirmar: '' });
 const ver = reactive({ actual: false, nueva: false, confirmar: false });
 
@@ -214,13 +269,14 @@ const fuerza = computed(() => {
 
 async function cargar() {
   try {
-    const { user } = await api.get('/auth/me');
-    Object.assign(perfil, {
-      nombre: user.nombre || '',
-      rfc: user.rfc || '',
-      clabe_bancaria: user.clabe_bancaria || '',
-      banco: user.banco || '',
-    });
+    const [{ user }, bancosRes, cuentasRes] = await Promise.all([
+      api.get('/auth/me'),
+      api.get('/catalogos?tipo=banco').catch(() => ({ data: [] })),
+      api.get('/auth/cuentas-bancarias').catch(() => ({ data: [] })),
+    ]);
+    Object.assign(perfil, { nombre: user.nombre || '', rfc: user.rfc || '' });
+    bancosOpciones.value = (bancosRes.data || []).map((b) => b.nombre);
+    cuentasBancarias.value = cuentasRes.data || [];
     if (user.avatar_path && !avatar.url) {
       const { blob } = await api.viewBlob('/auth/avatar');
       avatar.setDesdeBlob(blob);
@@ -229,6 +285,43 @@ async function cargar() {
     }
   } catch (e) {
     toast.error('No se pudo cargar tu perfil', e.message);
+  }
+}
+
+function cerrarModalCuenta() {
+  modalCuenta.value = false;
+  nuevaCuenta.clabe = '';
+  nuevaCuenta.banco = '';
+}
+
+async function agregarCuenta() {
+  if (!nuevaCuenta.clabe.trim()) return;
+  agregandoCuenta.value = true;
+  try {
+    await api.post('/auth/cuentas-bancarias', {
+      clabe_bancaria: nuevaCuenta.clabe.trim(),
+      banco: nuevaCuenta.banco,
+    });
+    const r = await api.get('/auth/cuentas-bancarias');
+    cuentasBancarias.value = r.data || [];
+    toast.success('Cuenta agregada');
+    cerrarModalCuenta();
+  } catch (e) {
+    toast.error('No se pudo agregar', e.message);
+  } finally {
+    agregandoCuenta.value = false;
+  }
+}
+
+async function eliminarCuenta(id) {
+  if (!await confirmar('¿Eliminar esta cuenta bancaria? Esta acción no se puede deshacer.', { titulo: 'Eliminar cuenta', accion: 'Eliminar' })) return;
+  try {
+    await api.del(`/auth/cuentas-bancarias/${id}`);
+    const r = await api.get('/auth/cuentas-bancarias');
+    cuentasBancarias.value = r.data || [];
+    toast.success('Cuenta eliminada');
+  } catch (e) {
+    toast.error('No se pudo eliminar', e.message);
   }
 }
 
@@ -275,8 +368,6 @@ async function guardarPerfil() {
     const { user } = await api.put('/auth/perfil', {
       nombre: perfil.nombre.trim(),
       rfc: perfil.rfc.trim(),
-      clabe_bancaria: perfil.clabe_bancaria.trim(),
-      banco: perfil.banco.trim(),
     });
     auth.updateUser({ nombre: user.nombre });
     toast.success('Perfil actualizado', 'Tus datos se guardaron correctamente.');
