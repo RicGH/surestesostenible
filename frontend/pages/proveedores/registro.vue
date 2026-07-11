@@ -219,7 +219,10 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label class="block text-sm font-medium text-ink-700 mb-1.5">Banco</label>
-            <input v-model="form.banco" class="input" placeholder="BBVA, Santander, etc." />
+            <select v-model="form.banco" class="input">
+              <option value="">Selecciona tu banco</option>
+              <option v-for="b in bancosOpciones" :key="b" :value="b">{{ b }}</option>
+            </select>
           </div>
           <div>
             <label class="block text-sm font-medium text-ink-700 mb-1.5">CLABE (18 dígitos)</label>
@@ -267,10 +270,6 @@
           <div>
             <label class="block text-sm font-medium text-ink-700 mb-1.5">Estado</label>
             <input v-model="form.estado_republica" class="input" placeholder="Tabasco" />
-          </div>
-          <div class="md:col-span-2">
-            <label class="block text-sm font-medium text-ink-700 mb-1.5">Sucursal bancaria</label>
-            <input v-model="form.sucursal_banco" class="input" placeholder="Sucursal donde se realizarán los depósitos" />
           </div>
         </div>
       </section>
@@ -347,6 +346,7 @@ const documentacion = ref(null);
 const loading = ref(false);
 const error = ref('');
 const editando = ref(false);
+const bancosOpciones = ref([]);
 const form = reactive({
   rfc: '', razon_social: '', direccion: '', banco: '', cuenta_clabe: '',
   fecha_nacimiento: '', estado_civil: '', nacionalidad: '',
@@ -363,8 +363,12 @@ const rfcTipo = computed(() => {
 
 async function cargar() {
   try {
-    const r = await api.get('/proveedores/mio');
-    registro.value = r.data;
+    const [registroRes, bancosRes] = await Promise.all([
+      api.get('/proveedores/mio'),
+      api.get('/catalogos?tipo=banco').catch(() => ({ data: [] })),
+    ]);
+    registro.value = registroRes.data;
+    bancosOpciones.value = (bancosRes.data || []).map((b) => b.nombre);
   } finally { cargando.value = false; }
 }
 onMounted(cargar);
@@ -404,6 +408,7 @@ async function enviar() {
     return;
   }
   form.rfc = rfcUpper.value;
+  form.sucursal_banco = form.banco;
   loading.value = true;
   try {
     const fd = new FormData();

@@ -219,11 +219,10 @@
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div>
               <label class="block text-sm font-medium text-ink-700 mb-1.5">Banco</label>
-              <input v-model="edicionModal.form.banco" class="input" />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-ink-700 mb-1.5">Sucursal</label>
-              <input v-model="edicionModal.form.sucursal_banco" class="input" />
+              <select v-model="edicionModal.form.banco" class="input">
+                <option value="">Selecciona banco</option>
+                <option v-for="b in bancosOpciones" :key="b" :value="b">{{ b }}</option>
+              </select>
             </div>
             <div class="sm:col-span-2">
               <label class="block text-sm font-medium text-ink-700 mb-1.5">CLABE interbancaria</label>
@@ -457,7 +456,10 @@
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="block text-sm font-medium text-ink-700 mb-1.5">Banco</label>
-            <input v-model="nuevoModal.form.banco" class="input" />
+            <select v-model="nuevoModal.form.banco" class="input">
+              <option value="">Selecciona banco</option>
+              <option v-for="b in bancosOpciones" :key="b" :value="b">{{ b }}</option>
+            </select>
           </div>
           <div>
             <label class="block text-sm font-medium text-ink-700 mb-1.5">CLABE</label>
@@ -502,10 +504,6 @@
             <div>
               <label class="block text-sm font-medium text-ink-700 mb-1.5">Estado</label>
               <input v-model="nuevoModal.form.estado_republica" class="input" placeholder="Tabasco" />
-            </div>
-            <div class="col-span-2">
-              <label class="block text-sm font-medium text-ink-700 mb-1.5">Sucursal bancaria</label>
-              <input v-model="nuevoModal.form.sucursal_banco" class="input" placeholder="Sucursal donde se realizarán los depósitos" />
             </div>
           </div>
         </div>
@@ -555,12 +553,16 @@ const todosFiltrados = computed(() => {
   );
 });
 
+const bancosOpciones = ref([]);
+
 async function cargar() {
-  const [a, b] = await Promise.all([
+  const [a, b, bancosRes] = await Promise.all([
     api.get('/proveedores/pendientes'),
     api.get('/proveedores' + (filtros.activo ? `?activo=${filtros.activo}` : '')),
+    api.get('/catalogos?tipo=banco').catch(() => ({ data: [] })),
   ]);
   pendientes.value = a.data; todos.value = b.data;
+  bancosOpciones.value = (bancosRes.data || []).map((b) => b.nombre);
 }
 watch(() => filtros.activo, cargar);
 onMounted(cargar);
@@ -642,6 +644,7 @@ async function abrirEdicion(p) {
 
 async function guardarEdicion() {
   edicionModal.guardando = true; edicionModal.error = '';
+  edicionModal.form.sucursal_banco = edicionModal.form.banco;
   try {
     await api.put(`/proveedores/${edicionModal.id}`, edicionModal.form);
     toast.success('Proveedor actualizado', 'Los datos fiscales se guardaron.');
@@ -674,6 +677,7 @@ const nuevoFormVacio = () => ({ nombre: '', email: '', password: '', rfc: '', ra
 
 async function crearNuevo() {
   nuevoModal.guardando = true; nuevoModal.error = '';
+  nuevoModal.form.sucursal_banco = nuevoModal.form.banco;
   try {
     await api.post('/proveedores/admin-crear', nuevoModal.form);
     toast.success('Proveedor creado', `${nuevoModal.form.razon_social} (${nuevoModal.form.rfc})`);
