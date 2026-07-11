@@ -345,47 +345,70 @@
       <!-- PASO 2: revisar y completar campos -->
       <div v-else-if="contratoModal.paso === 2" class="space-y-4">
 
-        <!-- Campos automáticos: lista compacta -->
-        <div v-if="contratoModal.camposAuto.length">
-          <p class="text-xs font-semibold text-ink-500 uppercase tracking-wide mb-2">
-            Automáticos — tomados del proveedor
-          </p>
-          <dl class="rounded-lg bg-emerald-50 border border-emerald-200 divide-y divide-emerald-100">
-            <div
-              v-for="c in contratoModal.camposAuto"
-              :key="c.etiqueta"
-              class="flex items-center justify-between gap-4 px-3 py-1.5"
-            >
-              <dt class="text-xs text-emerald-700 font-mono shrink-0">«{{ c.etiqueta }}»</dt>
-              <dd class="text-xs font-semibold text-ink-800 text-right truncate max-w-[220px]" :title="c.valor">{{ c.valor || '—' }}</dd>
+        <!-- LOADING: generando automáticamente -->
+        <div v-if="contratoModal.generando" class="py-8 flex flex-col items-center gap-5 text-center">
+          <div class="relative w-20 h-20">
+            <!-- anillo giratorio exterior -->
+            <div class="absolute inset-0 rounded-full border-4 border-brand-100 border-t-brand-600 animate-spin"></div>
+            <!-- anillo giratorio interior lento -->
+            <div class="absolute inset-2 rounded-full border-4 border-brand-50 border-b-brand-400" style="animation: spin 2s linear infinite reverse;"></div>
+            <!-- icono central -->
+            <div class="absolute inset-0 flex items-center justify-center">
+              <svg class="w-8 h-8 text-brand-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+              </svg>
             </div>
-          </dl>
-        </div>
-
-        <!-- Campos manuales: grid 2 columnas -->
-        <div v-if="contratoModal.camposManuales.length">
-          <p class="text-xs font-semibold text-ink-500 uppercase tracking-wide mb-2">
-            Completar manualmente
-          </p>
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <div v-for="c in contratoModal.camposManuales" :key="c.etiqueta">
-              <label class="block text-xs font-medium text-ink-700 mb-1 truncate" :title="c.label">
-                {{ c.label }}
-              </label>
-              <input
-                v-model="contratoModal.valoresExtra[c.etiqueta]"
-                class="input text-sm"
-                :placeholder="c.label"
-              />
-            </div>
+          </div>
+          <div>
+            <p class="font-semibold text-ink-900 text-base">Generando tu contrato</p>
+            <p class="text-sm text-ink-400 mt-1">Preparando el documento para editar...</p>
           </div>
         </div>
 
-        <p v-if="contratoModal.error" class="text-sm text-red-600">{{ contratoModal.error }}</p>
+        <!-- CONTENIDO NORMAL: campos auto + manuales -->
+        <template v-else>
+          <!-- Campos automáticos: lista compacta -->
+          <div v-if="contratoModal.camposAuto.length">
+            <p class="text-xs font-semibold text-ink-500 uppercase tracking-wide mb-2">
+              Automáticos — tomados del proveedor
+            </p>
+            <dl class="rounded-lg bg-emerald-50 border border-emerald-200 divide-y divide-emerald-100">
+              <div
+                v-for="c in contratoModal.camposAuto"
+                :key="c.etiqueta"
+                class="flex items-center justify-between gap-4 px-3 py-1.5"
+              >
+                <dt class="text-xs text-emerald-700 font-mono shrink-0">«{{ c.etiqueta }}»</dt>
+                <dd class="text-xs font-semibold text-ink-800 text-right truncate max-w-[220px]" :title="c.valor">{{ c.valor || '—' }}</dd>
+              </div>
+            </dl>
+          </div>
+
+          <!-- Campos manuales -->
+          <div v-if="contratoModal.camposManuales.length">
+            <p class="text-xs font-semibold text-ink-500 uppercase tracking-wide mb-2">
+              Completar manualmente
+            </p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div v-for="c in contratoModal.camposManuales" :key="c.etiqueta">
+                <label class="block text-xs font-medium text-ink-700 mb-1 truncate" :title="c.label">
+                  {{ c.label }}
+                </label>
+                <input
+                  v-model="contratoModal.valoresExtra[c.etiqueta]"
+                  class="input text-sm"
+                  :placeholder="c.label"
+                />
+              </div>
+            </div>
+          </div>
+
+          <p v-if="contratoModal.error" class="text-sm text-red-600">{{ contratoModal.error }}</p>
+        </template>
       </div>
 
       <template #footer>
-        <button class="btn-secondary" @click="cerrarContrato">Cancelar</button>
+        <button class="btn-secondary" :disabled="contratoModal.generando" @click="cerrarContrato">Cancelar</button>
         <button
           v-if="contratoModal.paso === 1"
           class="btn-primary"
@@ -394,13 +417,14 @@
         >
           Siguiente
         </button>
+        <!-- Solo mostrar el botón si hay campos manuales (si no, se auto-genera) -->
         <button
-          v-else
+          v-else-if="contratoModal.camposManuales.length > 0"
           class="btn-primary"
           :disabled="contratoModal.generando"
           @click="generarContrato"
         >
-          {{ contratoModal.generando ? 'Generando PDF...' : 'Generar y abrir editor' }}
+          Generar y abrir editor
         </button>
       </template>
     </Modal>
@@ -709,7 +733,7 @@ function seleccionarPlantilla(p) {
   contratoModal.plantillaSeleccionada = p;
 }
 
-watch(() => contratoModal.paso, (paso) => {
+watch(() => contratoModal.paso, async (paso) => {
   if (paso !== 2 || !contratoModal.plantillaSeleccionada) return;
   const prov = contratoModal.proveedorData;
   const mapeoCampos = {
@@ -740,6 +764,12 @@ watch(() => contratoModal.paso, (paso) => {
   contratoModal.camposAuto = auto;
   contratoModal.camposManuales = manual;
   contratoModal.valoresExtra = Object.fromEntries(manual.map((m) => [m.etiqueta, '']));
+
+  // Sin campos manuales → generar automáticamente
+  if (manual.length === 0) {
+    await nextTick();
+    generarContrato();
+  }
 });
 
 async function generarContrato() {

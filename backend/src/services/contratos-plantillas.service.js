@@ -53,8 +53,9 @@ const MAPA_AUTO = {
   'NO_CUENTA':            'cuenta_clabe',
   'NUMERO_CUENTA':        'cuenta_clabe',
   'NÚMERO_CUENTA':        'cuenta_clabe',
-  'NOMBRE':               'nombre',
-  'NOMBRE_COMPLETO':      'nombre',
+  'NOMBRE':               'razon_social',
+  'NOMBRE_PROVEEDOR':     'razon_social',
+  'NOMBRE_COMPLETO':      'razon_social',
   'CONTACTO':             'nombre',
   'CORREO':               'email',
   'EMAIL':                'email',
@@ -86,11 +87,12 @@ function extraerEtiquetas(buffer) {
     const zip = new PizZip(buffer);
     const docXml = zip.file('word/document.xml').asText();
     const texto = docXml.replace(/<[^>]+>/g, ' ');
-    const matches = texto.match(/«([^»\n]{1,100})»/g) || [];
+    const matchesGuillemets = (texto.match(/«([^»\n]{1,100})»/g) || []).map((m) => m.slice(1, -1).trim());
+    // Also detect <TAG> stored as &lt;TAG&gt; in XML
+    const matchesAngle = (docXml.match(/&lt;([A-ZÁÉÍÓÚÑ_][A-ZÁÉÍÓÚÑ_0-9]{0,99})&gt;/g) || [])
+      .map((m) => m.replace(/^&lt;/, '').replace(/&gt;$/, '').trim());
     return [...new Set(
-      matches
-        .map((m) => m.slice(1, -1).trim())
-        .filter((e) => e && !ETIQUETAS_IGNORAR.test(e))
+      [...matchesGuillemets, ...matchesAngle].filter((e) => e && !ETIQUETAS_IGNORAR.test(e))
     )];
   } catch {
     return [];

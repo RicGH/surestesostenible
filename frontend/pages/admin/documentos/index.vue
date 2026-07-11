@@ -40,7 +40,15 @@
           <tr v-for="d in documentos" :key="d.id">
             <td class="font-medium text-ink-800 max-w-xs">
               <div class="truncate">{{ d.nombre }}</div>
-              <div class="text-xs text-ink-400 font-normal">{{ d.tipo === 'creado' ? 'Creado en editor' : 'PDF importado' }}</div>
+              <div class="text-xs font-normal">
+                <template v-if="d.tipo === 'contrato'">
+                  <span class="inline-flex items-center gap-1 text-brand-600">
+                    <Icon name="document" size="w-3 h-3 shrink-0" />
+                    <span class="truncate">{{ d.descripcion || 'Contrato' }}</span>
+                  </span>
+                </template>
+                <template v-else><span class="text-ink-400">{{ d.tipo === 'creado' ? 'Creado en editor' : 'PDF importado' }}</span></template>
+              </div>
             </td>
             <td><EstadoBadge :estado="d.estado" /></td>
             <td class="text-sm">

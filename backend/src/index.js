@@ -33,6 +33,7 @@ app.use('/api/documentos', require('./routes/documentos.routes'));
 app.use('/api/plantillas', require('./routes/plantillas.routes'));
 app.use('/api/contratos', require('./routes/contratos.routes'));
 app.use('/api/catalogos', require('./routes/catalogos.routes'));
+app.use('/api/firma-interna', require('./routes/firma-interna.routes'));
 
 app.use(notFound);
 app.use(errorHandler);

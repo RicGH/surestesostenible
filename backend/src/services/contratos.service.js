@@ -96,6 +96,14 @@ async function generarContrato({ plantilla, proveedor, valoresExtra, creadoPor }
   const valores = buildValores(plantilla.etiquetas_json || [], proveedor, valoresExtra || {});
 
   const zip = new PizZip(buffer);
+  // Convert <TAG> (stored as &lt;TAG&gt; in XML) to «TAG» for docxtemplater
+  const xmlTargets = Object.keys(zip.files).filter(
+    (f) => /^word\/(document|header\d*|footer\d*)\.xml$/.test(f) && !zip.files[f].dir
+  );
+  for (const f of xmlTargets) {
+    const content = zip.files[f].asText().replace(/&lt;([A-ZÁÉÍÓÚÑ_][A-ZÁÉÍÓÚÑ_0-9]*)&gt;/g, '«$1»');
+    zip.file(f, content);
+  }
   const doc = new Docxtemplater(zip, {
     delimiters: { start: '«', end: '»' },
     paragraphLoop: true,
@@ -115,8 +123,8 @@ async function generarContrato({ plantilla, proveedor, valoresExtra, creadoPor }
 
   const nombre = `Contrato - ${proveedor.razon_social}`;
   const result = await query(
-    `INSERT INTO documentos (nombre, tipo, archivo_path, creado_por, proveedor_id) VALUES (?, 'contrato', ?, ?, ?)`,
-    [nombre, relPath, creadoPor, proveedor.id]
+    `INSERT INTO documentos (nombre, descripcion, tipo, archivo_path, creado_por, proveedor_id) VALUES (?, ?, 'contrato', ?, ?, ?)`,
+    [nombre, plantilla.nombre, relPath, creadoPor, proveedor.id]
   );
   const documentoId = result.insertId;
 

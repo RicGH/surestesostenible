@@ -20,10 +20,13 @@
         <button v-if="puedeEditar" class="btn-secondary" :disabled="guardando" @click="guardar()">
           <Icon name="check" size="w-4 h-4" /> {{ guardando ? 'Guardando...' : 'Guardar borrador' }}
         </button>
+        <button v-if="puedeEditar" class="btn-secondary" :disabled="!puedeEnviar || enviandoInterno" @click="enviarInterno">
+          <Icon name="edit" size="w-4 h-4" /> {{ enviandoInterno ? 'Enviando...' : 'Firma interna' }}
+        </button>
         <button v-if="puedeEditar" class="btn-primary" :disabled="!puedeEnviar || enviando" @click="abrirEnviar">
           <Icon name="send" size="w-4 h-4" /> {{ enviando ? 'Enviando...' : 'Enviar a DocuSign' }}
         </button>
-        <button v-if="doc?.estado === 'firmado'" class="btn-primary" @click="descargarFirmado">
+        <button v-if="['firmado'].includes(doc?.estado)" class="btn-primary" @click="descargarFirmado">
           <Icon name="download" size="w-4 h-4" /> Descargar firmado
         </button>
       </div>
@@ -123,6 +126,19 @@
 
       <!-- VISOR PDF -->
       <div class="card overflow-hidden">
+        <!-- TABS: solo cuando está firmado -->
+        <div v-if="doc.estado === 'firmado'" class="flex border-b border-ink-200 bg-white">
+          <button
+            v-for="tab in [{ id: 'firmado', label: 'Documento firmado', icon: 'check' }, { id: 'original', label: 'Plantilla original', icon: 'document' }]"
+            :key="tab.id"
+            :class="['inline-flex items-center gap-1.5 px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors',
+                     tabVisor === tab.id ? 'border-brand-600 text-brand-700 bg-white' : 'border-transparent text-ink-500 hover:text-ink-800']"
+            @click="cambiarTabVisor(tab.id)"
+          >
+            <Icon :name="tab.icon" size="w-4 h-4" />
+            {{ tab.label }}
+          </button>
+        </div>
         <div class="px-4 py-2 border-b border-ink-100 flex items-center gap-3 text-sm">
           <button class="text-ink-500 hover:text-ink-900" :disabled="escala <= 0.5" @click="cambiarEscala(-0.25)"><Icon name="minus" size="w-4 h-4" /></button>
           <span class="text-ink-700 text-xs">{{ Math.round(escala * 100) }}%</span>
@@ -136,8 +152,9 @@
               :class="['block', cursorPagina]"
               @click="(e) => onClickPagina(e, p)"
             />
-            <!-- TAGS DOCUSIGN -->
+            <!-- TAGS DOCUSIGN (ocultar en tab firmado) -->
             <div
+              v-if="tabVisor !== 'firmado'"
               v-for="t in tagsEnPagina(p)"
               :key="`tag-${t._key}`"
               class="absolute group flex items-center justify-center text-xs font-medium select-none"
@@ -150,8 +167,9 @@
                 <Icon name="x" size="w-3 h-3" />
               </button>
             </div>
-            <!-- ANOTACIONES (texto + campo) -->
+            <!-- ANOTACIONES (texto + campo, ocultar en tab firmado) -->
             <div
+              v-if="tabVisor !== 'firmado'"
               v-for="a in anotacionesEnPagina(p)"
               :key="`anot-${a._key}`"
               class="absolute group select-text"
@@ -334,6 +352,8 @@ const meta = reactive({ asunto_correo: '', mensaje_correo: '' });
 const cargando = ref(true);
 const guardando = ref(false);
 const enviando = ref(false);
+const enviandoInterno = ref(false);
+const tabVisor = ref('firmado');
 
 const numPaginas = ref(0);
 const paginasArr = computed(() => Array.from({ length: numPaginas.value }, (_, i) => i + 1));
@@ -436,7 +456,8 @@ async function cargar() {
     meta.asunto_correo = d.asunto_correo || '';
     meta.mensaje_correo = d.mensaje_correo || '';
     await nextTick();
-    await cargarPdf();
+    tabVisor.value = d.estado === 'firmado' ? 'firmado' : 'original';
+    await cargarPdf(d.estado === 'firmado');
   } catch (e) {
     toast.error('No se pudo cargar', e.message);
     router.push('/admin/documentos');
@@ -446,13 +467,12 @@ async function cargar() {
 }
 
 let pdfjsLib = null;
-async function cargarPdf() {
+async function cargarPdf(firmado = false) {
   try {
     pdfjsLib = await import('pdfjs-dist/build/pdf.mjs');
     pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
-    const res = await fetch(`${config.public.apiBase}/documentos/${docId.value}/archivo`, {
-      headers: { Authorization: `Bearer ${auth.token}` },
-    });
+    const url = `${config.public.apiBase}/documentos/${docId.value}/archivo${firmado ? '?firmado=1' : ''}`;
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${auth.token}` } });
     if (!res.ok) throw new Error('No se pudo descargar el PDF');
     const buf = await res.arrayBuffer();
     pdfDoc = await pdfjsLib.getDocument({ data: buf }).promise;
@@ -463,6 +483,16 @@ async function cargarPdf() {
     console.error('[PDF.js] Error cargando PDF:', err);
     toast.error('Error al cargar PDF', err.message || 'Ver consola');
   }
+}
+
+async function cambiarTabVisor(tab) {
+  if (tabVisor.value === tab) return;
+  tabVisor.value = tab;
+  numPaginas.value = 0;
+  pdfDoc = null;
+  Object.keys(canvasMap).forEach((k) => delete canvasMap[k]);
+  await nextTick();
+  await cargarPdf(tab === 'firmado');
 }
 
 async function renderizarPagina(p) {
@@ -778,6 +808,21 @@ async function confirmarEnviar() {
     toast.error('No se pudo enviar', e.message);
   } finally {
     enviando.value = false;
+  }
+}
+
+async function enviarInterno() {
+  if (!puedeEnviar.value) return;
+  enviandoInterno.value = true;
+  try {
+    await guardar(true);
+    await api.post(`/firma-interna/${docId.value}/enviar`);
+    toast.success('Firma interna enviada', 'Se envió el enlace de firma al primer firmante');
+    await cargar();
+  } catch (e) {
+    toast.error('No se pudo enviar', e.message);
+  } finally {
+    enviandoInterno.value = false;
   }
 }
 
