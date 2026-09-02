@@ -26,12 +26,20 @@
           <Icon name="document" size="w-4 h-4" /> Guardar como plantilla
         </button>
         <button
+          v-if="false && puedeEditar"
+          class="btn-primary"
+          :disabled="!puedeEnviar || enviando"
+          @click="abrirEnviar('docusign')"
+        >
+          <Icon name="send" size="w-4 h-4" /> {{ enviando ? 'Enviando...' : 'Enviar a DocuSign' }}
+        </button>
+        <button
           v-if="puedeEditar"
           class="btn-primary"
           :disabled="!puedeEnviar || enviando"
-          @click="abrirEnviar"
+          @click="abrirEnviar('interno')"
         >
-          <Icon name="send" size="w-4 h-4" /> {{ enviando ? 'Enviando...' : 'Enviar a DocuSign' }}
+          <Icon name="edit" size="w-4 h-4" /> {{ enviando ? 'Enviando...' : 'Firma interna' }}
         </button>
       </div>
     </div>
@@ -214,11 +222,13 @@
       </template>
     </Modal>
 
-    <Modal v-if="modalEnviar.abierto" :title="`Llenar campos antes de enviar`" @close="modalEnviar.abierto = false">
+    <Modal v-if="modalEnviar.abierto" title="Llenar campos antes de enviar" @close="modalEnviar.abierto = false">
       <div class="space-y-3">
         <p v-if="!modalEnviar.campos.length" class="text-sm text-ink-500">Este documento no tiene campos para llenar. Se enviará tal cual.</p>
         <template v-else>
-          <p class="text-sm text-ink-600">Estos valores se sustituirán en el documento antes de enviar a DocuSign:</p>
+          <p class="text-sm text-ink-600">
+            Estos valores se sustituirán en el documento antes de {{ modalEnviar.modo === 'interno' ? 'enviarlo a firma interna' : 'enviarlo a DocuSign' }}:
+          </p>
           <div v-for="c in modalEnviar.campos" :key="c.nombre" class="space-y-1">
             <label class="block text-xs font-medium text-ink-700">
               {{ c.label }}
@@ -237,7 +247,8 @@
       <template #footer>
         <button class="btn-secondary" @click="modalEnviar.abierto = false">Cancelar</button>
         <button class="btn-primary" :disabled="enviando" @click="confirmarEnviar">
-          <Icon name="send" size="w-4 h-4" /> {{ enviando ? 'Enviando...' : 'Enviar a DocuSign' }}
+          <Icon :name="modalEnviar.modo === 'interno' ? 'edit' : 'send'" size="w-4 h-4" />
+          {{ enviando ? 'Enviando...' : modalEnviar.modo === 'interno' ? 'Enviar a firma interna' : 'Enviar a DocuSign' }}
         </button>
       </template>
     </Modal>
@@ -302,7 +313,7 @@ const puedeEnviar = computed(() => {
 
 const modalFirmante = reactive({ abierto: false, tipo: 'usuario', buscarUsuario: '', buscarProv: '', nombre: '', email: '' });
 const modalCampo = reactive({ abierto: false, label: '', nombre: '', tipo: 'texto', requerido: true });
-const modalEnviar = reactive({ abierto: false, campos: [], valores: {} });
+const modalEnviar = reactive({ abierto: false, modo: 'docusign', campos: [], valores: {} });
 const modalPlantilla = reactive({ abierto: false, nombre: '', descripcion: '', guardando: false });
 
 const usuarios = ref([]);
@@ -480,13 +491,13 @@ async function guardarBorrador(silencio = false) {
   }
 }
 
-async function abrirEnviar() {
+async function abrirEnviar(modo = 'docusign') {
   await guardarBorrador(true);
   const detalle = await api.get(`/documentos/${docId.value}`);
   campos.value = detalle.campos || [];
   const valores = {};
   for (const c of campos.value) valores[c.nombre] = c.valor || '';
-  Object.assign(modalEnviar, { abierto: true, campos: campos.value, valores });
+  Object.assign(modalEnviar, { abierto: true, modo, campos: campos.value, valores });
 }
 
 async function confirmarEnviar() {
@@ -501,8 +512,13 @@ async function confirmarEnviar() {
     if (modalEnviar.campos.length) {
       await api.put(`/documentos/${docId.value}/valores`, { valores: modalEnviar.valores });
     }
-    const r = await api.post(`/documentos/${docId.value}/enviar`);
-    toast.success('Enviado a DocuSign', `Envelope ${r.envelopeId}`);
+    if (modalEnviar.modo === 'interno') {
+      await api.post(`/firma-interna/${docId.value}/enviar`);
+      toast.success('Firma interna enviada', 'Se envió el enlace de firma al primer firmante');
+    } else {
+      const r = await api.post(`/documentos/${docId.value}/enviar`);
+      toast.success('Enviado a DocuSign', `Envelope ${r.envelopeId}`);
+    }
     modalEnviar.abierto = false;
     await cargar();
   } catch (e) {

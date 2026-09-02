@@ -20,10 +20,10 @@
         <button v-if="puedeEditar" class="btn-secondary" :disabled="guardando" @click="guardar()">
           <Icon name="check" size="w-4 h-4" /> {{ guardando ? 'Guardando...' : 'Guardar borrador' }}
         </button>
-        <button v-if="false && puedeEditar" class="btn-secondary" :disabled="!puedeEnviar || enviandoInterno" @click="enviarInterno">
+        <button v-if="puedeEditar" class="btn-secondary" :disabled="!puedeEnviar || enviandoInterno" @click="enviarInterno">
           <Icon name="edit" size="w-4 h-4" /> {{ enviandoInterno ? 'Enviando...' : 'Firma interna' }}
         </button>
-        <button v-if="puedeEditar" class="btn-primary" :disabled="!puedeEnviar || enviando" @click="abrirEnviar">
+        <button v-if="false && puedeEditar" class="btn-primary" :disabled="!puedeEnviar || enviando" @click="abrirEnviar">
           <Icon name="send" size="w-4 h-4" /> {{ enviando ? 'Enviando...' : 'Enviar a DocuSign' }}
         </button>
         <button v-if="['firmado'].includes(doc?.estado)" class="btn-primary" @click="descargarFirmado">

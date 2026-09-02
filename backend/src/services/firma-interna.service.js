@@ -4,6 +4,8 @@ const crypto = require('crypto');
 const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
 const { query, queryOne } = require('../config/db');
 const mail = require('./mail.service');
+const pdfService = require('./pdf.service');
+const documentosService = require('./documentos.service');
 
 const BASE_URL = process.env.APP_BASE_URL || 'http://localhost:3000';
 
@@ -23,6 +25,12 @@ async function enviarInterno(documentoId) {
     [documentoId]
   );
   if (!firmantes.length) throw new Error('El documento no tiene firmantes');
+
+  // Los documentos creados en el editor HTML todavía no tienen PDF ni tags en BD:
+  // se generan aquí igual que en el envío a DocuSign.
+  if (doc.tipo === 'creado') {
+    await prepararDocumentoCreado(doc);
+  }
 
   const tags = await query(
     `SELECT * FROM documento_tags WHERE documento_id = ?`,
@@ -65,6 +73,28 @@ async function enviarInterno(documentoId) {
   await enviarCorreoFirma(primero, doc);
 
   return { ok: true, firmantes: firmantes.length };
+}
+
+async function prepararDocumentoCreado(doc) {
+  const campos = await documentosService.obtenerCampos(doc.id);
+  const faltantes = campos.filter((c) => c.requerido && (c.valor == null || c.valor === ''));
+  if (faltantes.length) {
+    throw new Error(`Falta llenar los campos: ${faltantes.map((c) => c.label).join(', ')}`);
+  }
+
+  const htmlConValores = pdfService.reemplazarCamposEnHtml(doc.contenido_html || '', campos);
+  const { pdf, tags: tagsHtml } = await pdfService.htmlAPdfConTags(htmlConValores);
+  const tags = pdfService.calcularTagsPorPagina(tagsHtml).filter((t) => t.firmante_id);
+
+  const dir = path.resolve(__dirname, '..', '..', 'uploads', 'documentos');
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  const filename = `${doc.id}_generado_${Date.now()}_${crypto.randomBytes(4).toString('hex')}.pdf`;
+  fs.writeFileSync(path.join(dir, filename), Buffer.from(pdf));
+  const relPath = path.posix.join('uploads', 'documentos', filename);
+
+  await documentosService.guardarArchivoPdf(doc.id, relPath);
+  await documentosService.reemplazarTags(doc.id, tags);
+  doc.archivo_path = relPath;
 }
 
 async function enviarCorreoFirma(firmante, doc) {

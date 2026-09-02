@@ -271,48 +271,7 @@ async function guardarTags(req, res) {
   res.json({ ok: true });
 }
 
-function reemplazarCamposEnHtml(html, campos) {
-  if (!campos || !campos.length) return html;
-  let out = html;
-  for (const c of campos) {
-    const valor = c.valor != null && c.valor !== '' ? String(c.valor) : `[${c.label || c.nombre}]`;
-    const escaped = valor
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
-    const regex = new RegExp(
-      `<span[^>]*data-campo="${c.nombre.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"[^>]*>.*?</span>`,
-      'g'
-    );
-    out = out.replace(regex, `<span class="ds-campo-valor">${escaped}</span>`);
-  }
-  return out;
-}
-
-const PT_PER_PX = 72 / 96;
-const PAGINA_CSS_HEIGHT = { Letter: 11 * 96, A4: 11.69 * 96 };
-function calcularTagsPorPagina(tagsHtml, opciones = {}) {
-  const tamano = opciones.tamano || 'Letter';
-  const margenMm = parseFloat(opciones.margen || '20');
-  const margenPx = (margenMm / 25.4) * 96;
-  const pageH = PAGINA_CSS_HEIGHT[tamano] || PAGINA_CSS_HEIGHT.Letter;
-  const contenidoH = pageH - margenPx * 2;
-  return tagsHtml.map((t) => {
-    const yRel = t.yPx;
-    const pagina = Math.floor(yRel / contenidoH) + 1;
-    const yEnPagina = yRel - (pagina - 1) * contenidoH + margenPx;
-    const xEnPagina = t.xPx + margenPx;
-    return {
-      tipo: t.tipo,
-      firmante_id: t.firmanteId ? Number(t.firmanteId) : null,
-      pagina,
-      x: xEnPagina * PT_PER_PX,
-      y: yEnPagina * PT_PER_PX,
-      ancho: t.widthPx * PT_PER_PX,
-      alto: t.heightPx * PT_PER_PX,
-    };
-  });
-}
+const { reemplazarCamposEnHtml, calcularTagsPorPagina } = pdfService;
 
 async function enviarADocusign(req, res) {
   const id = Number(req.params.id);
