@@ -16,6 +16,8 @@ router.put('/:id/activo', asyncHandler(ctrl.setActivo));
 router.put('/:id/aprobador', asyncHandler(ctrl.setAprobador));
 router.put('/:id/password', asyncHandler(ctrl.resetPassword));
 router.post('/bulk-delete', asyncHandler(ctrl.eliminarVarios));
+router.post('/:id/restaurar', asyncHandler(ctrl.restaurar));
+router.delete('/:id/definitivo', asyncHandler(ctrl.eliminarFisico));
 router.delete('/:id', asyncHandler(ctrl.eliminar));
 router.get('/:id/cuentas-bancarias', asyncHandler(cuentasCtrl.listarDeUsuario));
 router.post('/:id/cuentas-bancarias', asyncHandler(cuentasCtrl.guardarParaUsuario));

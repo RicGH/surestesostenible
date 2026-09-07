@@ -13,7 +13,7 @@ router.get('/resumen', asyncHandler(async (req, res) => {
     const [v, p, f] = await Promise.all([
       queryOne("SELECT COUNT(*) c FROM viaticos_solicitudes WHERE estado='pendiente'"),
       queryOne("SELECT COUNT(*) c FROM proveedores WHERE estado='pendiente'"),
-      queryOne("SELECT COUNT(*) c FROM facturas_proveedor WHERE estado='en_revision'"),
+      queryOne("SELECT COUNT(*) c FROM facturas_proveedor WHERE eliminado=0 AND estado='en_revision'"),
     ]);
     return res.json({
       cards: [
@@ -85,9 +85,9 @@ router.get('/resumen', asyncHandler(async (req, res) => {
       return res.json({ cards: [{ label: 'Pendientes', value: 0 }, { label: 'Aprobadas', value: 0 }, { label: 'Rechazadas', value: 0 }] });
     }
     const [pen, apr, rec] = await Promise.all([
-      queryOne("SELECT COUNT(*) c FROM facturas_proveedor WHERE proveedor_id=? AND estado='en_revision'", [prov.id]),
-      queryOne("SELECT COUNT(*) c FROM facturas_proveedor WHERE proveedor_id=? AND estado IN ('aprobada','pagada')", [prov.id]),
-      queryOne("SELECT COUNT(*) c FROM facturas_proveedor WHERE proveedor_id=? AND estado='rechazada'", [prov.id]),
+      queryOne("SELECT COUNT(*) c FROM facturas_proveedor WHERE eliminado=0 AND proveedor_id=? AND estado='en_revision'", [prov.id]),
+      queryOne("SELECT COUNT(*) c FROM facturas_proveedor WHERE eliminado=0 AND proveedor_id=? AND estado IN ('aprobada','pagada')", [prov.id]),
+      queryOne("SELECT COUNT(*) c FROM facturas_proveedor WHERE eliminado=0 AND proveedor_id=? AND estado='rechazada'", [prov.id]),
     ]);
     return res.json({
       cards: [
@@ -106,8 +106,8 @@ router.get('/resumen', asyncHandler(async (req, res) => {
           + (SELECT COUNT(*) FROM viaticos_ajustes WHERE estado='aprobado')
         ) c
       `),
-      queryOne("SELECT COUNT(*) c FROM facturas_proveedor WHERE estado='aprobada'"),
-      queryOne("SELECT COALESCE(SUM(f.monto),0) total FROM facturas_proveedor f JOIN pagos p ON p.factura_id=f.id WHERE p.fecha_pago >= DATE_FORMAT(NOW(),'%Y-%m-01')"),
+      queryOne("SELECT COUNT(*) c FROM facturas_proveedor WHERE eliminado=0 AND estado='aprobada'"),
+      queryOne("SELECT COALESCE(SUM(f.monto),0) total FROM facturas_proveedor f JOIN pagos p ON p.factura_id=f.id WHERE f.eliminado=0 AND p.fecha_pago >= DATE_FORMAT(NOW(),'%Y-%m-01')"),
     ]);
     return res.json({
       cards: [

@@ -136,13 +136,17 @@ CREATE TABLE IF NOT EXISTS facturas_proveedor (
   motivo_rechazo  VARCHAR(500),
   aprobada_por    INT UNSIGNED,
   aprobada_at     DATETIME,
+  eliminado       TINYINT(1) NOT NULL DEFAULT 0,
+  eliminado_at    DATETIME,
+  eliminado_por   INT UNSIGNED,
   created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_fact_prov FOREIGN KEY (proveedor_id) REFERENCES proveedores(id) ON DELETE RESTRICT,
   CONSTRAINT fk_fact_aprobador FOREIGN KEY (aprobada_por) REFERENCES users(id) ON DELETE SET NULL,
   KEY idx_fact_estado (estado),
   KEY idx_fact_proveedor (proveedor_id),
-  KEY idx_fact_fecha (fecha_emision)
+  KEY idx_fact_fecha (fecha_emision),
+  KEY idx_fact_eliminado (eliminado)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS pagos (

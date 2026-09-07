@@ -142,6 +142,37 @@ async function pagar(req, res) {
   res.json({ ok: true });
 }
 
+const eliminarSchema = z.object({
+  modo: z.enum(['logico', 'fisico']).default('logico'),
+});
+
+function borrarArchivo(rel) {
+  if (!rel) return;
+  const abs = path.resolve(UPLOAD_ROOT, rel);
+  if (!abs.startsWith(path.resolve(UPLOAD_ROOT))) return;
+  fs.unlink(abs, () => {});
+}
+
+async function eliminar(req, res) {
+  const id = Number(req.params.id);
+  const { modo } = eliminarSchema.parse({ ...req.query, ...req.body });
+
+  const factura = await facturas.getById(id, { incluirEliminadas: modo === 'fisico' });
+  if (!factura) throw new HttpError(404, 'Factura no encontrada');
+
+  if (modo === 'fisico') {
+    const pago = await facturas.getPago(id);
+    await facturas.eliminarFisico(id);
+    borrarArchivo(factura.pdf_path);
+    borrarArchivo(factura.xml_path);
+    if (pago) borrarArchivo(pago.comprobante_path);
+  } else {
+    await facturas.eliminarLogico(id, req.user.sub);
+  }
+
+  res.json({ ok: true, modo });
+}
+
 async function descargarComprobante(req, res) {
   const id = Number(req.params.id);
   const factura = await facturas.getById(id);
@@ -180,5 +211,5 @@ async function descargarOficio(req, res) {
 
 module.exports = {
   subir, preview, misFacturas, listarAdmin, detalle,
-  aprobar, rechazar, pagar, descargarComprobante, descargarFactura, descargarOficio,
+  aprobar, rechazar, pagar, eliminar, descargarComprobante, descargarFactura, descargarOficio,
 };

@@ -124,6 +124,30 @@ async function eliminar(req, res) {
   res.json({ ok: true });
 }
 
+async function restaurar(req, res) {
+  const id = Number(req.params.id);
+  const usuario = await service.findEliminadoById(id);
+  if (!usuario) throw new HttpError(404, 'Usuario eliminado no encontrado');
+  await service.restaurar(id);
+  res.json({ ok: true, activo: !!usuario.activo });
+}
+
+async function eliminarFisico(req, res) {
+  const id = Number(req.params.id);
+  if (id === req.user.sub) throw new HttpError(400, 'No puedes eliminarte a ti mismo');
+  const usuario = await service.findEliminadoById(id);
+  if (!usuario) throw new HttpError(404, 'Usuario eliminado no encontrado');
+  try {
+    await service.eliminarFisico(id);
+  } catch (e) {
+    if (e.code === 'ER_ROW_IS_REFERENCED_2' || e.errno === 1451) {
+      throw new HttpError(409, 'No se puede borrar de la base: el usuario tiene registros asociados (viáticos, facturas u otros). Puedes dejarlo como eliminado.');
+    }
+    throw e;
+  }
+  res.json({ ok: true });
+}
+
 const eliminarVariosSchema = z.object({
   ids: z.array(z.number().int().positive()).min(1).max(200),
 });
@@ -137,4 +161,7 @@ async function eliminarVarios(req, res) {
   res.json({ ok: true, eliminados });
 }
 
-module.exports = { listar, crear, actualizar, setActivo, setAprobador, resetPassword, eliminar, eliminarVarios, listarAutorizadores };
+module.exports = {
+  listar, crear, actualizar, setActivo, setAprobador, resetPassword,
+  eliminar, eliminarVarios, restaurar, eliminarFisico, listarAutorizadores,
+};

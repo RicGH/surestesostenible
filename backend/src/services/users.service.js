@@ -38,19 +38,23 @@ async function create({ email, password_hash, nombre, rol, es_aprobador_viaticos
 }
 
 async function listar(filtros = {}) {
-  const where = ['eliminado = 0'];
+  const where = [];
   const params = [];
-  if (filtros.rol) { where.push('rol = ?'); params.push(filtros.rol); }
-  if (filtros.activo === '1' || filtros.activo === '0') {
-    where.push('activo = ?');
-    params.push(filtros.activo === '1' ? 1 : 0);
+  // `estado`: activos | inactivos | eliminados. Sin valor, se listan los no eliminados.
+  if (filtros.estado === 'eliminados') {
+    where.push('eliminado = 1');
+  } else {
+    where.push('eliminado = 0');
+    if (filtros.estado === 'activos' || filtros.activo === '1') where.push('activo = 1');
+    if (filtros.estado === 'inactivos' || filtros.activo === '0') where.push('activo = 0');
   }
+  if (filtros.rol) { where.push('rol = ?'); params.push(filtros.rol); }
   if (filtros.q) {
     where.push('(email LIKE ? OR nombre LIKE ?)');
     params.push(`%${filtros.q}%`, `%${filtros.q}%`);
   }
   return query(
-    `SELECT id, email, nombre, rfc, clabe_bancaria, banco, rol, es_aprobador_viaticos, activo, created_at
+    `SELECT id, email, nombre, rfc, clabe_bancaria, banco, rol, es_aprobador_viaticos, activo, eliminado, created_at
      FROM users
      WHERE ${where.join(' AND ')}
      ORDER BY created_at DESC LIMIT 200`,
@@ -107,6 +111,23 @@ async function eliminar(id) {
   await query('UPDATE users SET eliminado = 1, activo = 0 WHERE id = ?', [id]);
 }
 
+async function findEliminadoById(id) {
+  return queryOne(
+    'SELECT id, email, nombre, rol, activo, eliminado FROM users WHERE id = ? AND eliminado = 1 LIMIT 1',
+    [id]
+  );
+}
+
+async function restaurar(id) {
+  const result = await query('UPDATE users SET eliminado = 0 WHERE id = ? AND eliminado = 1', [id]);
+  return result.affectedRows > 0;
+}
+
+async function eliminarFisico(id) {
+  const result = await query('DELETE FROM users WHERE id = ?', [id]);
+  return result.affectedRows > 0;
+}
+
 async function eliminarVarios(ids) {
   if (!ids.length) return 0;
   const placeholders = ids.map(() => '?').join(',');
@@ -120,5 +141,6 @@ async function eliminarVarios(ids) {
 module.exports = {
   findByEmail, findById, findByIdConPassword, create, listar, setActivo, actualizarPassword,
   existeEmailEnOtro, actualizar, actualizarPerfil, setAvatar, tieneProveedor, eliminar, eliminarVarios,
+  findEliminadoById, restaurar, eliminarFisico,
   setAprobador, listarAutorizadores, setNagPerfilIgnorado,
 };

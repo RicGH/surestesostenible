@@ -20,6 +20,7 @@ const MAP = {
   pagado:       { cls: 'badge-violet', label: 'Pagado · listo para usar' },
   activo:       { cls: 'badge-green',  label: 'Activo' },
   inactivo:     { cls: 'badge-gray',   label: 'Inactivo' },
+  eliminado:    { cls: 'badge-red',    label: 'Eliminado' },
   borrador:     { cls: 'badge-gray',   label: 'Borrador' },
   enviado:      { cls: 'badge-blue',   label: 'Enviado' },
   parcial:      { cls: 'badge-amber',  label: 'Firma parcial' },

@@ -20,7 +20,7 @@ async function crear(proveedorId, cfdi, pdfPath, xmlPath, contabilidad = {}) {
 }
 
 async function listarPorProveedor(proveedorId, filtros = {}) {
-  const where = ['proveedor_id = ?'];
+  const where = ['proveedor_id = ?', 'eliminado = 0'];
   const params = [proveedorId];
   if (filtros.estado) { where.push('estado = ?'); params.push(filtros.estado); }
   if (filtros.folio) { where.push('folio LIKE ?'); params.push(`%${filtros.folio}%`); }
@@ -38,7 +38,7 @@ async function listarPorProveedor(proveedorId, filtros = {}) {
 }
 
 async function listarParaAdmin(filtros = {}) {
-  const where = [];
+  const where = ['f.eliminado = 0'];
   const params = [];
   if (filtros.estado) { where.push('f.estado = ?'); params.push(filtros.estado); }
   if (filtros.proveedor_id) { where.push('f.proveedor_id = ?'); params.push(filtros.proveedor_id); }
@@ -47,18 +47,18 @@ async function listarParaAdmin(filtros = {}) {
             p.razon_social, p.rfc
      FROM facturas_proveedor f
      JOIN proveedores p ON p.id = f.proveedor_id
-     ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
+     WHERE ${where.join(' AND ')}
      ORDER BY f.created_at DESC LIMIT 200`,
     params
   );
 }
 
-async function getById(id) {
+async function getById(id, { incluirEliminadas = false } = {}) {
   return queryOne(
     `SELECT f.*, p.razon_social, p.rfc, p.user_id AS proveedor_user_id, p.banco, p.cuenta_clabe
      FROM facturas_proveedor f
      JOIN proveedores p ON p.id = f.proveedor_id
-     WHERE f.id = ?`,
+     WHERE f.id = ?${incluirEliminadas ? '' : ' AND f.eliminado = 0'}`,
     [id]
   );
 }
@@ -85,11 +85,24 @@ async function pagar(facturaId, userId, comprobantePath, referencia) {
   await query("UPDATE facturas_proveedor SET estado='pagada' WHERE id=? AND estado='aprobada'", [facturaId]);
 }
 
+async function eliminarLogico(id, userId) {
+  const result = await query(
+    'UPDATE facturas_proveedor SET eliminado = 1, eliminado_at = NOW(), eliminado_por = ? WHERE id = ? AND eliminado = 0',
+    [userId, id]
+  );
+  return result.affectedRows > 0;
+}
+
+async function eliminarFisico(id) {
+  const result = await query('DELETE FROM facturas_proveedor WHERE id = ?', [id]);
+  return result.affectedRows > 0;
+}
+
 async function getPago(facturaId) {
   return queryOne('SELECT * FROM pagos WHERE factura_id = ?', [facturaId]);
 }
 
 module.exports = {
   crear, listarPorProveedor, listarParaAdmin, getById,
-  aprobar, rechazar, pagar, getPago,
+  aprobar, rechazar, pagar, getPago, eliminarLogico, eliminarFisico,
 };

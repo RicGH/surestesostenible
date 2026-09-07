@@ -78,13 +78,13 @@ async function dashboardFacturas(filtros = {}) {
         SUM(CASE WHEN estado = 'pagada' THEN 1 ELSE 0 END) AS pagadas,
         SUM(CASE WHEN estado = 'rechazada' THEN 1 ELSE 0 END) AS rechazadas
        FROM facturas_proveedor
-       WHERE fecha_emision >= ? AND fecha_emision <= ?`,
+       WHERE eliminado = 0 AND fecha_emision >= ? AND fecha_emision <= ?`,
       [desde, hasta]
     ),
     query(
       `SELECT estado, COUNT(*) AS count, COALESCE(SUM(monto),0) AS monto
        FROM facturas_proveedor
-       WHERE fecha_emision >= ? AND fecha_emision <= ?
+       WHERE eliminado = 0 AND fecha_emision >= ? AND fecha_emision <= ?
        GROUP BY estado`,
       [desde, hasta]
     ),
@@ -93,7 +93,7 @@ async function dashboardFacturas(filtros = {}) {
               COUNT(*) AS count,
               COALESCE(SUM(monto),0) AS monto
        FROM facturas_proveedor
-       WHERE fecha_emision >= ? AND fecha_emision <= ?
+       WHERE eliminado = 0 AND fecha_emision >= ? AND fecha_emision <= ?
        GROUP BY mes ORDER BY mes ASC`,
       [desde, hasta]
     ),
@@ -101,7 +101,7 @@ async function dashboardFacturas(filtros = {}) {
       `SELECT p.razon_social AS proveedor, COUNT(*) AS count, COALESCE(SUM(f.monto),0) AS monto
        FROM facturas_proveedor f
        JOIN proveedores p ON p.id = f.proveedor_id
-       WHERE f.fecha_emision >= ? AND f.fecha_emision <= ?
+       WHERE f.eliminado = 0 AND f.fecha_emision >= ? AND f.fecha_emision <= ?
        GROUP BY p.id, p.razon_social ORDER BY monto DESC LIMIT 5`,
       [desde, hasta]
     ),
@@ -136,7 +136,7 @@ async function reporteViaticos(filtros = {}) {
 }
 
 async function reporteProveedores(filtros = {}) {
-  const where = [];
+  const where = ['f.eliminado = 0'];
   const params = [];
   if (filtros.estado) { where.push('f.estado = ?'); params.push(filtros.estado); }
   if (filtros.desde) { where.push('f.fecha_emision >= ?'); params.push(filtros.desde); }
@@ -146,7 +146,7 @@ async function reporteProveedores(filtros = {}) {
             f.fecha_emision, f.estado
      FROM facturas_proveedor f
      JOIN proveedores p ON p.id = f.proveedor_id
-     ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
+     WHERE ${where.join(' AND ')}
      ORDER BY f.fecha_emision DESC`,
     params
   );

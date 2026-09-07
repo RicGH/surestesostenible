@@ -32,6 +32,7 @@
                 <IconButton icon="fileText" tooltip="Oficio de pago a proveedores (PDF)" @click="verOficio(f)" />
                 <IconButton v-if="f.estado === 'en_revision'" icon="check" tooltip="Aprobar" variant="success" @click="aprobar(f.id)" />
                 <IconButton v-if="f.estado === 'en_revision'" icon="x" tooltip="Rechazar" variant="danger" @click="abrirRechazo(f)" />
+                <IconButton v-if="esAdmin" icon="trash" tooltip="Eliminar factura" variant="danger" @click="abrirEliminar(f)" />
               </div>
             </td>
           </tr>
@@ -82,6 +83,77 @@
       </div>
     </Modal>
 
+    <Modal v-if="esAdmin && modalEliminar.abierto" title="Eliminar factura" @close="modalEliminar.abierto = false">
+      <div class="space-y-4 text-sm">
+        <div class="flex items-start gap-3">
+          <div class="w-10 h-10 rounded-lg bg-red-50 text-red-600 grid place-items-center shrink-0">
+            <Icon name="trash" />
+          </div>
+          <div class="min-w-0">
+            <p class="text-ink-800">
+              ¿Eliminar la factura <strong class="text-ink-900 font-mono">{{ modalEliminar.folio }}</strong>?
+            </p>
+            <p class="text-xs text-ink-500 mt-0.5 break-all">
+              {{ modalEliminar.razon_social }} · ${{ Number(modalEliminar.monto || 0).toFixed(2) }} {{ modalEliminar.moneda }}
+            </p>
+          </div>
+        </div>
+
+        <div class="rounded-lg border border-ink-200 p-3 space-y-3">
+          <label class="flex items-start gap-3 cursor-pointer select-none">
+            <span
+              :class="[
+                'relative inline-flex shrink-0 mt-0.5 h-6 w-11 rounded-full transition-colors',
+                modalEliminar.fisico ? 'bg-red-600' : 'bg-ink-300',
+              ]"
+            >
+              <input v-model="modalEliminar.fisico" type="checkbox" class="sr-only" />
+              <span
+                :class="[
+                  'absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform',
+                  modalEliminar.fisico ? 'translate-x-5' : 'translate-x-0',
+                ]"
+              ></span>
+            </span>
+            <span class="min-w-0">
+              <span class="block font-medium text-ink-800">
+                {{ modalEliminar.fisico ? 'Eliminación física' : 'Eliminación lógica' }}
+              </span>
+              <span class="block text-xs text-ink-500 mt-0.5">
+                Actívalo solo si necesitas borrar la factura por completo de la base de datos.
+              </span>
+            </span>
+          </label>
+        </div>
+
+        <div
+          v-if="modalEliminar.fisico"
+          class="rounded-lg bg-red-50 border border-red-200 p-3 text-xs text-red-800 flex items-start gap-2"
+        >
+          <Icon name="alert" size="w-4 h-4" class="shrink-0 mt-0.5" />
+          <p>
+            El registro, su pago asociado y los archivos PDF/XML se borrarán del servidor de forma
+            <strong>permanente e irreversible</strong>.
+          </p>
+        </div>
+        <div
+          v-else
+          class="rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800 flex items-start gap-2"
+        >
+          <Icon name="alert" size="w-4 h-4" class="shrink-0 mt-0.5" />
+          <p>La factura dejará de aparecer en listados y reportes, pero se conserva en la base de datos.</p>
+        </div>
+
+        <p v-if="modalEliminar.error" class="text-sm text-red-600">{{ modalEliminar.error }}</p>
+      </div>
+      <template #footer>
+        <button class="btn-secondary" @click="modalEliminar.abierto = false">Cancelar</button>
+        <button class="btn-danger" :disabled="modalEliminar.cargando" @click="confirmarEliminar">
+          {{ modalEliminar.cargando ? 'Eliminando...' : (modalEliminar.fisico ? 'Eliminar permanentemente' : 'Eliminar') }}
+        </button>
+      </template>
+    </Modal>
+
     <Modal v-if="modal.abierto" :title="`Rechazar ${modal.folio}`" @close="modal.abierto = false">
       <textarea v-model="modal.motivo" rows="3" class="input" placeholder="Motivo"></textarea>
       <template #footer>
@@ -94,6 +166,8 @@
 
 <script setup>
 const api = useApi();
+const auth = useAuth();
+const esAdmin = computed(() => auth.rol === 'admin');
 const facturas = ref([]);
 const detalle = ref(null);
 const filtros = reactive({ estado: '' });
@@ -133,6 +207,39 @@ async function verOficio(f) {
   } catch (e) {
     oficioModal.estado = 'error';
     oficioModal.error = e.message;
+  }
+}
+
+const modalEliminar = reactive({
+  abierto: false, id: null, folio: '', razon_social: '', monto: 0, moneda: '',
+  fisico: false, cargando: false, error: '',
+});
+
+function abrirEliminar(f) {
+  if (!esAdmin.value) return;
+  Object.assign(modalEliminar, {
+    abierto: true, id: f.id, folio: f.folio, razon_social: f.razon_social,
+    monto: f.monto, moneda: f.moneda, fisico: false, cargando: false, error: '',
+  });
+}
+
+async function confirmarEliminar() {
+  modalEliminar.cargando = true;
+  modalEliminar.error = '';
+  const modo = modalEliminar.fisico ? 'fisico' : 'logico';
+  try {
+    await api.del(`/facturas/${modalEliminar.id}?modo=${modo}`);
+    toast.success(
+      modo === 'fisico' ? 'Factura eliminada permanentemente' : 'Factura eliminada',
+      modalEliminar.folio,
+    );
+    modalEliminar.abierto = false;
+    cargar();
+  } catch (e) {
+    modalEliminar.error = e.message;
+    toast.error('No se pudo eliminar', e.message);
+  } finally {
+    modalEliminar.cargando = false;
   }
 }
 

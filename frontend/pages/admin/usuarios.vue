@@ -17,14 +17,25 @@
         <option value="proveedor">Proveedor</option>
         <option value="finanzas">Finanzas</option>
       </select>
-      <select v-model="filtros.activo" class="input">
+      <select v-model="filtros.estado" class="input">
         <option value="">Todos</option>
-        <option value="1">Activos</option>
-        <option value="0">Inactivos</option>
+        <option value="activos">Activos</option>
+        <option value="inactivos">Inactivos</option>
+        <option value="eliminados">Eliminados</option>
       </select>
     </div>
 
-    <div v-if="seleccionados.length" class="card-pad flex items-center justify-between bg-red-50 border-red-200">
+    <div v-if="viendoEliminados" class="card-pad flex items-start gap-3 bg-ink-50 border-ink-200">
+      <div class="w-9 h-9 rounded-lg bg-ink-200 text-ink-600 grid place-items-center shrink-0"><Icon name="trash" /></div>
+      <div class="text-sm">
+        <p class="font-medium text-ink-800">Usuarios eliminados</p>
+        <p class="text-xs text-ink-500 mt-0.5">
+          No pueden iniciar sesión ni aparecen en el resto del sistema. Puedes restaurarlos o borrarlos definitivamente de la base de datos.
+        </p>
+      </div>
+    </div>
+
+    <div v-if="seleccionados.length && !viendoEliminados" class="card-pad flex items-center justify-between bg-red-50 border-red-200">
       <p class="text-sm text-red-800">{{ seleccionados.length }} usuario(s) seleccionado(s)</p>
       <div class="flex gap-2">
         <button class="btn-secondary" @click="seleccionados = []">Cancelar selección</button>
@@ -40,6 +51,7 @@
           <tr>
             <th class="!text-center w-10">
               <input
+                v-if="!viendoEliminados"
                 type="checkbox"
                 class="cursor-pointer"
                 :checked="todosSeleccionados"
@@ -63,7 +75,7 @@
           <tr v-for="u in usuarios" :key="u.id">
             <td class="!text-center">
               <input
-                v-if="u.id !== auth.user?.id"
+                v-if="!viendoEliminados && u.id !== auth.user?.id"
                 type="checkbox"
                 class="cursor-pointer"
                 :value="u.id"
@@ -75,7 +87,9 @@
             <td><span :class="rolClass(u.rol)">{{ u.rol }}</span></td>
             <td class="!text-center">
               <button
+                :disabled="viendoEliminados"
                 :class="['relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none',
+                         'disabled:opacity-40 disabled:cursor-not-allowed',
                          u.es_aprobador_viaticos ? 'bg-brand-600' : 'bg-ink-200']"
                 @click="toggleAprobador(u)"
               >
@@ -83,10 +97,14 @@
                                u.es_aprobador_viaticos ? 'translate-x-4' : 'translate-x-0.5']" />
               </button>
             </td>
-            <td><EstadoBadge :estado="u.activo ? 'activo' : 'inactivo'" /></td>
+            <td><EstadoBadge :estado="u.eliminado ? 'eliminado' : (u.activo ? 'activo' : 'inactivo')" /></td>
             <td class="text-ink-500 text-xs">{{ u.created_at }}</td>
             <td>
-              <div class="flex gap-1 justify-center">
+              <div v-if="viendoEliminados" class="flex gap-1 justify-center">
+                <IconButton icon="refresh" tooltip="Restaurar usuario" variant="success" @click="abrirRestaurar(u)" />
+                <IconButton icon="trash" tooltip="Borrar definitivamente de la base" variant="danger" @click="abrirEliminarFisico(u)" />
+              </div>
+              <div v-else class="flex gap-1 justify-center">
                 <IconButton
                   v-if="u.id !== auth.user?.id && u.rol !== 'admin' && u.activo"
                   icon="users"
@@ -306,6 +324,63 @@
         </button>
       </template>
     </Modal>
+
+    <Modal v-if="modalRestaurar.abierto" title="Restaurar usuario" @close="modalRestaurar.abierto = false">
+      <div class="space-y-3 text-sm">
+        <div class="flex items-start gap-3">
+          <div class="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 grid place-items-center shrink-0">
+            <Icon name="refresh" />
+          </div>
+          <div class="min-w-0">
+            <p class="text-ink-800">
+              ¿Restaurar a <strong class="text-ink-900">{{ modalRestaurar.nombre }}</strong>?
+            </p>
+            <p class="text-xs text-ink-500 mt-0.5 break-all">{{ modalRestaurar.email }}</p>
+          </div>
+        </div>
+        <div class="rounded-lg bg-ink-50 border border-ink-200 p-3 text-xs text-ink-600 flex items-start gap-2">
+          <Icon name="alert" size="w-4 h-4" class="shrink-0 mt-0.5" />
+          <p>Volverá al listado como <strong>inactivo</strong>. Actívalo desde el listado para que pueda iniciar sesión.</p>
+        </div>
+        <p v-if="modalRestaurar.error" class="text-sm text-red-600">{{ modalRestaurar.error }}</p>
+      </div>
+      <template #footer>
+        <button class="btn-secondary" @click="modalRestaurar.abierto = false">Cancelar</button>
+        <button class="btn-primary" :disabled="modalRestaurar.cargando" @click="confirmarRestaurar">
+          {{ modalRestaurar.cargando ? 'Restaurando...' : 'Restaurar' }}
+        </button>
+      </template>
+    </Modal>
+
+    <Modal v-if="modalFisico.abierto" title="Borrar definitivamente" @close="modalFisico.abierto = false">
+      <div class="space-y-3 text-sm">
+        <div class="flex items-start gap-3">
+          <div class="w-10 h-10 rounded-lg bg-red-50 text-red-600 grid place-items-center shrink-0">
+            <Icon name="trash" />
+          </div>
+          <div class="min-w-0">
+            <p class="text-ink-800">
+              ¿Borrar de la base a <strong class="text-ink-900">{{ modalFisico.nombre }}</strong>?
+            </p>
+            <p class="text-xs text-ink-500 mt-0.5 break-all">{{ modalFisico.email }}</p>
+          </div>
+        </div>
+        <div class="rounded-lg bg-red-50 border border-red-200 p-3 text-xs text-red-800 flex items-start gap-2">
+          <Icon name="alert" size="w-4 h-4" class="shrink-0 mt-0.5" />
+          <p>
+            El registro se borra de forma <strong>permanente e irreversible</strong>, junto con sus notificaciones y
+            su ficha de proveedor si la tiene. Si conserva viáticos o facturas, la base impedirá el borrado.
+          </p>
+        </div>
+        <p v-if="modalFisico.error" class="text-sm text-red-600">{{ modalFisico.error }}</p>
+      </div>
+      <template #footer>
+        <button class="btn-secondary" @click="modalFisico.abierto = false">Cancelar</button>
+        <button class="btn-danger" :disabled="modalFisico.cargando" @click="confirmarEliminarFisico">
+          {{ modalFisico.cargando ? 'Borrando...' : 'Borrar definitivamente' }}
+        </button>
+      </template>
+    </Modal>
   </div>
 </template>
 
@@ -313,12 +388,15 @@
 const api = useApi();
 const auth = useAuth();
 const usuarios = ref([]);
-const filtros = reactive({ q: '', rol: '', activo: '' });
+const filtros = reactive({ q: '', rol: '', estado: '' });
+const viendoEliminados = computed(() => filtros.estado === 'eliminados');
 const modalCrear = reactive({ abierto: false, nombre: '', email: '', rol: '', password: '', es_aprobador_viaticos: false, loading: false, error: '' });
 const modalReset = reactive({ abierto: false, id: null, email: '', password: '', error: '' });
 const modalEditar = reactive({ abierto: false, id: null, nombre: '', email: '', rol: '', es_aprobador_viaticos: false, esYoMismo: false, guardando: false, error: '' });
 const modalEliminar = reactive({ abierto: false, id: null, nombre: '', email: '', cargando: false, error: '' });
 const modalEliminarBulk = reactive({ abierto: false, cargando: false, error: '' });
+const modalRestaurar = reactive({ abierto: false, id: null, nombre: '', email: '', cargando: false, error: '' });
+const modalFisico = reactive({ abierto: false, id: null, nombre: '', email: '', cargando: false, error: '' });
 const seleccionados = ref([]);
 
 const seleccionables = computed(() => usuarios.value.filter((u) => u.id !== auth.user?.id));
@@ -348,11 +426,49 @@ async function confirmarEliminarBulk() {
   }
 }
 
+function abrirRestaurar(u) {
+  Object.assign(modalRestaurar, { abierto: true, id: u.id, nombre: u.nombre, email: u.email, cargando: false, error: '' });
+}
+async function confirmarRestaurar() {
+  modalRestaurar.cargando = true; modalRestaurar.error = '';
+  try {
+    await api.post(`/users/${modalRestaurar.id}/restaurar`);
+    toast.success('Usuario restaurado', `${modalRestaurar.email} · queda inactivo hasta que lo actives`);
+    modalRestaurar.abierto = false;
+    cargar();
+  } catch (e) {
+    modalRestaurar.error = e.message;
+    toast.error('No se pudo restaurar', e.message);
+  } finally {
+    modalRestaurar.cargando = false;
+  }
+}
+
+function abrirEliminarFisico(u) {
+  Object.assign(modalFisico, { abierto: true, id: u.id, nombre: u.nombre, email: u.email, cargando: false, error: '' });
+}
+async function confirmarEliminarFisico() {
+  modalFisico.cargando = true; modalFisico.error = '';
+  try {
+    await api.del(`/users/${modalFisico.id}/definitivo`);
+    toast.success('Usuario borrado definitivamente', modalFisico.email);
+    modalFisico.abierto = false;
+    cargar();
+  } catch (e) {
+    modalFisico.error = e.message;
+    toast.error('No se pudo borrar', e.message);
+  } finally {
+    modalFisico.cargando = false;
+  }
+}
+
 async function cargar() {
   const qs = new URLSearchParams(Object.entries(filtros).filter(([, v]) => v)).toString();
   const r = await api.get(`/users${qs ? '?' + qs : ''}`);
   usuarios.value = r.data;
-  seleccionados.value = seleccionados.value.filter((id) => usuarios.value.some((u) => u.id === id));
+  seleccionados.value = viendoEliminados.value
+    ? []
+    : seleccionados.value.filter((id) => usuarios.value.some((u) => u.id === id));
 }
 watch(filtros, cargar, { deep: true });
 onMounted(cargar);
