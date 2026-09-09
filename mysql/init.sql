@@ -59,13 +59,17 @@ CREATE TABLE IF NOT EXISTS viaticos_solicitudes (
   permite_edicion    TINYINT(1) NOT NULL DEFAULT 0,
   aprobado_por       INT UNSIGNED,
   aprobado_at        DATETIME,
+  eliminado          TINYINT(1) NOT NULL DEFAULT 0,
+  eliminado_at       DATETIME,
+  eliminado_por      INT UNSIGNED,
   created_at         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_viat_colab FOREIGN KEY (colaborador_id) REFERENCES users(id) ON DELETE RESTRICT,
   CONSTRAINT fk_viat_aprobador FOREIGN KEY (aprobado_por) REFERENCES users(id) ON DELETE SET NULL,
   KEY idx_viat_estado (estado),
   KEY idx_viat_colab (colaborador_id),
-  KEY idx_viat_fecha (fecha_inicio, fecha_fin)
+  KEY idx_viat_fecha (fecha_inicio, fecha_fin),
+  KEY idx_viat_eliminado (eliminado)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS viaticos_pagos (
@@ -98,12 +102,16 @@ CREATE TABLE IF NOT EXISTS viaticos_ajustes (
   motivo_rechazo     VARCHAR(500),
   aprobado_por       INT UNSIGNED,
   aprobado_at        DATETIME,
+  eliminado          TINYINT(1) NOT NULL DEFAULT 0,
+  eliminado_at       DATETIME,
+  eliminado_por      INT UNSIGNED,
   created_at         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_vaj_solicitud FOREIGN KEY (solicitud_id) REFERENCES viaticos_solicitudes(id) ON DELETE CASCADE,
   CONSTRAINT fk_vaj_aprobador FOREIGN KEY (aprobado_por) REFERENCES users(id) ON DELETE SET NULL,
   KEY idx_vaj_solicitud (solicitud_id),
-  KEY idx_vaj_estado (estado)
+  KEY idx_vaj_estado (estado),
+  KEY idx_vaj_eliminado (eliminado)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS viaticos_gastos (

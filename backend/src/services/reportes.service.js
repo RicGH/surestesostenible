@@ -25,13 +25,13 @@ async function dashboardViaticos(filtros = {}) {
         SUM(CASE WHEN estado = 'cerrado' THEN 1 ELSE 0 END) AS cerrados,
         SUM(CASE WHEN estado = 'rechazado' THEN 1 ELSE 0 END) AS rechazados
        FROM viaticos_solicitudes
-       WHERE created_at >= ? AND created_at < DATE_ADD(?, INTERVAL 1 DAY)`,
+       WHERE eliminado = 0 AND created_at >= ? AND created_at < DATE_ADD(?, INTERVAL 1 DAY)`,
       [desde, hasta]
     ),
     query(
       `SELECT estado, COUNT(*) AS count, COALESCE(SUM(monto_total),0) AS monto
        FROM viaticos_solicitudes
-       WHERE created_at >= ? AND created_at < DATE_ADD(?, INTERVAL 1 DAY)
+       WHERE eliminado = 0 AND created_at >= ? AND created_at < DATE_ADD(?, INTERVAL 1 DAY)
        GROUP BY estado`,
       [desde, hasta]
     ),
@@ -40,14 +40,14 @@ async function dashboardViaticos(filtros = {}) {
               COUNT(*) AS count,
               COALESCE(SUM(monto_total),0) AS monto
        FROM viaticos_solicitudes
-       WHERE created_at >= ? AND created_at < DATE_ADD(?, INTERVAL 1 DAY)
+       WHERE eliminado = 0 AND created_at >= ? AND created_at < DATE_ADD(?, INTERVAL 1 DAY)
        GROUP BY mes ORDER BY mes ASC`,
       [desde, hasta]
     ),
     query(
       `SELECT destino, COUNT(*) AS count, COALESCE(SUM(monto_total),0) AS monto
        FROM viaticos_solicitudes
-       WHERE created_at >= ? AND created_at < DATE_ADD(?, INTERVAL 1 DAY)
+       WHERE eliminado = 0 AND created_at >= ? AND created_at < DATE_ADD(?, INTERVAL 1 DAY)
        GROUP BY destino ORDER BY monto DESC LIMIT 5`,
       [desde, hasta]
     ),
@@ -55,7 +55,7 @@ async function dashboardViaticos(filtros = {}) {
       `SELECT u.nombre AS colaborador, COUNT(*) AS count, COALESCE(SUM(s.monto_total),0) AS monto
        FROM viaticos_solicitudes s
        JOIN users u ON u.id = s.colaborador_id
-       WHERE s.created_at >= ? AND s.created_at < DATE_ADD(?, INTERVAL 1 DAY)
+       WHERE s.eliminado = 0 AND s.created_at >= ? AND s.created_at < DATE_ADD(?, INTERVAL 1 DAY)
        GROUP BY u.id, u.nombre ORDER BY monto DESC LIMIT 5`,
       [desde, hasta]
     ),
@@ -119,7 +119,7 @@ async function dashboard(filtros = {}) {
 }
 
 async function reporteViaticos(filtros = {}) {
-  const where = [];
+  const where = ['s.eliminado = 0'];
   const params = [];
   if (filtros.estado) { where.push('s.estado = ?'); params.push(filtros.estado); }
   if (filtros.desde) { where.push('s.fecha_inicio >= ?'); params.push(filtros.desde); }
@@ -129,7 +129,7 @@ async function reporteViaticos(filtros = {}) {
             s.monto_total, s.monto_gastado, s.estado
      FROM viaticos_solicitudes s
      JOIN users u ON u.id = s.colaborador_id
-     ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
+     WHERE ${where.join(' AND ')}
      ORDER BY s.created_at DESC`,
     params
   );
@@ -178,7 +178,7 @@ async function reporteViaticosDetallado(filtros = {}) {
        s.monto_total
      FROM viaticos_solicitudes s
      JOIN users u ON u.id = s.colaborador_id
-     WHERE s.fecha_inicio >= ? AND s.fecha_inicio <= ?
+     WHERE s.eliminado = 0 AND s.fecha_inicio >= ? AND s.fecha_inicio <= ?
      ORDER BY s.fecha_inicio ASC`,
     [desde, hasta]
   );

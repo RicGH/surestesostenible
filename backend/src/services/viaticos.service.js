@@ -23,6 +23,7 @@ async function getActivaDeColaborador(colaboradorId) {
     `SELECT id, folio, destino, estado, fecha_inicio, fecha_fin
      FROM viaticos_solicitudes
      WHERE colaborador_id = ?
+       AND eliminado = 0
        AND estado IN ('pendiente','aprobado','pagado','en_proceso')
      ORDER BY
        CASE estado
@@ -43,7 +44,7 @@ async function getAbiertosDeColaborador(colaboradorId) {
   return query(
     `SELECT id, folio, destino, estado, created_at
      FROM viaticos_solicitudes
-     WHERE colaborador_id = ? AND estado IN ('pagado','en_proceso')
+     WHERE colaborador_id = ? AND eliminado = 0 AND estado IN ('pagado','en_proceso')
      ORDER BY created_at ASC`,
     [colaboradorId]
   );
@@ -94,7 +95,7 @@ async function agregarJustificantes(solicitudId, archivos) {
 }
 
 async function listarPorColaborador(colaboradorId, filtros = {}) {
-  const where = ['colaborador_id = ?'];
+  const where = ['colaborador_id = ?', 'eliminado = 0'];
   const params = [colaboradorId];
   if (filtros.estado) { where.push('estado = ?'); params.push(filtros.estado); }
   if (filtros.destino) { where.push('destino LIKE ?'); params.push(`%${filtros.destino}%`); }
@@ -122,7 +123,7 @@ async function listarPendientesAdmin() {
             s.estado, s.created_at, u.nombre AS colaborador_nombre, u.email AS colaborador_email
      FROM viaticos_solicitudes s
      JOIN users u ON u.id = s.colaborador_id
-     WHERE s.estado = 'pendiente'
+     WHERE s.eliminado = 0 AND s.estado = 'pendiente'
      ORDER BY s.created_at ASC`
   );
 }
@@ -135,7 +136,7 @@ async function listarActivosAdmin() {
             (SELECT COUNT(*) FROM viaticos_gastos WHERE solicitud_id = s.id) AS gastos_count
      FROM viaticos_solicitudes s
      JOIN users u ON u.id = s.colaborador_id
-     WHERE s.estado IN ('aprobado','pagado','en_proceso')
+     WHERE s.eliminado = 0 AND s.estado IN ('aprobado','pagado','en_proceso')
      ORDER BY s.aprobado_at DESC`
   );
 }
@@ -147,7 +148,7 @@ async function listarCerradosAdmin() {
             u.nombre AS colaborador_nombre
      FROM viaticos_solicitudes s
      JOIN users u ON u.id = s.colaborador_id
-     WHERE s.estado = 'cerrado'
+     WHERE s.eliminado = 0 AND s.estado = 'cerrado'
      ORDER BY s.updated_at DESC LIMIT 100`
   );
 }
@@ -159,13 +160,13 @@ async function listarRechazadosAdmin() {
             u.nombre AS colaborador_nombre, u.email AS colaborador_email
      FROM viaticos_solicitudes s
      JOIN users u ON u.id = s.colaborador_id
-     WHERE s.estado = 'rechazado'
+     WHERE s.eliminado = 0 AND s.estado = 'rechazado'
      ORDER BY s.updated_at DESC LIMIT 200`
   );
 }
 
 async function listarTodosAdmin(filtros = {}) {
-  const where = [];
+  const where = ['s.eliminado = 0'];
   const params = [];
   if (filtros.estado) { where.push('s.estado = ?'); params.push(filtros.estado); }
   if (filtros.q) {
@@ -179,7 +180,7 @@ async function listarTodosAdmin(filtros = {}) {
             u.nombre AS colaborador_nombre, u.email AS colaborador_email
      FROM viaticos_solicitudes s
      JOIN users u ON u.id = s.colaborador_id
-     ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
+     WHERE ${where.join(' AND ')}
      ORDER BY s.created_at DESC LIMIT 300`,
     params
   );
@@ -193,6 +194,7 @@ async function getBloqueadoraDeUso(solicitudId, colaboradorId) {
      FROM viaticos_solicitudes
      WHERE colaborador_id = ?
        AND id <> ?
+       AND eliminado = 0
        AND estado IN ('pagado','en_proceso')
        AND created_at < (SELECT created_at FROM viaticos_solicitudes WHERE id = ?)
      ORDER BY created_at ASC`,
@@ -202,9 +204,12 @@ async function getBloqueadoraDeUso(solicitudId, colaboradorId) {
   return { limite: LIMITE_VIATICOS_ABIERTOS, abiertos: adelante };
 }
 
-async function getById(id, colaboradorId = null) {
-  const where = colaboradorId ? 'WHERE s.id = ? AND s.colaborador_id = ?' : 'WHERE s.id = ?';
-  const params = colaboradorId ? [id, colaboradorId] : [id];
+async function getById(id, colaboradorId = null, { incluirEliminados = false } = {}) {
+  const cond = ['s.id = ?'];
+  const params = [id];
+  if (colaboradorId) { cond.push('s.colaborador_id = ?'); params.push(colaboradorId); }
+  if (!incluirEliminados) cond.push('s.eliminado = 0');
+  const where = `WHERE ${cond.join(' AND ')}`;
   const solicitud = await queryOne(
     `SELECT s.*, u.nombre AS colaborador_nombre,
             COALESCE(s.clabe_bancaria, u.clabe_bancaria) AS clabe_bancaria,
@@ -227,7 +232,7 @@ async function getById(id, colaboradorId = null) {
     query(
       `SELECT id, motivo, monto_total, monto_vuelos, monto_hospedaje, monto_alimentos,
               monto_transporte, monto_otros, estado, motivo_rechazo, created_at
-       FROM viaticos_ajustes WHERE solicitud_id = ? ORDER BY created_at DESC`,
+       FROM viaticos_ajustes WHERE solicitud_id = ? AND eliminado = 0 ORDER BY created_at DESC`,
       [id]
     ),
     getBloqueadoraDeUso(id, solicitud.colaborador_id),
@@ -274,7 +279,7 @@ async function editarSolicitud(id, colaboradorId, data) {
          monto_transporte = ?, monto_otros = ?, monto_total = ?,
          proyecto = ?, cuenta = ?, partida = ?, objetivo_estrategico = ?, resultado = ?, donante = ?,
          estado = 'pendiente', motivo_rechazo = NULL, permite_edicion = 0
-     WHERE id = ? AND colaborador_id = ?
+     WHERE id = ? AND colaborador_id = ? AND eliminado = 0
        AND ((estado = 'rechazado' AND permite_edicion = 1) OR estado = 'pendiente')`,
     [
       data.destino, data.fecha_inicio, data.fecha_fin, data.motivo,
@@ -298,7 +303,7 @@ async function editarSolicitudAdmin(id, data) {
          monto_vuelos = ?, monto_hospedaje = ?, monto_alimentos = ?,
          monto_transporte = ?, monto_otros = ?, monto_total = ?,
          proyecto = ?, cuenta = ?, partida = ?, objetivo_estrategico = ?, resultado = ?, donante = ?
-     WHERE id = ?`,
+     WHERE id = ? AND eliminado = 0`,
     [
       data.destino, data.fecha_inicio, data.fecha_fin, data.motivo,
       data.autoriza_nombre || null, data.recibe_nombre || null,
@@ -314,7 +319,7 @@ async function editarSolicitudAdmin(id, data) {
 
 async function cerrarViaje(id, adminId) {
   const sol = await queryOne(
-    'SELECT id, folio, estado FROM viaticos_solicitudes WHERE id = ?',
+    'SELECT id, folio, estado FROM viaticos_solicitudes WHERE id = ? AND eliminado = 0',
     [id]
   );
   if (!sol) throw new Error('Viático no encontrado');
@@ -342,8 +347,8 @@ async function cerrarViaje(id, adminId) {
 async function agregarGasto(solicitudId, colaboradorId, data, archivo, xmlPath = null) {
   return withTx(async (conn) => {
     const sql = colaboradorId
-      ? "SELECT id, colaborador_id, estado, monto_total, monto_gastado, created_at FROM viaticos_solicitudes WHERE id = ? AND colaborador_id = ? FOR UPDATE"
-      : "SELECT id, colaborador_id, estado, monto_total, monto_gastado, created_at FROM viaticos_solicitudes WHERE id = ? FOR UPDATE";
+      ? "SELECT id, colaborador_id, estado, monto_total, monto_gastado, created_at FROM viaticos_solicitudes WHERE id = ? AND colaborador_id = ? AND eliminado = 0 FOR UPDATE"
+      : "SELECT id, colaborador_id, estado, monto_total, monto_gastado, created_at FROM viaticos_solicitudes WHERE id = ? AND eliminado = 0 FOR UPDATE";
     const params = colaboradorId ? [solicitudId, colaboradorId] : [solicitudId];
     const [solRows] = await conn.execute(sql, params);
     if (!solRows.length) throw new Error('Solicitud no encontrada');
@@ -397,9 +402,40 @@ async function agregarGasto(solicitudId, colaboradorId, data, archivo, xmlPath =
   });
 }
 
+async function eliminarLogico(id, userId) {
+  const result = await query(
+    'UPDATE viaticos_solicitudes SET eliminado = 1, eliminado_at = NOW(), eliminado_por = ? WHERE id = ? AND eliminado = 0',
+    [userId, id]
+  );
+  return result.affectedRows > 0;
+}
+
+// El borrado físico arrastra gastos, ajustes, pagos y justificantes por las
+// llaves foráneas ON DELETE CASCADE; los archivos en disco se limpian aparte.
+async function eliminarFisico(id) {
+  const result = await query('DELETE FROM viaticos_solicitudes WHERE id = ?', [id]);
+  return result.affectedRows > 0;
+}
+
+// Rutas (relativas a UPLOAD_ROOT) de todos los archivos que cuelgan del viático.
+async function getArchivos(id) {
+  const [gastos, justificantes, pagos, sol] = await Promise.all([
+    query('SELECT archivo, xml_path FROM viaticos_gastos WHERE solicitud_id = ?', [id]),
+    query('SELECT archivo FROM viaticos_justificantes WHERE solicitud_id = ?', [id]),
+    query('SELECT comprobante_path FROM viaticos_pagos WHERE solicitud_id = ?', [id]),
+    queryOne('SELECT justificante_path FROM viaticos_solicitudes WHERE id = ?', [id]),
+  ]);
+  return [
+    ...gastos.flatMap((g) => [g.archivo, g.xml_path]),
+    ...justificantes.map((j) => j.archivo),
+    ...pagos.map((p) => p.comprobante_path),
+    sol?.justificante_path,
+  ].filter(Boolean);
+}
+
 async function duplicar(id, colaboradorId) {
   const orig = await queryOne(
-    'SELECT * FROM viaticos_solicitudes WHERE id = ? AND colaborador_id = ?',
+    'SELECT * FROM viaticos_solicitudes WHERE id = ? AND colaborador_id = ? AND eliminado = 0',
     [id, colaboradorId]
   );
   if (!orig) throw new Error('Solicitud no encontrada');
@@ -431,6 +467,7 @@ module.exports = {
   listarActivosAdmin, listarCerradosAdmin, listarRechazadosAdmin, listarTodosAdmin,
   getById,
   aprobar, rechazar, editarSolicitud, editarSolicitudAdmin, cerrarViaje, agregarGasto, agregarJustificantes, duplicar,
+  eliminarLogico, eliminarFisico, getArchivos,
   getActivaDeColaborador, getAbiertosDeColaborador, getBloqueadoraDeUso,
   LIMITE_VIATICOS_ABIERTOS,
 };

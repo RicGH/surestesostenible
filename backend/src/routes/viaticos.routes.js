@@ -31,6 +31,7 @@ router.post('/:id/duplicar', requireRole('admin', 'colaborador'), asyncHandler(c
 router.post('/:id/aprobar', requireRole('admin'), asyncHandler(ctrl.aprobar));
 router.post('/:id/rechazar', requireRole('admin'), asyncHandler(ctrl.rechazar));
 router.post('/:id/cerrar', requireRole('admin', 'colaborador'), asyncHandler(ctrl.cerrar));
+router.delete('/:id', requireRole('admin'), asyncHandler(ctrl.eliminar));
 router.post('/:id/gastos', requireRole('admin', 'colaborador'), uploadGastos.fields([{ name: 'archivo', maxCount: 1 }, { name: 'xml', maxCount: 1 }]), asyncHandler(ctrl.subirGasto));
 
 const ajustesCtrl = require('../controllers/viaticos-ajustes.controller');

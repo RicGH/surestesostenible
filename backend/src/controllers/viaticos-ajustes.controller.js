@@ -1,9 +1,12 @@
+const path = require('path');
+const fs = require('fs');
 const { z } = require('zod');
 const { HttpError } = require('../middleware/error');
 const service = require('../services/viaticos-ajustes.service');
 const pagosService = require('../services/viaticos-pagos.service');
 const viaticos = require('../services/viaticos.service');
 const notif = require('../services/notificaciones.service');
+const { UPLOAD_ROOT } = require('../config/upload');
 
 const ajusteSchema = z.object({
   motivo: z.string().min(5).max(500),
@@ -95,4 +98,36 @@ async function pagar(req, res) {
   res.json({ ok: true });
 }
 
-module.exports = { crear, listarPendientes, aprobar, rechazar, pagar };
+const eliminarSchema = z.object({
+  modo: z.enum(['logico', 'fisico']).default('logico'),
+});
+
+function borrarArchivo(rel) {
+  if (!rel) return;
+  const abs = path.resolve(UPLOAD_ROOT, rel);
+  if (!abs.startsWith(path.resolve(UPLOAD_ROOT))) return;
+  fs.unlink(abs, () => {});
+}
+
+async function eliminar(req, res) {
+  const id = Number(req.params.id);
+  const { modo } = eliminarSchema.parse({ ...req.query, ...req.body });
+
+  const aj = await service.getById(id, { incluirEliminados: modo === 'fisico' });
+  if (!aj) throw new HttpError(404, 'Ajuste no encontrado');
+  if (aj.estado === 'pagado') {
+    throw new HttpError(409, 'No se puede eliminar un ajuste ya pagado: su monto está sumado al viático.');
+  }
+
+  if (modo === 'fisico') {
+    const archivos = await service.getArchivos(id);
+    await service.eliminarFisico(id);
+    archivos.forEach(borrarArchivo);
+  } else {
+    await service.eliminarLogico(id, req.user.sub);
+  }
+
+  res.json({ ok: true, modo });
+}
+
+module.exports = { crear, listarPendientes, aprobar, rechazar, pagar, eliminar };

@@ -10,5 +10,6 @@ router.get('/pendientes', requireRole('admin'), asyncHandler(ctrl.listarPendient
 router.post('/:id/aprobar', requireRole('admin'), asyncHandler(ctrl.aprobar));
 router.post('/:id/rechazar', requireRole('admin'), asyncHandler(ctrl.rechazar));
 router.post('/:id/pagar', requireRole('admin', 'finanzas'), uploadComprobantes.single('comprobante'), asyncHandler(ctrl.pagar));
+router.delete('/:id', requireRole('admin'), asyncHandler(ctrl.eliminar));
 
 module.exports = router;

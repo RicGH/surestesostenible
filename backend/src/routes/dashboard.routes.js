@@ -11,7 +11,7 @@ router.get('/resumen', asyncHandler(async (req, res) => {
 
   if (rol === 'admin') {
     const [v, p, f] = await Promise.all([
-      queryOne("SELECT COUNT(*) c FROM viaticos_solicitudes WHERE estado='pendiente'"),
+      queryOne("SELECT COUNT(*) c FROM viaticos_solicitudes WHERE eliminado=0 AND estado='pendiente'"),
       queryOne("SELECT COUNT(*) c FROM proveedores WHERE estado='pendiente'"),
       queryOne("SELECT COUNT(*) c FROM facturas_proveedor WHERE eliminado=0 AND estado='en_revision'"),
     ]);
@@ -27,13 +27,13 @@ router.get('/resumen', asyncHandler(async (req, res) => {
   if (rol === 'colaborador') {
     const [ult, activos] = await Promise.all([
       queryOne(
-        "SELECT folio, estado FROM viaticos_solicitudes WHERE colaborador_id=? ORDER BY created_at DESC LIMIT 1",
+        "SELECT folio, estado FROM viaticos_solicitudes WHERE eliminado=0 AND colaborador_id=? ORDER BY created_at DESC LIMIT 1",
         [userId]
       ),
       query(
         `SELECT id, folio, estado, destino, monto_total, monto_gastado
          FROM viaticos_solicitudes
-         WHERE colaborador_id=? AND estado IN ('aprobado','pagado','en_proceso')
+         WHERE eliminado=0 AND colaborador_id=? AND estado IN ('aprobado','pagado','en_proceso')
          ORDER BY
            CASE estado
              WHEN 'pagado' THEN 1
@@ -102,8 +102,9 @@ router.get('/resumen', asyncHandler(async (req, res) => {
     const [vPorPagar, fPorPagar, mes] = await Promise.all([
       queryOne(`
         SELECT (
-          (SELECT COUNT(*) FROM viaticos_solicitudes WHERE estado='aprobado')
-          + (SELECT COUNT(*) FROM viaticos_ajustes WHERE estado='aprobado')
+          (SELECT COUNT(*) FROM viaticos_solicitudes WHERE eliminado=0 AND estado='aprobado')
+          + (SELECT COUNT(*) FROM viaticos_ajustes a JOIN viaticos_solicitudes s ON s.id=a.solicitud_id
+             WHERE a.eliminado=0 AND s.eliminado=0 AND a.estado='aprobado')
         ) c
       `),
       queryOne("SELECT COUNT(*) c FROM facturas_proveedor WHERE eliminado=0 AND estado='aprobada'"),

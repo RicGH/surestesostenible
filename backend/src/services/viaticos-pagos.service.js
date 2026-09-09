@@ -9,7 +9,7 @@ async function listarPorPagar() {
            COALESCE(s.banco, u.banco) AS banco
     FROM viaticos_solicitudes s
     JOIN users u ON u.id = s.colaborador_id
-    WHERE s.estado = 'aprobado'
+    WHERE s.eliminado = 0 AND s.estado = 'aprobado'
     UNION ALL
     SELECT s.id, s.folio, s.destino, s.fecha_inicio, s.fecha_fin, a.monto_total,
            u.nombre AS colaborador_nombre, u.email AS colaborador_email,
@@ -19,7 +19,7 @@ async function listarPorPagar() {
     FROM viaticos_ajustes a
     JOIN viaticos_solicitudes s ON s.id = a.solicitud_id
     JOIN users u ON u.id = s.colaborador_id
-    WHERE a.estado = 'aprobado'
+    WHERE a.eliminado = 0 AND s.eliminado = 0 AND a.estado = 'aprobado'
     ORDER BY 1 DESC
   `);
 }
@@ -33,6 +33,7 @@ async function listarHistorial() {
     FROM viaticos_pagos p
     JOIN viaticos_solicitudes s ON s.id = p.solicitud_id
     JOIN users u ON u.id = s.colaborador_id
+    WHERE s.eliminado = 0
     ORDER BY p.fecha_pago DESC LIMIT 200
   `);
 }
@@ -47,7 +48,7 @@ async function getPagoSolicitud(solicitudId) {
 async function pagarSolicitud(solicitudId, userId, comprobante, referencia, metodoPago = null) {
   return withTx(async (conn) => {
     const [solRows] = await conn.execute(
-      "SELECT id, monto_total, estado FROM viaticos_solicitudes WHERE id = ? FOR UPDATE",
+      "SELECT id, monto_total, estado FROM viaticos_solicitudes WHERE id = ? AND eliminado = 0 FOR UPDATE",
       [solicitudId]
     );
     if (!solRows.length) throw new Error('Solicitud no encontrada');
@@ -69,7 +70,7 @@ async function pagarSolicitud(solicitudId, userId, comprobante, referencia, meto
 async function pagarAjuste(ajusteId, userId, comprobante, referencia) {
   return withTx(async (conn) => {
     const [ajRows] = await conn.execute(
-      "SELECT id, solicitud_id, monto_total, estado FROM viaticos_ajustes WHERE id = ? FOR UPDATE",
+      "SELECT id, solicitud_id, monto_total, estado FROM viaticos_ajustes WHERE id = ? AND eliminado = 0 FOR UPDATE",
       [ajusteId]
     );
     if (!ajRows.length) throw new Error('Ajuste no encontrado');

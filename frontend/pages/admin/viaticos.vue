@@ -61,6 +61,7 @@
                   <IconButton icon="fileText" tooltip="Ver oficio de comisión (PDF)" @click="verOficio(s)" />
                   <IconButton icon="check" tooltip="Aprobar" variant="success" @click="aprobar(s.id)" />
                   <IconButton icon="x" tooltip="Rechazar" variant="danger" @click="abrirRechazo(s)" />
+                  <IconButton v-if="esAdmin" icon="trash" tooltip="Eliminar viático" variant="danger" @click="abrirEliminar(s)" />
                 </div>
               </td>
             </tr>
@@ -86,6 +87,7 @@
                   <IconButton icon="fileText" tooltip="Ver oficio de comisión (PDF)" @click="verOficio({id: a.solicitud_id, folio: a.solicitud_folio})" />
                   <IconButton icon="check" tooltip="Aprobar ajuste" variant="success" @click="aprobarAjuste(a.id)" />
                   <IconButton icon="x" tooltip="Rechazar ajuste" variant="danger" @click="abrirRechazoAjuste(a)" />
+                  <IconButton v-if="esAdmin" icon="trash" tooltip="Eliminar ajuste" variant="danger" @click="abrirEliminarAjuste(a)" />
                 </div>
               </td>
             </tr>
@@ -113,6 +115,7 @@
                   <IconButton icon="edit" tooltip="Editar solicitud" variant="warning" @click="$router.push(`/viaticos/nueva?editar=${s.id}&from=admin`)" />
                   <IconButton icon="fileText" tooltip="Ver oficio de comisión (PDF)" @click="verOficio(s)" />
                   <IconButton icon="check" tooltip="Cerrar viáticos" variant="success" @click="abrirCerrar(s)" />
+                  <IconButton v-if="esAdmin" icon="trash" tooltip="Eliminar viático" variant="danger" @click="abrirEliminar(s)" />
                 </div>
               </td>
             </tr>
@@ -142,6 +145,7 @@
                   <IconButton icon="eye" tooltip="Ver detalle" variant="primary" @click="$router.push(`/viaticos/${s.id}?from=admin`)" />
                   <IconButton icon="edit" tooltip="Editar solicitud" variant="warning" @click="$router.push(`/viaticos/nueva?editar=${s.id}&from=admin`)" />
                   <IconButton icon="fileText" tooltip="Ver oficio de comisión (PDF)" @click="verOficio(s)" />
+                  <IconButton v-if="esAdmin" icon="trash" tooltip="Eliminar viático" variant="danger" @click="abrirEliminar(s)" />
                 </div>
               </td>
             </tr>
@@ -166,6 +170,7 @@
                   <IconButton icon="eye" tooltip="Ver detalle" variant="primary" @click="$router.push(`/viaticos/${s.id}?from=admin`)" />
                   <IconButton icon="edit" tooltip="Editar solicitud" variant="warning" @click="$router.push(`/viaticos/nueva?editar=${s.id}&from=admin`)" />
                   <IconButton icon="fileText" tooltip="Ver oficio de comisión (PDF)" @click="verOficio(s)" />
+                  <IconButton v-if="esAdmin" icon="trash" tooltip="Eliminar viático" variant="danger" @click="abrirEliminar(s)" />
                 </div>
               </td>
             </tr>
@@ -192,6 +197,7 @@
                   <IconButton icon="eye" tooltip="Ver detalle" variant="primary" @click="$router.push(`/viaticos/${s.id}?from=admin`)" />
                   <IconButton icon="edit" tooltip="Editar solicitud" variant="warning" @click="$router.push(`/viaticos/nueva?editar=${s.id}&from=admin`)" />
                   <IconButton icon="fileText" tooltip="Ver oficio de comisión (PDF)" @click="verOficio(s)" />
+                  <IconButton v-if="esAdmin" icon="trash" tooltip="Eliminar viático" variant="danger" @click="abrirEliminar(s)" />
                 </div>
               </td>
             </tr>
@@ -200,6 +206,87 @@
         </table>
       </div>
     </section>
+
+    <Modal
+      v-if="esAdmin && modalEliminar.abierto"
+      :title="modalEliminar.tipo === 'ajuste' ? 'Eliminar ajuste' : 'Eliminar viático'"
+      @close="modalEliminar.abierto = false"
+    >
+      <div class="space-y-4 text-sm">
+        <div class="flex items-start gap-3">
+          <div class="w-10 h-10 rounded-lg bg-red-50 text-red-600 grid place-items-center shrink-0">
+            <Icon name="trash" />
+          </div>
+          <div class="min-w-0">
+            <p class="text-ink-800">
+              {{ modalEliminar.tipo === 'ajuste' ? '¿Eliminar el ajuste del viático' : '¿Eliminar el viático' }}
+              <strong class="text-ink-900 font-mono">{{ modalEliminar.folio }}</strong>?
+            </p>
+            <p class="text-xs text-ink-500 mt-0.5 break-all">{{ modalEliminar.detalle }}</p>
+          </div>
+        </div>
+
+        <div class="rounded-lg border border-ink-200 p-3 space-y-3">
+          <label class="flex items-start gap-3 cursor-pointer select-none">
+            <span
+              :class="[
+                'relative inline-flex shrink-0 mt-0.5 h-6 w-11 rounded-full transition-colors',
+                modalEliminar.fisico ? 'bg-red-600' : 'bg-ink-300',
+              ]"
+            >
+              <input v-model="modalEliminar.fisico" type="checkbox" class="sr-only" />
+              <span
+                :class="[
+                  'absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform',
+                  modalEliminar.fisico ? 'translate-x-5' : 'translate-x-0',
+                ]"
+              ></span>
+            </span>
+            <span class="min-w-0">
+              <span class="block font-medium text-ink-800">
+                {{ modalEliminar.fisico ? 'Eliminación física' : 'Eliminación lógica' }}
+              </span>
+              <span class="block text-xs text-ink-500 mt-0.5">
+                Actívalo solo si necesitas borrar el registro por completo de la base de datos.
+              </span>
+            </span>
+          </label>
+        </div>
+
+        <div
+          v-if="modalEliminar.fisico"
+          class="rounded-lg bg-red-50 border border-red-200 p-3 text-xs text-red-800 flex items-start gap-2"
+        >
+          <Icon name="alert" size="w-4 h-4" class="shrink-0 mt-0.5" />
+          <p v-if="modalEliminar.tipo === 'ajuste'">
+            El ajuste y su pago asociado se borrarán del servidor de forma
+            <strong>permanente e irreversible</strong>.
+          </p>
+          <p v-else>
+            El viático, sus comprobantes de gasto, ajustes, pagos y archivos se borrarán del servidor de
+            forma <strong>permanente e irreversible</strong>.
+          </p>
+        </div>
+        <div
+          v-else
+          class="rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800 flex items-start gap-2"
+        >
+          <Icon name="alert" size="w-4 h-4" class="shrink-0 mt-0.5" />
+          <p>
+            {{ modalEliminar.tipo === 'ajuste' ? 'El ajuste' : 'El viático' }} dejará de aparecer en listados
+            y reportes, pero se conserva en la base de datos.
+          </p>
+        </div>
+
+        <p v-if="modalEliminar.error" class="text-sm text-red-600">{{ modalEliminar.error }}</p>
+      </div>
+      <template #footer>
+        <button class="btn-secondary" @click="modalEliminar.abierto = false">Cancelar</button>
+        <button class="btn-danger" :disabled="modalEliminar.cargando" @click="confirmarEliminar">
+          {{ modalEliminar.cargando ? 'Eliminando...' : (modalEliminar.fisico ? 'Eliminar permanentemente' : 'Eliminar') }}
+        </button>
+      </template>
+    </Modal>
 
     <Modal v-if="modal.abierto" :title="`Rechazar ${modal.folio}`" @close="modal.abierto = false">
       <textarea v-model="modal.motivo" rows="3" class="input" placeholder="Motivo del rechazo"></textarea>
@@ -269,6 +356,8 @@
 
 <script setup>
 const api = useApi();
+const auth = useAuth();
+const esAdmin = computed(() => auth.rol === 'admin');
 const tab = ref('pendientes');
 const tabs = [
   { id: 'pendientes', label: 'Pendientes' },
@@ -418,6 +507,53 @@ async function confirmarCierre() {
     toast.success('Viáticos cerrados', `${cerrarModal.folio} se cerró correctamente.`);
     cerrarModal.abierto = false; cargar();
   } catch (e) { toast.error('No se pudo cerrar', e.message); }
+}
+
+// Eliminar viático o ajuste: el mismo modal sirve para ambos, con un switch que
+// decide entre borrado lógico (se oculta) y físico (se borra de la base y el disco).
+const modalEliminar = reactive({
+  abierto: false, tipo: 'viatico', id: null, folio: '', detalle: '',
+  fisico: false, cargando: false, error: '',
+});
+
+function abrirEliminar(s) {
+  if (!esAdmin.value) return;
+  Object.assign(modalEliminar, {
+    abierto: true, tipo: 'viatico', id: s.id, folio: s.folio,
+    detalle: `${s.colaborador_nombre} · ${s.destino} · $${Number(s.monto_total || 0).toFixed(2)}`,
+    fisico: false, cargando: false, error: '',
+  });
+}
+
+function abrirEliminarAjuste(a) {
+  if (!esAdmin.value) return;
+  Object.assign(modalEliminar, {
+    abierto: true, tipo: 'ajuste', id: a.id, folio: a.solicitud_folio,
+    detalle: `${a.colaborador_nombre} · ${a.motivo} · +$${Number(a.monto_total || 0).toFixed(2)}`,
+    fisico: false, cargando: false, error: '',
+  });
+}
+
+async function confirmarEliminar() {
+  modalEliminar.cargando = true;
+  modalEliminar.error = '';
+  const modo = modalEliminar.fisico ? 'fisico' : 'logico';
+  const base = modalEliminar.tipo === 'ajuste' ? '/viaticos-ajustes' : '/viaticos';
+  const que = modalEliminar.tipo === 'ajuste' ? 'Ajuste' : 'Viático';
+  try {
+    await api.del(`${base}/${modalEliminar.id}?modo=${modo}`);
+    toast.success(
+      modo === 'fisico' ? `${que} eliminado permanentemente` : `${que} eliminado`,
+      modalEliminar.folio,
+    );
+    modalEliminar.abierto = false;
+    cargar();
+  } catch (e) {
+    modalEliminar.error = e.message;
+    toast.error('No se pudo eliminar', e.message);
+  } finally {
+    modalEliminar.cargando = false;
+  }
 }
 
 // Genera el oficio de comisión mostrando un modal con loading; al terminar abre

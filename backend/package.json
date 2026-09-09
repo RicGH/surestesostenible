@@ -22,7 +22,8 @@
     "migrate:users-soft-delete": "node src/db/migrate-users-soft-delete.js",
     "migrate:gasto-xml": "node src/db/migrate-gasto-xml.js",
     "migrate:gasto-archivo-opcional": "node src/db/migrate-gasto-archivo-opcional.js",
-    "migrate:facturas-soft-delete": "node src/db/migrate-facturas-soft-delete.js"
+    "migrate:facturas-soft-delete": "node src/db/migrate-facturas-soft-delete.js",
+    "migrate:viaticos-soft-delete": "node src/db/migrate-viaticos-soft-delete.js"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",

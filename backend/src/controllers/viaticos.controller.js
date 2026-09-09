@@ -1,5 +1,6 @@
 const { z } = require('zod');
 const path = require('path');
+const fs = require('fs');
 const { HttpError } = require('../middleware/error');
 const service = require('../services/viaticos.service');
 const oficioService = require('../services/viaticos-oficio.service');
@@ -363,10 +364,39 @@ async function subirJustificantes(req, res) {
   res.json({ ok: true, count: archivos.length });
 }
 
+const eliminarSchema = z.object({
+  modo: z.enum(['logico', 'fisico']).default('logico'),
+});
+
+function borrarArchivo(rel) {
+  if (!rel) return;
+  const abs = path.resolve(UPLOAD_ROOT, rel);
+  if (!abs.startsWith(path.resolve(UPLOAD_ROOT))) return;
+  fs.unlink(abs, () => {});
+}
+
+async function eliminar(req, res) {
+  const id = Number(req.params.id);
+  const { modo } = eliminarSchema.parse({ ...req.query, ...req.body });
+
+  const sol = await service.getById(id, null, { incluirEliminados: modo === 'fisico' });
+  if (!sol) throw new HttpError(404, 'Viático no encontrado');
+
+  if (modo === 'fisico') {
+    const archivos = await service.getArchivos(id);
+    await service.eliminarFisico(id);
+    archivos.forEach(borrarArchivo);
+  } else {
+    await service.eliminarLogico(id, req.user.sub);
+  }
+
+  res.json({ ok: true, modo });
+}
+
 module.exports = {
   crear, listarMios, listarPendientes, listarActivos, listarCerrados,
   listarRechazados, listarTodos, detalle,
-  aprobar, rechazar, editar, duplicar, cerrar, subirGasto, subirJustificantes, puedoCrear,
+  aprobar, rechazar, editar, duplicar, cerrar, eliminar, subirGasto, subirJustificantes, puedoCrear,
   listarPorPagar, listarPagosHistorial, pagarSolicitud, descargarComprobantePago,
   descargarGasto, descargarGastoXml, descargarJustificante, descargarJustificanteItem, descargarOficio,
 };
