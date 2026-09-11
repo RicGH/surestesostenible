@@ -182,7 +182,7 @@
       <dl class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
         <div><dt class="text-xs text-ink-500 uppercase">Autorizado por</dt><dd class="mt-1 text-ink-800">{{ sol.autoriza_nombre || '—' }}</dd></div>
         <div><dt class="text-xs text-ink-500 uppercase">Recibe el viático</dt><dd class="mt-1 text-ink-800">{{ sol.recibe_nombre || '—' }}</dd></div>
-        <div><dt class="text-xs text-ink-500 uppercase">CLABE bancaria</dt><dd class="mt-1 text-ink-800">{{ sol.clabe_bancaria || '—' }}</dd></div>
+        <div><dt class="text-xs text-ink-500 uppercase">{{ sol.tipo_cuenta === 'tarjeta' ? 'Tarjeta' : 'CLABE bancaria' }}</dt><dd class="mt-1 text-ink-800">{{ sol.clabe_bancaria || '—' }}</dd></div>
         <div><dt class="text-xs text-ink-500 uppercase">Banco</dt><dd class="mt-1 text-ink-800">{{ sol.banco || '—' }}</dd></div>
       </dl>
       <dl class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
@@ -424,7 +424,7 @@
           <template v-if="sol.banco || sol.clabe_bancaria">
             <div class="border-t border-ink-200 mt-2 pt-2">
               <div v-if="sol.banco" class="flex justify-between"><span class="text-ink-500">Banco</span><span class="font-medium">{{ sol.banco }}</span></div>
-              <div v-if="sol.clabe_bancaria" class="flex justify-between mt-1"><span class="text-ink-500">CLABE</span><span class="font-mono text-xs font-medium tracking-wide">{{ sol.clabe_bancaria }}</span></div>
+              <div v-if="sol.clabe_bancaria" class="flex justify-between mt-1"><span class="text-ink-500">{{ sol.tipo_cuenta === 'tarjeta' ? 'Tarjeta' : 'CLABE' }}</span><span class="font-mono text-xs font-medium tracking-wide">{{ sol.clabe_bancaria }}</span></div>
             </div>
           </template>
         </div>
@@ -530,8 +530,15 @@
           <div><label class="block text-sm font-medium text-ink-700 mb-1.5">Autorizado por</label><input v-model="edicion.form.autoriza_nombre" placeholder="Nombre de quien autoriza" class="input" /></div>
           <div><label class="block text-sm font-medium text-ink-700 mb-1.5">Recibe el viático</label><input v-model="edicion.form.recibe_nombre" placeholder="Nombre de quien recibe" class="input" /></div>
         </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div><label class="block text-sm font-medium text-ink-700 mb-1.5">CLABE bancaria</label><input v-model="edicion.form.clabe_bancaria" inputmode="numeric" maxlength="18" placeholder="18 dígitos" class="input" /></div>
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-ink-700 mb-1.5">Tipo</label>
+            <select v-model="edicion.form.tipo_cuenta" class="input">
+              <option value="cuenta">Cuenta bancaria</option>
+              <option value="tarjeta">Tarjeta</option>
+            </select>
+          </div>
+          <div><label class="block text-sm font-medium text-ink-700 mb-1.5">{{ edicion.form.tipo_cuenta === 'tarjeta' ? 'Número de tarjeta' : 'CLABE bancaria' }}</label><input v-model="edicion.form.clabe_bancaria" inputmode="numeric" :maxlength="edicion.form.tipo_cuenta === 'tarjeta' ? 16 : 18" :placeholder="edicion.form.tipo_cuenta === 'tarjeta' ? '16 dígitos' : '18 dígitos'" class="input" /></div>
           <div><label class="block text-sm font-medium text-ink-700 mb-1.5">Banco</label><input v-model="edicion.form.banco" placeholder="Nombre del banco" class="input" /></div>
         </div>
         <div class="grid grid-cols-2 gap-3">
@@ -624,7 +631,7 @@ const errorGasto = ref('');
 const edicion = reactive({
   abierto: false, guardando: false, error: '',
   form: { destino: '', fecha_inicio: '', fecha_fin: '', motivo: '',
-    autoriza_nombre: '', recibe_nombre: '', clabe_bancaria: '', banco: '',
+    autoriza_nombre: '', recibe_nombre: '', tipo_cuenta: 'cuenta', clabe_bancaria: '', banco: '',
     monto_vuelos: 0, monto_hospedaje: 0, monto_alimentos: 0, monto_transporte: 0, monto_otros: 0,
     proyecto: '', cuenta: '', partida: '', objetivo_estrategico: '', resultado: '', donante: '' },
 });
@@ -861,6 +868,7 @@ function _abrirEdicionModal() {
     motivo: sol.value.motivo,
     autoriza_nombre: sol.value.autoriza_nombre || '',
     recibe_nombre: sol.value.recibe_nombre || '',
+    tipo_cuenta: sol.value.tipo_cuenta || 'cuenta',
     clabe_bancaria: sol.value.clabe_bancaria || '',
     banco: sol.value.banco || '',
     monto_vuelos: Number(sol.value.monto_vuelos) || 0,

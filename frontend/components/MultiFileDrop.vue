@@ -19,11 +19,11 @@
             :alt="e.nombre"
           />
           <div v-else class="flex flex-col items-center gap-1.5 p-2 text-center">
-            <div :class="['w-10 h-10 rounded-lg grid place-items-center', e.esImagen ? 'bg-blue-50 text-blue-500' : 'bg-red-50 text-red-500']">
+            <div :class="['w-10 h-10 rounded-lg grid place-items-center', tipoArchivo(e.nombre).clase]">
               <Icon :name="e.esImagen ? 'image' : 'fileText'" size="w-6 h-6" />
             </div>
             <span class="text-[10px] font-semibold uppercase tracking-wide text-ink-500">
-              {{ e.esImagen ? 'Imagen' : 'PDF' }}
+              {{ tipoArchivo(e.nombre).etiqueta }}
             </span>
           </div>
         </div>
@@ -58,10 +58,10 @@
             :alt="f.name"
           />
           <div v-else class="flex flex-col items-center gap-1.5 p-2 text-center">
-            <div class="w-10 h-10 rounded-lg grid place-items-center bg-red-50 text-red-500">
+            <div :class="['w-10 h-10 rounded-lg grid place-items-center', tipoArchivo(f.name).clase]">
               <Icon name="fileText" size="w-6 h-6" />
             </div>
-            <span class="text-[10px] font-semibold uppercase tracking-wide text-ink-500">PDF</span>
+            <span class="text-[10px] font-semibold uppercase tracking-wide text-ink-500">{{ tipoArchivo(f.name).etiqueta }}</span>
           </div>
         </div>
         <div class="px-2 py-1.5">
@@ -150,6 +150,16 @@ onUnmounted(() => {
 
 function esImagenFile(f) {
   return f?.type?.startsWith('image/');
+}
+
+// Etiqueta y color de la tarjeta según la extensión del archivo
+function tipoArchivo(nombre = '') {
+  const n = nombre.toLowerCase();
+  if (/\.(jpe?g|png|gif|webp|bmp|svg)$/.test(n)) return { etiqueta: 'Imagen', clase: 'bg-blue-50 text-blue-500' };
+  if (/\.docx?$/.test(n)) return { etiqueta: 'Word', clase: 'bg-sky-50 text-sky-600' };
+  if (/\.xlsx?$/.test(n)) return { etiqueta: 'Excel', clase: 'bg-emerald-50 text-emerald-600' };
+  if (/\.pdf$/.test(n)) return { etiqueta: 'PDF', clase: 'bg-red-50 text-red-500' };
+  return { etiqueta: 'Archivo', clase: 'bg-ink-100 text-ink-500' };
 }
 
 function tamano(f) {

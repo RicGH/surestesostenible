@@ -154,8 +154,13 @@ async function reporteProveedores(filtros = {}) {
 
 async function reporteViaticosDetallado(filtros = {}) {
   const { desde, hasta } = rangoDefault(filtros);
+  // Todos los estados (pendiente, aprobado, rechazado, en proceso, cerrado…), excepto los eliminados.
+  // Se filtra por fecha de creación para coincidir con los indicadores del panel de reportes.
   return query(
     `SELECT
+       s.folio,
+       s.estado,
+       s.created_at        AS fecha_solicitud,
        s.cuenta            AS cta_contable,
        s.proyecto,
        s.donante,
@@ -168,6 +173,7 @@ async function reporteViaticosDetallado(filtros = {}) {
        s.motivo,
        u.nombre            AS nombre_solicita,
        s.autoriza_nombre   AS nombre_autoriza,
+       s.tipo_cuenta,
        s.clabe_bancaria,
        s.banco,
        s.monto_vuelos,
@@ -178,10 +184,45 @@ async function reporteViaticosDetallado(filtros = {}) {
        s.monto_total
      FROM viaticos_solicitudes s
      JOIN users u ON u.id = s.colaborador_id
-     WHERE s.eliminado = 0 AND s.fecha_inicio >= ? AND s.fecha_inicio <= ?
-     ORDER BY s.fecha_inicio ASC`,
+     WHERE s.eliminado = 0 AND s.created_at >= ? AND s.created_at < DATE_ADD(?, INTERVAL 1 DAY)
+     ORDER BY s.created_at ASC`,
     [desde, hasta]
   );
 }
 
-module.exports = { reporteViaticos, reporteProveedores, dashboard, reporteViaticosDetallado };
+async function reporteFacturasDetallado(filtros = {}) {
+  const { desde, hasta } = rangoDefault(filtros);
+  // Todos los estados excepto eliminadas; mismo filtro por fecha de emisión que los indicadores del panel.
+  return query(
+    `SELECT
+       f.folio,
+       f.estado,
+       f.fecha_emision,
+       f.created_at         AS fecha_registro,
+       COALESCE(p.razon_social, f.nombre_emisor) AS proveedor,
+       COALESCE(p.rfc, f.rfc_emisor)             AS rfc,
+       f.uuid_cfdi,
+       f.concepto,
+       f.proyecto,
+       f.cuenta,
+       f.partida,
+       f.resultado,
+       f.objetivo_estrategico,
+       f.autoriza_nombre,
+       p.banco,
+       p.cuenta_clabe,
+       pg.fecha_pago,
+       pg.referencia        AS referencia_pago,
+       f.motivo_rechazo,
+       f.moneda,
+       f.monto
+     FROM facturas_proveedor f
+     JOIN proveedores p ON p.id = f.proveedor_id
+     LEFT JOIN pagos pg ON pg.factura_id = f.id
+     WHERE f.eliminado = 0 AND f.fecha_emision >= ? AND f.fecha_emision <= ?
+     ORDER BY f.fecha_emision ASC, f.id ASC`,
+    [desde, hasta]
+  );
+}
+
+module.exports = { reporteViaticos, reporteProveedores, dashboard, reporteViaticosDetallado, reporteFacturasDetallado, rangoDefault };

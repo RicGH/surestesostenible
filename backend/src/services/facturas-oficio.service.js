@@ -165,8 +165,8 @@ function buildDatos(f) {
     partida:              f.partida || '',
     objetivo_resultado:   f.resultado || '',
     objetivo_estrategico: f.objetivo_estrategico || '',
-    solicita:             '',
-    autoriza:             '',
+    solicita:             f.razon_social || f.nombre_emisor || '',
+    autoriza:             f.autoriza_nombre || '',
     anexo:                '',
   };
 }

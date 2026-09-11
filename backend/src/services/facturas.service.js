@@ -11,10 +11,11 @@ async function crear(proveedorId, cfdi, pdfPath, xmlPath, contabilidad = {}) {
   const result = await query(
     `INSERT INTO facturas_proveedor
      (folio, proveedor_id, uuid_cfdi, rfc_emisor, nombre_emisor, monto, moneda, fecha_emision, pdf_path, xml_path,
-      proyecto, cuenta, partida, objetivo_estrategico, resultado, concepto, estado)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'en_revision')`,
+      proyecto, cuenta, partida, objetivo_estrategico, resultado, concepto, autoriza_nombre, estado)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'en_revision')`,
     [folio, proveedorId, cfdi.uuid, cfdi.rfc_emisor, cfdi.nombre_emisor, cfdi.monto, cfdi.moneda, cfdi.fecha_emision, pdfPath, xmlPath,
-     contabilidad.proyecto, contabilidad.cuenta, contabilidad.partida, contabilidad.objetivo_estrategico, contabilidad.resultado, contabilidad.concepto]
+     contabilidad.proyecto, contabilidad.cuenta, contabilidad.partida, contabilidad.objetivo_estrategico, contabilidad.resultado, contabilidad.concepto,
+     contabilidad.autoriza_nombre]
   );
   return { id: result.insertId, folio };
 }
@@ -63,6 +64,18 @@ async function getById(id, { incluirEliminadas = false } = {}) {
   );
 }
 
+// Asignación contable y autorización que captura el admin desde la edición de la factura
+async function actualizarContabilidad(id, datos) {
+  const result = await query(
+    `UPDATE facturas_proveedor
+     SET proyecto = ?, cuenta = ?, partida = ?, objetivo_estrategico = ?, resultado = ?, concepto = ?, autoriza_nombre = ?
+     WHERE id = ? AND eliminado = 0`,
+    [datos.proyecto, datos.cuenta, datos.partida, datos.objetivo_estrategico, datos.resultado, datos.concepto,
+     datos.autoriza_nombre, id]
+  );
+  return result.affectedRows > 0;
+}
+
 async function aprobar(id, adminId) {
   await query(
     "UPDATE facturas_proveedor SET estado='aprobada', aprobada_por=?, aprobada_at=NOW(), motivo_rechazo=NULL WHERE id=? AND estado='en_revision'",
@@ -105,4 +118,5 @@ async function getPago(facturaId) {
 module.exports = {
   crear, listarPorProveedor, listarParaAdmin, getById,
   aprobar, rechazar, pagar, getPago, eliminarLogico, eliminarFisico,
+  actualizarContabilidad,
 };

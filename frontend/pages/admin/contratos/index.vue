@@ -5,10 +5,69 @@
         <h1 class="text-lg font-semibold text-ink-900">Plantillas de contrato</h1>
         <p class="text-sm text-ink-500 mt-0.5">Gestiona los contratos .docx que se envían a los proveedores.</p>
       </div>
-      <button class="btn-primary" @click="subirModal.abierto = true">
-        <Icon name="upload" size="w-4 h-4" /> Subir plantilla
-      </button>
+      <div class="flex items-center gap-2">
+        <button class="btn-secondary" @click="abrirCampos">
+          <Icon name="book" size="w-4 h-4" /> Campos que reconoce el sistema
+        </button>
+        <button class="btn-primary" @click="subirModal.abierto = true">
+          <Icon name="upload" size="w-4 h-4" /> Subir plantilla
+        </button>
+      </div>
     </div>
+
+    <!-- Etiquetas que se llenan solas con los datos del proveedor -->
+    <Modal v-if="camposModal.abierto" title="Campos que reconoce el sistema" size="2xl" @close="camposModal.abierto = false">
+      <div class="space-y-4">
+        <div class="rounded-lg bg-brand-50 border border-brand-200 p-3 text-xs text-ink-700 leading-relaxed">
+          Escribe estas etiquetas en tu plantilla <strong>.docx</strong> entre comillas angulares
+          <span class="font-mono text-brand-700">«ETIQUETA»</span> (o <span class="font-mono text-brand-700">&lt;ETIQUETA&gt;</span>).
+          Al generar el contrato se llenan solas con los datos del proveedor.
+          No importan mayúsculas ni acentos. Cualquier otra etiqueta se pide
+          <span class="text-amber-700 font-medium">manualmente</span> al enviar el contrato.
+          <span class="block mt-1 text-ink-500">Haz clic en una etiqueta para copiarla.</span>
+        </div>
+
+        <div class="relative">
+          <Icon name="search" size="w-4 h-4" class="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400" />
+          <input v-model="camposModal.busqueda" class="input pl-9" placeholder="Buscar campo o etiqueta…" />
+        </div>
+
+        <div v-if="camposModal.cargando" class="py-8 text-center text-sm text-ink-500">Cargando...</div>
+        <p v-else-if="camposModal.error" class="py-8 text-center text-sm text-red-600">{{ camposModal.error }}</p>
+        <div v-else class="rounded-xl border border-ink-200 divide-y divide-ink-100 overflow-hidden">
+          <div
+            v-for="c in camposFiltrados"
+            :key="c.campo"
+            class="flex flex-col sm:flex-row sm:items-start gap-3 px-4 py-3 hover:bg-ink-50/60"
+          >
+            <div class="flex items-start gap-3 sm:w-64 shrink-0">
+              <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 grid place-items-center shrink-0">
+                <Icon name="check" size="w-4 h-4" />
+              </div>
+              <div class="min-w-0">
+                <p class="text-sm font-semibold text-ink-900">{{ c.nombre }}</p>
+                <p class="text-xs text-ink-500 mt-0.5">{{ c.origen }}</p>
+              </div>
+            </div>
+            <div class="flex flex-wrap gap-1.5 sm:justify-end flex-1">
+              <button
+                v-for="e in c.etiquetas"
+                :key="e"
+                type="button"
+                class="font-mono text-[11px] px-2 py-1 rounded-md bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 hover:bg-emerald-100 transition-colors"
+                :title="`Copiar «${e}»`"
+                @click="copiarEtiqueta(e)"
+              >«{{ e }}»</button>
+            </div>
+          </div>
+          <p v-if="!camposFiltrados.length" class="px-4 py-8 text-center text-sm text-ink-400">Sin coincidencias</p>
+        </div>
+      </div>
+      <template #footer>
+        <span class="text-xs text-ink-500 mr-auto">{{ camposModal.lista.length }} campos · {{ totalEtiquetas }} etiquetas</span>
+        <button class="btn-secondary" @click="camposModal.abierto = false">Cerrar</button>
+      </template>
+    </Modal>
 
     <div v-if="cargando" class="card-pad text-center text-ink-500">Cargando...</div>
 
@@ -145,6 +204,40 @@ const subirModal = reactive({
   form: { nombre: '', descripcion: '', archivo: null },
 });
 const eliminarModal = reactive({ abierto: false, eliminando: false, plantilla: null });
+const camposModal = reactive({ abierto: false, cargando: false, error: '', busqueda: '', lista: [] });
+
+const normalizar = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/_/g, ' ');
+const camposFiltrados = computed(() => {
+  const q = normalizar(camposModal.busqueda).trim();
+  if (!q) return camposModal.lista;
+  return camposModal.lista.filter((c) =>
+    normalizar(c.nombre).includes(q) || c.etiquetas.some((e) => normalizar(e).includes(q))
+  );
+});
+const totalEtiquetas = computed(() => camposModal.lista.reduce((n, c) => n + c.etiquetas.length, 0));
+
+async function abrirCampos() {
+  Object.assign(camposModal, { abierto: true, busqueda: '', error: '' });
+  if (camposModal.lista.length) return;
+  camposModal.cargando = true;
+  try {
+    const r = await api.get('/contratos/plantillas/campos');
+    camposModal.lista = r.data || [];
+  } catch (e) {
+    camposModal.error = e.message || 'No se pudieron cargar los campos';
+  } finally {
+    camposModal.cargando = false;
+  }
+}
+
+async function copiarEtiqueta(e) {
+  try {
+    await navigator.clipboard.writeText(`«${e}»`);
+    toast.success('Etiqueta copiada', `«${e}»`);
+  } catch {
+    toast.error('No se pudo copiar', 'Cópiala manualmente.');
+  }
+}
 
 const puedeSub = computed(() =>
   subirModal.form.nombre.trim().length >= 2 && subirModal.form.archivo

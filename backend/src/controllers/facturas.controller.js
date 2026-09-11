@@ -41,6 +41,7 @@ async function subir(req, res) {
     objetivo_estrategico: req.body.objetivo_estrategico || null,
     resultado:            req.body.resultado            || null,
     concepto:             req.body.concepto             || null,
+    autoriza_nombre:      String(req.body.autoriza_nombre || '').trim().slice(0, 160) || null,
   };
 
   const result = await facturas.crear(prov.id, cfdi, `facturas/${pdf.filename}`, `facturas/${xml.filename}`, contabilidad);
@@ -86,6 +87,25 @@ async function detalle(req, res) {
   }
   const pago = await facturas.getPago(factura.id);
   res.json({ ...factura, pago });
+}
+
+const texto = (max) => z.string().max(max).optional().nullable().transform((v) => (v && v.trim()) || null);
+const contabilidadSchema = z.object({
+  proyecto: texto(160),
+  cuenta: texto(160),
+  partida: texto(160),
+  objetivo_estrategico: texto(160),
+  resultado: texto(160),
+  concepto: texto(255),
+  autoriza_nombre: texto(160),
+});
+
+async function actualizarContabilidad(req, res) {
+  const id = Number(req.params.id);
+  const datos = contabilidadSchema.parse(req.body);
+  const ok = await facturas.actualizarContabilidad(id, datos);
+  if (!ok) throw new HttpError(404, 'Factura no encontrada');
+  res.json({ ok: true });
 }
 
 async function aprobar(req, res) {
@@ -210,6 +230,7 @@ async function descargarOficio(req, res) {
 }
 
 module.exports = {
+  actualizarContabilidad,
   subir, preview, misFacturas, listarAdmin, detalle,
   aprobar, rechazar, pagar, eliminar, descargarComprobante, descargarFactura, descargarOficio,
 };

@@ -23,13 +23,17 @@
     "migrate:gasto-xml": "node src/db/migrate-gasto-xml.js",
     "migrate:gasto-archivo-opcional": "node src/db/migrate-gasto-archivo-opcional.js",
     "migrate:facturas-soft-delete": "node src/db/migrate-facturas-soft-delete.js",
-    "migrate:viaticos-soft-delete": "node src/db/migrate-viaticos-soft-delete.js"
+    "migrate:viaticos-soft-delete": "node src/db/migrate-viaticos-soft-delete.js",
+    "migrate:cuenta-tipo": "node src/db/migrate-cuenta-tipo.js",
+    "migrate:catalogos-concepto": "node src/db/migrate-catalogos-concepto.js",
+    "migrate:factura-autoriza": "node src/db/migrate-factura-autoriza.js"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",
     "cors": "^2.8.5",
     "docusign-esign": "^7.0.0",
     "docxtemplater": "^3.68.7",
+    "exceljs": "^4.4.0",
     "dotenv": "^16.4.5",
     "express": "^4.21.0",
     "fast-xml-parser": "^4.5.0",

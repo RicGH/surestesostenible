@@ -86,6 +86,7 @@ const TABS = [
   { id: 'resultado', label: 'Resultado' },
   { id: 'donante', label: 'Donante' },
   { id: 'banco', label: 'Banco' },
+  { id: 'concepto', label: 'Concepto (facturas)' },
 ];
 
 const CAMPO_LABEL = {
@@ -96,6 +97,7 @@ const CAMPO_LABEL = {
   resultado: 'Nombre del resultado',
   donante: 'Nombre del donante',
   banco: 'Nombre del banco',
+  concepto: 'Concepto de factura',
 };
 
 const tab = ref('proyecto');

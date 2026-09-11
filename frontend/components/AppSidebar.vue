@@ -35,7 +35,7 @@
       </div>
     </div>
 
-    <nav class="flex-1 overflow-y-auto px-3 py-4">
+    <nav class="sidebar-scroll flex-1 overflow-y-auto px-3 py-4">
       <template v-for="(group, gi) in items" :key="gi">
         <p v-if="group.label" class="sidebar-section">{{ group.label }}</p>
         <template v-for="link in group.links" :key="link.to">
@@ -201,3 +201,37 @@ const MENUS = {
 
 const items = computed(() => MENUS[auth.rol] || []);
 </script>
+
+<style scoped>
+/* Barra de scroll del menú: gris visible sobre el fondo oscuro, sin el carril blanco */
+.sidebar-scroll::-webkit-scrollbar {
+  width: 10px;
+}
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background-color: #64748b; /* ink-500 */
+  border-radius: 9999px;
+  border: 2px solid transparent; /* separa el tirador del borde */
+  background-clip: padding-box;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8; /* ink-400 */
+}
+.sidebar-scroll::-webkit-scrollbar-thumb:active {
+  background-color: #cbd5e1; /* ink-300 */
+}
+.sidebar-scroll::-webkit-scrollbar-button {
+  display: none;
+  height: 0;
+}
+
+/* Firefox (no soporta ::-webkit-scrollbar) */
+@supports not selector(::-webkit-scrollbar) {
+  .sidebar-scroll {
+    scrollbar-width: auto;
+    scrollbar-color: #64748b transparent;
+  }
+}
+</style>

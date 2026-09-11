@@ -79,12 +79,12 @@
             <div class="flex items-start justify-between gap-3 mb-3">
               <div>
                 <h3 class="text-sm font-semibold text-ink-900">Cuentas bancarias</h3>
-                <p class="text-xs text-ink-500 mt-0.5">CLABE y banco para depositar tus viáticos. Puedes tener varias.</p>
+                <p class="text-xs text-ink-500 mt-0.5">CLABE o tarjeta y banco para depositar tus viáticos. Puedes tener varias.</p>
               </div>
               <div class="flex flex-col items-end gap-2 shrink-0">
                 <span class="badge-green"><Icon name="sparkles" size="w-3 h-3" /> Autollenado en viáticos</span>
                 <button type="button" class="btn-secondary py-1 px-2.5 text-xs" @click="modalCuenta = true">
-                  <Icon name="plus" size="w-3 h-3" /> Nueva cuenta bancaria
+                  <Icon name="plus" size="w-3 h-3" /> Nueva cuenta o tarjeta
                 </button>
               </div>
             </div>
@@ -94,13 +94,17 @@
                 <table class="table text-sm">
                   <thead class="sticky top-0 bg-white z-10">
                     <tr>
-                      <th>CLABE bancaria</th>
+                      <th>Tipo</th>
+                      <th>CLABE / Tarjeta</th>
                       <th>Banco</th>
                       <th class="!text-center w-16">Eliminar</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr v-for="c in cuentasBancarias" :key="c.id">
+                      <td>
+                        <span :class="c.tipo === 'tarjeta' ? 'badge-amber' : 'badge-blue'">{{ c.tipo === 'tarjeta' ? 'Tarjeta' : 'Cuenta bancaria' }}</span>
+                      </td>
                       <td class="font-mono tracking-wider">{{ c.clabe_bancaria }}</td>
                       <td>{{ c.banco || '—' }}</td>
                       <td>
@@ -117,11 +121,24 @@
           </div>
 
           <!-- Modal nueva cuenta bancaria -->
-          <Modal v-if="modalCuenta" title="Nueva cuenta bancaria" size="sm" @close="cerrarModalCuenta">
+          <Modal v-if="modalCuenta" title="Nueva cuenta o tarjeta" size="sm" @close="cerrarModalCuenta">
             <div class="space-y-4">
               <div>
-                <label class="lbl">CLABE bancaria</label>
-                <input v-model="nuevaCuenta.clabe" inputmode="numeric" maxlength="18" class="input tracking-wider" placeholder="18 dígitos" />
+                <label class="lbl">Tipo</label>
+                <select v-model="nuevaCuenta.tipo" class="input">
+                  <option value="cuenta">Cuenta bancaria</option>
+                  <option value="tarjeta">Tarjeta</option>
+                </select>
+              </div>
+              <div>
+                <label class="lbl">{{ nuevaCuenta.tipo === 'tarjeta' ? 'Número de tarjeta' : 'CLABE bancaria' }}</label>
+                <input
+                  v-model="nuevaCuenta.clabe"
+                  inputmode="numeric"
+                  :maxlength="nuevaCuenta.tipo === 'tarjeta' ? 16 : 18"
+                  class="input tracking-wider"
+                  :placeholder="nuevaCuenta.tipo === 'tarjeta' ? '16 dígitos' : '18 dígitos'"
+                />
               </div>
               <div>
                 <label class="lbl">Banco</label>
@@ -234,7 +251,7 @@ const cambiando = ref(false);
 const perfil = reactive({ nombre: '', rfc: '' });
 const bancosOpciones = ref([]);
 const cuentasBancarias = ref([]);
-const nuevaCuenta = reactive({ clabe: '', banco: '' });
+const nuevaCuenta = reactive({ tipo: 'cuenta', clabe: '', banco: '' });
 const agregandoCuenta = ref(false);
 const modalCuenta = ref(false);
 const { abrir: confirmar } = useConfirm();
@@ -290,6 +307,7 @@ async function cargar() {
 
 function cerrarModalCuenta() {
   modalCuenta.value = false;
+  nuevaCuenta.tipo = 'cuenta';
   nuevaCuenta.clabe = '';
   nuevaCuenta.banco = '';
 }
@@ -299,6 +317,7 @@ async function agregarCuenta() {
   agregandoCuenta.value = true;
   try {
     await api.post('/auth/cuentas-bancarias', {
+      tipo: nuevaCuenta.tipo,
       clabe_bancaria: nuevaCuenta.clabe.trim(),
       banco: nuevaCuenta.banco,
     });

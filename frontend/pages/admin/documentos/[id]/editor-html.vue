@@ -18,6 +18,22 @@
           </div>
         </div>
       </div>
+      <!-- Leyenda: firmante seleccionado para insertar su etiqueta -->
+      <div
+        v-if="puedeEditar && firmanteActivo"
+        class="flex-1 min-w-[280px] max-w-3xl mx-auto flex items-center gap-3 px-4 py-2 text-sm rounded-lg border border-l-4 shadow-sm"
+        :style="{ borderColor: firmanteActivo.color, background: colorConAlfa(firmanteActivo.color, '14') }"
+      >
+        <span class="w-6 h-6 rounded-full grid place-items-center text-white shrink-0" :style="{ background: firmanteActivo.color }">
+          <Icon name="edit" size="w-3.5 h-3.5" />
+        </span>
+        <p class="text-ink-800 min-w-0">
+          Tienes seleccionado a <strong>{{ firmanteActivo.nombre }}</strong>. Coloca el cursor en el documento donde irá su firma y usa los botones <strong>Firma</strong>, <strong>Inic.</strong> o <strong>Fecha</strong>.
+        </p>
+        <button class="ml-auto text-xs font-medium text-ink-500 hover:text-ink-900 shrink-0" @click="firmanteSeleccionado = null">
+          Quitar selección
+        </button>
+      </div>
       <div class="flex gap-2">
         <button v-if="puedeEditar" class="btn-secondary" :disabled="guardando" @click="guardarBorrador">
           <Icon name="check" size="w-4 h-4" /> {{ guardando ? 'Guardando...' : 'Guardar borrador' }}
@@ -61,8 +77,9 @@
             <div
               v-for="(f, i) in firmantes"
               :key="f.id || `tmp-${i}`"
-              :class="['p-2 rounded-lg border cursor-pointer transition-all', firmanteSeleccionado === f.id ? 'border-ink-900 bg-ink-50' : 'border-ink-200 hover:border-ink-400']"
-              @click="firmanteSeleccionado = firmanteSeleccionado === f.id ? null : f.id"
+              :class="['p-2 rounded-lg border-2 cursor-pointer transition-all', firmanteSeleccionado === f.id ? '' : 'border-ink-200 hover:border-ink-300 hover:bg-ink-50/60']"
+              :style="firmanteSeleccionado === f.id ? estiloFirmanteActivo(f) : null"
+              @click="seleccionarFirmante(f)"
             >
               <div class="flex items-center gap-2">
                 <div class="w-3 h-3 rounded-full shrink-0" :style="{ background: f.color }" />
@@ -70,10 +87,26 @@
                   <p class="text-sm font-medium text-ink-900 truncate">{{ f.nombre }}</p>
                   <p class="text-xs text-ink-500 truncate">{{ f.email }}</p>
                 </div>
+                <span
+                  v-if="firmanteSeleccionado === f.id"
+                  class="w-5 h-5 rounded-full grid place-items-center text-white shrink-0"
+                  :style="{ background: f.color }"
+                  title="Firmante seleccionado"
+                >
+                  <Icon name="check" size="w-3 h-3" />
+                </span>
                 <button v-if="puedeEditar" class="text-ink-400 hover:text-red-600 shrink-0" @click.stop="quitarFirmante(i)">
                   <Icon name="x" size="w-3 h-3" />
                 </button>
               </div>
+              <p
+                v-if="firmanteSeleccionado === f.id"
+                class="mt-2 pt-2 border-t text-[11px] font-medium flex items-center gap-1"
+                :style="{ color: f.color, borderColor: colorConAlfa(f.color, '33') }"
+              >
+                <Icon name="edit" size="w-3 h-3" /> Seleccionado · usa los botones de abajo para insertar su etiqueta
+              </p>
+              <p v-else-if="puedeEditar" class="mt-1 text-[11px] text-ink-400">Clic para seleccionar</p>
             </div>
           </div>
           <div v-if="puedeEditar && firmanteSeleccionado" class="space-y-1 pt-2 border-t border-ink-100">
@@ -292,6 +325,25 @@ const cargando = ref(true);
 const guardando = ref(false);
 const enviando = ref(false);
 const firmanteSeleccionado = ref(null);
+
+// '#2563eb' + '1a' → '#2563eb1a' (el color del firmante con transparencia)
+function colorConAlfa(color, alfa) {
+  return /^#[0-9a-f]{6}$/i.test(color || '') ? `${color}${alfa}` : 'rgba(10, 101, 113, 0.15)';
+}
+
+function estiloFirmanteActivo(f) {
+  return {
+    borderColor: f.color || '#057d8c',
+    background: colorConAlfa(f.color, '12'),
+    boxShadow: `0 0 0 3px ${colorConAlfa(f.color, '26')}`,
+  };
+}
+
+function seleccionarFirmante(f) {
+  firmanteSeleccionado.value = firmanteSeleccionado.value === f.id ? null : f.id;
+}
+
+const firmanteActivo = computed(() => firmantes.value.find((f) => f.id === firmanteSeleccionado.value) || null);
 const editorRef = ref(null);
 
 const COLORES = ['#2563eb', '#16a34a', '#dc2626', '#ea580c', '#9333ea', '#0891b2', '#ca8a04'];

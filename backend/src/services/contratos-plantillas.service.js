@@ -79,21 +79,55 @@ const MAPA_AUTO = {
   'CIUDAD_Y_ESTADO':      '__ciudad_y_estado__',
 };
 
+// Nombre legible de cada campo del mapa (para el listado "Campos que reconoce el sistema")
+const CAMPOS_INFO = {
+  razon_social:       { nombre: 'Nombre o razón social', origen: 'Registro del proveedor' },
+  rfc:                { nombre: 'RFC', origen: 'Registro del proveedor' },
+  direccion:          { nombre: 'Domicilio', origen: 'Registro del proveedor' },
+  codigo_postal:      { nombre: 'Código postal', origen: 'Registro del proveedor' },
+  municipio:          { nombre: 'Municipio', origen: 'Registro del proveedor' },
+  estado_republica:   { nombre: 'Estado de la República', origen: 'Registro del proveedor' },
+  __ciudad_y_estado__:{ nombre: 'Ciudad y estado', origen: 'Municipio y estado del proveedor, separados por coma' },
+  fecha_nacimiento:   { nombre: 'Fecha de nacimiento', origen: 'Registro del proveedor (ej. 5 de marzo de 1990)' },
+  estado_civil:       { nombre: 'Estado civil', origen: 'Registro del proveedor' },
+  nacionalidad:       { nombre: 'Nacionalidad', origen: 'Registro del proveedor' },
+  banco:              { nombre: 'Banco', origen: 'Datos bancarios del proveedor' },
+  cuenta_clabe:       { nombre: 'CLABE / número de cuenta', origen: 'Datos bancarios del proveedor' },
+  sucursal_banco:     { nombre: 'Sucursal bancaria', origen: 'Datos bancarios del proveedor' },
+  nombre:             { nombre: 'Nombre del contacto', origen: 'Usuario del proveedor' },
+  email:              { nombre: 'Correo electrónico', origen: 'Usuario del proveedor' },
+  __fecha__:          { nombre: 'Fecha de hoy', origen: 'Fecha en que se genera el contrato' },
+};
+
 // Etiquetas que parecen artefactos de Word y no son campos reales
 const ETIQUETAS_IGNORAR = /^(columna\d*|column\d*|fila\d*|row\d*|celda\d*|cell\d*|tabla\d*|table\d*)$/i;
+
+// Partes del .docx con texto de la plantilla: cuerpo, cabeceras y pies de página
+// (mismas partes que llena contratos.service al generar el contrato)
+const PARTES_DOCX = /^word\/(document|header\d*|footer\d*)\.xml$/;
 
 function extraerEtiquetas(buffer) {
   try {
     const zip = new PizZip(buffer);
-    const docXml = zip.file('word/document.xml').asText();
-    const texto = docXml.replace(/<[^>]+>/g, ' ');
-    const matchesGuillemets = (texto.match(/«([^»\n]{1,100})»/g) || []).map((m) => m.slice(1, -1).trim());
-    // Also detect <TAG> stored as &lt;TAG&gt; in XML
-    const matchesAngle = (docXml.match(/&lt;([A-ZÁÉÍÓÚÑ_][A-ZÁÉÍÓÚÑ_0-9]{0,99})&gt;/g) || [])
-      .map((m) => m.replace(/^&lt;/, '').replace(/&gt;$/, '').trim());
-    return [...new Set(
-      [...matchesGuillemets, ...matchesAngle].filter((e) => e && !ETIQUETAS_IGNORAR.test(e))
-    )];
+    // El cuerpo primero para conservar el orden en que aparecen las etiquetas
+    const partes = Object.keys(zip.files)
+      .filter((f) => PARTES_DOCX.test(f) && !zip.files[f].dir)
+      .sort((a, b) => (a === 'word/document.xml' ? -1 : b === 'word/document.xml' ? 1 : a.localeCompare(b)));
+    const encontradas = [];
+    for (const f of partes) {
+      const xml = zip.file(f).asText();
+      // Word parte el texto en varios <w:r>: se unen sin espacios para no romper «RFC» → «R FC».
+      // Los fines de párrafo/salto de línea se vuelven \n para que una etiqueta no cruce párrafos.
+      const texto = xml
+        .replace(/<\/w:p>|<w:br[^>]*\/>|<w:cr[^>]*\/>/g, '\n')
+        .replace(/<w:tab[^>]*\/>/g, ' ')
+        .replace(/<[^>]+>/g, '');
+      encontradas.push(...(texto.match(/«([^»\n]{1,100})»/g) || []).map((m) => m.slice(1, -1).trim()));
+      // También <TAG>, que en el XML queda como &lt;TAG&gt;
+      encontradas.push(...(xml.match(/&lt;([A-ZÁÉÍÓÚÑ_][A-ZÁÉÍÓÚÑ_0-9]{0,99})&gt;/g) || [])
+        .map((m) => m.replace(/^&lt;/, '').replace(/&gt;$/, '').trim()));
+    }
+    return [...new Set(encontradas.filter((e) => e && !ETIQUETAS_IGNORAR.test(e)))];
   } catch {
     return [];
   }
@@ -187,4 +221,38 @@ async function eliminar(id) {
   }
 }
 
-module.exports = { listar, findById, crear, eliminar, extraerEtiquetas, MAPA_AUTO };
+// Campos que se llenan solos, con todas las etiquetas que los activan.
+// Las variantes que solo difieren en acentos se muestran una vez (la comparación los ignora).
+function camposReconocidos() {
+  const grupos = new Map();
+  for (const [etiqueta, campo] of Object.entries(MAPA_AUTO)) {
+    if (!grupos.has(campo)) grupos.set(campo, new Map());
+    const variantes = grupos.get(campo);
+    const clave = normKey(etiqueta);
+    if (!variantes.has(clave)) variantes.set(clave, etiqueta);
+  }
+  // Orden de CAMPOS_INFO (datos personales → domicilio → banco → contacto → fecha)
+  const orden = Object.keys(CAMPOS_INFO);
+  const pos = (campo) => (orden.includes(campo) ? orden.indexOf(campo) : orden.length);
+  return [...grupos].sort(([a], [b]) => pos(a) - pos(b)).map(([campo, variantes]) => ({
+    campo,
+    nombre: CAMPOS_INFO[campo]?.nombre || toTitleCase(campo),
+    origen: CAMPOS_INFO[campo]?.origen || '',
+    etiquetas: [...variantes.values()],
+  }));
+}
+
+// Vuelve a leer las etiquetas del archivo de una plantilla ya guardada
+async function reescanear(id) {
+  const row = await queryOne('SELECT archivo_path FROM contratos_plantillas WHERE id = ?', [id]);
+  if (!row?.archivo_path) return null;
+  const abs = path.resolve(__dirname, '..', '..', row.archivo_path);
+  if (!fs.existsSync(abs)) return null;
+  let buffer = fs.readFileSync(abs);
+  if (!esDocx(buffer)) buffer = await docADocx(buffer);
+  const etiquetasJson = buildEtiquetasJson(extraerEtiquetas(buffer));
+  await query('UPDATE contratos_plantillas SET etiquetas_json = ? WHERE id = ?', [JSON.stringify(etiquetasJson), id]);
+  return etiquetasJson;
+}
+
+module.exports = { listar, findById, crear, eliminar, extraerEtiquetas, MAPA_AUTO, camposReconocidos, reescanear };

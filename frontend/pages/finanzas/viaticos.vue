@@ -99,7 +99,7 @@
           <template v-if="modal.clabe_bancaria || modal.banco">
             <div class="border-t border-ink-200 mt-2 pt-2">
               <div v-if="modal.banco" class="flex justify-between mt-1"><span class="text-ink-500">Banco</span><span class="font-medium">{{ modal.banco }}</span></div>
-              <div v-if="modal.clabe_bancaria" class="flex justify-between mt-1"><span class="text-ink-500">CLABE</span><span class="font-mono text-xs font-medium tracking-wide">{{ modal.clabe_bancaria }}</span></div>
+              <div v-if="modal.clabe_bancaria" class="flex justify-between mt-1"><span class="text-ink-500">{{ modal.tipo_cuenta === 'tarjeta' ? 'Tarjeta' : 'CLABE' }}</span><span class="font-mono text-xs font-medium tracking-wide">{{ modal.clabe_bancaria }}</span></div>
             </div>
           </template>
         </div>
@@ -160,7 +160,7 @@ const porPagar = ref([]);
 const historial = ref([]);
 const comprobante = ref(null);
 const enviando = ref(false);
-const modal = reactive({ abierto: false, tipo: '', id: null, ajuste_id: null, folio: '', colaborador: '', destino: '', monto: 0, referencia: '', clabe_bancaria: '', banco: '', metodo: '' });
+const modal = reactive({ abierto: false, tipo: '', id: null, ajuste_id: null, folio: '', colaborador: '', destino: '', monto: 0, referencia: '', tipo_cuenta: 'cuenta', clabe_bancaria: '', banco: '', metodo: '' });
 
 const counts = computed(() => ({ por_pagar: porPagar.value.length, historial: historial.value.length }));
 
@@ -184,6 +184,7 @@ function abrirPago(r) {
     destino: r.destino || '',
     monto: r.monto_total,
     referencia: '',
+    tipo_cuenta: r.tipo_cuenta || 'cuenta',
     clabe_bancaria: r.clabe_bancaria || '',
     banco: r.banco || '',
     metodo: '',

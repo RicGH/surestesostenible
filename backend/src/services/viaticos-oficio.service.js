@@ -47,14 +47,17 @@ async function docxAPdf(buffer) {
 // Nota: el viático tiene categoría "Vuelos" que la plantilla no contempla; se suma a Transporte.
 function buildDatos(v, user) {
   const transporte = Number(v.monto_transporte || 0) + Number(v.monto_vuelos || 0);
+  // El número se imprime en "Tarjeta" o en "Clabe Interbancaria" según el tipo elegido en el viático
+  const numero = v.clabe_bancaria || (user && user.clabe_bancaria) || '';
+  const esTarjeta = v.tipo_cuenta === 'tarjeta';
   return {
     folio: v.folio || '',
     fecha: fecha(v.cerrado_at || new Date()),
     trabajador: v.colaborador_nombre || '',
     rfc: (user && user.rfc) || '',
     area: '',
-    clabe: v.clabe_bancaria || (user && user.clabe_bancaria) || '',
-    tarjeta: '',
+    clabe: esTarjeta ? '' : numero,
+    tarjeta: esTarjeta ? numero : '',
     cantidad: money(v.monto_total),
     banco: v.banco || (user && user.banco) || '',
     destino: v.destino || '',

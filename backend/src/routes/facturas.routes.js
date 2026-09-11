@@ -13,6 +13,7 @@ router.post('/', requireRole('admin', 'proveedor'),
 router.get('/mias', requireRole('admin', 'proveedor'), asyncHandler(ctrl.misFacturas));
 router.get('/admin', requireRole('admin', 'finanzas'), asyncHandler(ctrl.listarAdmin));
 router.get('/:id', requireRole('admin', 'finanzas', 'proveedor'), asyncHandler(ctrl.detalle));
+router.put('/:id/contabilidad', requireRole('admin'), asyncHandler(ctrl.actualizarContabilidad));
 router.post('/:id/aprobar', requireRole('admin'), asyncHandler(ctrl.aprobar));
 router.post('/:id/rechazar', requireRole('admin'), asyncHandler(ctrl.rechazar));
 router.post('/:id/pagar', requireRole('admin', 'finanzas'), uploadComprobantes.single('comprobante'), asyncHandler(ctrl.pagar));

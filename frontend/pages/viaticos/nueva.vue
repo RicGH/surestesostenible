@@ -117,14 +117,14 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-3 gap-4">
           <!-- Selector de cuenta guardada -->
-          <div v-if="cuentasBancarias.length && !cambiarBancarios" class="col-span-2">
-            <label class="block text-sm font-medium text-ink-700 mb-1.5">Cuenta bancaria</label>
+          <div v-if="cuentasBancarias.length && !cambiarBancarios" class="col-span-3">
+            <label class="block text-sm font-medium text-ink-700 mb-1.5">Cuenta bancaria / Tarjeta</label>
             <select v-model="cuentaSeleccionada" class="input" @change="seleccionarCuenta">
-              <option value="">— Selecciona una cuenta —</option>
+              <option value="">— Selecciona una cuenta o tarjeta —</option>
               <option v-for="c in cuentasBancarias" :key="c.id" :value="String(c.id)">
-                {{ c.clabe_bancaria }}{{ c.banco ? ' — ' + c.banco : '' }}
+                {{ etiquetaTipoCuenta(c.tipo) }} · {{ c.clabe_bancaria }}{{ c.banco ? ' — ' + c.banco : '' }}
               </option>
             </select>
           </div>
@@ -132,8 +132,21 @@
           <!-- Inputs manuales cuando cambiarBancarios o sin cuentas guardadas -->
           <template v-else>
             <div>
-              <label class="block text-sm font-medium text-ink-700 mb-1.5">CLABE bancaria</label>
-              <input v-model="form.clabe_bancaria" inputmode="numeric" maxlength="18" placeholder="18 dígitos" class="input" />
+              <label class="block text-sm font-medium text-ink-700 mb-1.5">Tipo</label>
+              <select v-model="form.tipo_cuenta" class="input">
+                <option value="cuenta">Cuenta bancaria</option>
+                <option value="tarjeta">Tarjeta</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-ink-700 mb-1.5">{{ form.tipo_cuenta === 'tarjeta' ? 'Número de tarjeta' : 'CLABE bancaria' }}</label>
+              <input
+                v-model="form.clabe_bancaria"
+                inputmode="numeric"
+                :maxlength="form.tipo_cuenta === 'tarjeta' ? 16 : 18"
+                :placeholder="form.tipo_cuenta === 'tarjeta' ? '16 dígitos' : '18 dígitos'"
+                class="input"
+              />
             </div>
             <div>
               <label class="block text-sm font-medium text-ink-700 mb-1.5">Banco</label>
@@ -181,10 +194,10 @@
         <MultiFileDrop
           v-model="justificantes"
           :existentes="justificantesExistentes"
-          accept=".pdf,image/*"
+          accept=".pdf,image/*,.doc,.docx,.xls,.xlsx"
           icon="upload"
           label="Justificantes de salida"
-          hint="PDF o imagen · arrastra o haz clic · puedes seleccionar varios"
+          hint="PDF, imagen, Word o Excel · arrastra o haz clic · puedes seleccionar varios"
         />
       </section>
 
@@ -374,16 +387,22 @@ async function cargarCuentasBancarias(userId = null) {
     cambiarBancarios.value = false;
     if (cuentasBancarias.value.length > 0) {
       cuentaSeleccionada.value = String(cuentasBancarias.value[0].id);
+      form.tipo_cuenta = cuentasBancarias.value[0].tipo || 'cuenta';
       form.clabe_bancaria = cuentasBancarias.value[0].clabe_bancaria;
       form.banco = cuentasBancarias.value[0].banco;
     } else {
       cuentaSeleccionada.value = '';
+      form.tipo_cuenta = 'cuenta';
       form.clabe_bancaria = '';
       form.banco = '';
     }
   } catch {
     cuentasBancarias.value = [];
   }
+}
+
+function etiquetaTipoCuenta(tipo) {
+  return tipo === 'tarjeta' ? 'Tarjeta' : 'Cuenta bancaria';
 }
 
 const catalogos = reactive({ proyecto: [], cuenta: [], partida: [], objetivo_estrategico: [], resultado: [], donante: [], banco: [] });
@@ -404,7 +423,7 @@ async function cargarCatalogos() {
 
 const form = reactive({
   destino: '', fecha_inicio: '', fecha_fin: '', motivo: '',
-  autoriza_nombre: '', recibe_nombre: '', clabe_bancaria: '', banco: '',
+  autoriza_nombre: '', recibe_nombre: '', tipo_cuenta: 'cuenta', clabe_bancaria: '', banco: '',
   monto_vuelos: 0, monto_hospedaje: 0, monto_alimentos: 0, monto_transporte: 0, monto_otros: 0,
   proyecto: '', cuenta: '', partida: '', objetivo_estrategico: '', resultado: '', donante: '',
 });
@@ -416,7 +435,7 @@ const justificantes = ref([]);
 
 const VACIO = {
   destino: '', fecha_inicio: '', fecha_fin: '', motivo: '',
-  autoriza_nombre: '', recibe_nombre: '', clabe_bancaria: '', banco: '',
+  autoriza_nombre: '', recibe_nombre: '', tipo_cuenta: 'cuenta', clabe_bancaria: '', banco: '',
   monto_vuelos: 0, monto_hospedaje: 0, monto_alimentos: 0, monto_transporte: 0, monto_otros: 0,
   proyecto: '', cuenta: '', partida: '', objetivo_estrategico: '', resultado: '', donante: '',
 };
@@ -457,6 +476,7 @@ async function cargarParaEdicion(id) {
       motivo: sol.motivo || '',
       autoriza_nombre: sol.autoriza_nombre || '',
       recibe_nombre: sol.recibe_nombre || '',
+      tipo_cuenta: sol.tipo_cuenta || 'cuenta',
       clabe_bancaria: sol.clabe_bancaria || '',
       banco: sol.banco || '',
       monto_vuelos: Number(sol.monto_vuelos) || 0,
@@ -497,6 +517,7 @@ async function cargarDesde(id) {
       fecha_fin: '',
       motivo: sol.motivo || '',
       autoriza_nombre: sol.autoriza_nombre || '',
+      tipo_cuenta: sol.tipo_cuenta || 'cuenta',
       clabe_bancaria: sol.clabe_bancaria || '',
       banco: sol.banco || '',
       monto_vuelos: Number(sol.monto_vuelos) || 0,
@@ -573,6 +594,7 @@ const toast = useToast();
 function seleccionarCuenta() {
   const cuenta = cuentasBancarias.value.find((c) => String(c.id) === cuentaSeleccionada.value);
   if (cuenta) {
+    form.tipo_cuenta = cuenta.tipo || 'cuenta';
     form.clabe_bancaria = cuenta.clabe_bancaria;
     form.banco = cuenta.banco;
   }
@@ -581,6 +603,7 @@ function seleccionarCuenta() {
 function toggleCambiarBancarios() {
   cambiarBancarios.value = !cambiarBancarios.value;
   if (cambiarBancarios.value) {
+    form.tipo_cuenta = 'cuenta';
     form.clabe_bancaria = '';
     form.banco = '';
   } else {
@@ -588,6 +611,7 @@ function toggleCambiarBancarios() {
       || cuentasBancarias.value[0];
     if (cuenta) {
       cuentaSeleccionada.value = String(cuenta.id);
+      form.tipo_cuenta = cuenta.tipo || 'cuenta';
       form.clabe_bancaria = cuenta.clabe_bancaria;
       form.banco = cuenta.banco;
     }
@@ -622,7 +646,7 @@ async function enviar() {
           try {
             const uid = esAdmin.value && colaboradorSeleccionado.value ? Number(colaboradorSeleccionado.value) : null;
             const url = uid ? `/users/${uid}/cuentas-bancarias` : '/auth/cuentas-bancarias';
-            await api.post(url, { clabe_bancaria: form.clabe_bancaria, banco: form.banco });
+            await api.post(url, { tipo: form.tipo_cuenta, clabe_bancaria: form.clabe_bancaria, banco: form.banco });
           } catch {}
         }
       }
@@ -645,7 +669,7 @@ async function enviar() {
         try {
           const userId = esAdmin.value && colaboradorSeleccionado.value ? Number(colaboradorSeleccionado.value) : null;
           const url = userId ? `/users/${userId}/cuentas-bancarias` : '/auth/cuentas-bancarias';
-          await api.post(url, { clabe_bancaria: form.clabe_bancaria, banco: form.banco });
+          await api.post(url, { tipo: form.tipo_cuenta, clabe_bancaria: form.clabe_bancaria, banco: form.banco });
         } catch {}
       }
     }

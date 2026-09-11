@@ -15,6 +15,7 @@ const solicitudSchema = z.object({
   motivo: z.string().min(5),
   autoriza_nombre: z.string().max(160).optional(),
   recibe_nombre: z.string().max(160).optional(),
+  tipo_cuenta: z.enum(['cuenta', 'tarjeta']).optional().default('cuenta'),
   clabe_bancaria: z.string().max(40).optional(),
   banco: z.string().max(120).optional(),
   monto_vuelos: z.coerce.number().nonnegative().default(0),

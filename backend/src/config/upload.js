@@ -49,8 +49,8 @@ const uploadJustificantes = multer({
   storage: makeStorage('justificantes'),
   limits: { fileSize: 25 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    const ok = /\.(jpe?g|png|pdf)$/i.test(file.originalname);
-    cb(ok ? null : new Error('Solo se permiten imágenes o PDF'), ok);
+    const ok = /\.(jpe?g|png|pdf|docx?|xlsx?)$/i.test(file.originalname);
+    cb(ok ? null : new Error('Solo se permiten imágenes, PDF, Word o Excel'), ok);
   },
 });
 

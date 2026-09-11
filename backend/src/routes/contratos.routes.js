@@ -35,6 +35,7 @@ const saveToDisk = (req, res, next) => {
 
 router.get('/plantillas', asyncHandler(ctrl.listarPlantillas));
 router.post('/plantillas', uploadPlantilla.single('archivo'), saveToDisk, asyncHandler(ctrl.subirPlantilla));
+router.get('/plantillas/campos', asyncHandler(ctrl.camposReconocidos));
 router.get('/plantillas/:id', asyncHandler(ctrl.detallePlantilla));
 router.delete('/plantillas/:id', asyncHandler(ctrl.eliminarPlantilla));
 router.post('/generar', asyncHandler(ctrl.generarContrato));

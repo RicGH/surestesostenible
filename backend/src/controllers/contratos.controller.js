@@ -19,6 +19,10 @@ async function listarPlantillas(req, res) {
   res.json({ data: await plantillasService.listar() });
 }
 
+async function camposReconocidos(req, res) {
+  res.json({ data: plantillasService.camposReconocidos() });
+}
+
 async function detallePlantilla(req, res) {
   const p = await plantillasService.findById(Number(req.params.id));
   if (!p) throw new HttpError(404, 'Plantilla de contrato no encontrada');
@@ -74,4 +78,4 @@ async function generarContrato(req, res) {
   }
 }
 
-module.exports = { listarPlantillas, detallePlantilla, subirPlantilla, eliminarPlantilla, generarContrato };
+module.exports = { listarPlantillas, camposReconocidos, detallePlantilla, subirPlantilla, eliminarPlantilla, generarContrato };

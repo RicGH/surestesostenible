@@ -29,6 +29,7 @@
             <td>
               <div class="flex gap-1 justify-center">
                 <IconButton icon="eye" tooltip="Ver detalle" variant="primary" @click="abrir(f.id)" />
+                <IconButton v-if="esAdmin" icon="edit" tooltip="Editar factura" variant="warning" @click="navigateTo(`/admin/facturas/${f.id}`)" />
                 <IconButton icon="fileText" tooltip="Oficio de pago a proveedores (PDF)" @click="verOficio(f)" />
                 <IconButton v-if="f.estado === 'en_revision'" icon="check" tooltip="Aprobar" variant="success" @click="aprobar(f.id)" />
                 <IconButton v-if="f.estado === 'en_revision'" icon="x" tooltip="Rechazar" variant="danger" @click="abrirRechazo(f)" />

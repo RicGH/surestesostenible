@@ -25,7 +25,7 @@
             <Icon name="download" size="w-4 h-4" /> {{ descargandoPdf ? 'Generando...' : 'Descargar PDF' }}
           </button>
           <button class="btn-primary !bg-white/15 !text-white !border !border-white/25 hover:!bg-white/25" :disabled="descargandoCsv" @click="descargarDashboardCsv">
-            <Icon name="download" size="w-4 h-4" /> {{ descargandoCsv ? 'Generando...' : 'CSV' }}
+            <Icon name="download" size="w-4 h-4" /> {{ descargandoCsv ? 'Generando...' : 'Excel' }}
           </button>
         </div>
       </div>
@@ -117,45 +117,6 @@
         <TopList title="Top proveedores" subtitle="Por monto facturado" icon="building" :items="f.top_proveedores" name-key="proveedor" />
       </section>
     </template>
-
-    <section class="card-pad space-y-5">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-lg bg-brand-50 text-brand-600 grid place-items-center"><Icon name="download" /></div>
-        <div>
-          <h3 class="font-semibold text-ink-900">Exportar a PDF</h3>
-          <p class="text-xs text-ink-500">Genera un reporte detallado con los registros del módulo</p>
-        </div>
-      </div>
-
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div>
-          <label class="block text-sm font-medium text-ink-700 mb-1.5">Módulo</label>
-          <select v-model="pdf.modulo" class="input">
-            <option value="viaticos">Viáticos</option>
-            <option value="proveedores">Proveedores / Facturas</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-ink-700 mb-1.5">Estado (opcional)</label>
-          <input v-model="pdf.estado" placeholder="ej. aprobado, pagada..." class="input" />
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-ink-700 mb-1.5">Desde</label>
-          <DateInput v-model="pdf.desde" />
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-ink-700 mb-1.5">Hasta</label>
-          <DateInput v-model="pdf.hasta" :min-date="pdf.desde || null" />
-        </div>
-      </div>
-
-      <div class="flex items-center justify-between border-t border-ink-100 pt-4">
-        <p class="text-xs text-ink-500">El PDF incluye folio, montos, fechas y estado de cada registro.</p>
-        <button class="btn-primary" :disabled="generandoPdf" @click="generarPdf">
-          <Icon name="download" size="w-4 h-4" /> {{ generandoPdf ? 'Generando...' : 'Descargar PDF' }}
-        </button>
-      </div>
-    </section>
   </div>
 </template>
 
@@ -213,21 +174,8 @@ async function cargar() {
 
 onMounted(cargar);
 
-const pdf = reactive({ modulo: 'viaticos', estado: '', desde: '', hasta: '' });
-const generandoPdf = ref(false);
 const descargandoPdf = ref(false);
 const descargandoCsv = ref(false);
-
-async function generarPdf() {
-  generandoPdf.value = true;
-  toast.info('Generando reporte', 'Preparando archivo PDF...');
-  try {
-    const qs = new URLSearchParams(Object.entries(pdf).filter(([, v]) => v)).toString();
-    await api.download(`/reportes?${qs}`, `reporte-${pdf.modulo}.pdf`);
-    toast.success('Reporte descargado', 'Tu archivo se descargó correctamente');
-  } catch (e) { toast.error('No se pudo generar el reporte', e.message); }
-  finally { generandoPdf.value = false; }
-}
 
 async function descargarDashboardPdf() {
   descargandoPdf.value = true;
@@ -245,11 +193,12 @@ async function descargarDashboardCsv() {
   try {
     const qs = new URLSearchParams(Object.entries(filtros).filter(([, v]) => v)).toString();
     if (tab.value === 'viaticos') {
-      await api.download(`/reportes/viaticos.csv${qs ? '?' + qs : ''}`, 'REPORTE VIATICOS.csv');
+      await api.download(`/reportes/viaticos.xlsx${qs ? '?' + qs : ''}`, `REPORTE VIATICOS ${filtros.desde} a ${filtros.hasta}.xlsx`);
+      toast.success('Excel descargado', 'Reporte exportado correctamente');
     } else {
-      await api.download(`/reportes/dashboard.csv${qs ? '?' + qs : ''}`, `dashboard-${filtros.desde}-${filtros.hasta}.csv`);
+      await api.download(`/reportes/facturas.xlsx${qs ? '?' + qs : ''}`, `REPORTE FACTURAS ${filtros.desde} a ${filtros.hasta}.xlsx`);
+      toast.success('Excel descargado', 'Reporte exportado correctamente');
     }
-    toast.success('CSV descargado', 'Reporte exportado correctamente');
   } catch (e) { toast.error('No se pudo generar', e.message); }
   finally { descargandoCsv.value = false; }
 }

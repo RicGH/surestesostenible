@@ -2,15 +2,15 @@ const { query } = require('../config/db');
 
 async function listarPorUsuario(userId) {
   return query(
-    'SELECT id, user_id, clabe_bancaria, banco, created_at FROM users_cuentas_bancarias WHERE user_id = ? ORDER BY created_at DESC',
+    'SELECT id, user_id, tipo, clabe_bancaria, banco, created_at FROM users_cuentas_bancarias WHERE user_id = ? ORDER BY created_at DESC',
     [userId]
   );
 }
 
-async function guardarSiNueva(userId, clabe, banco) {
+async function guardarSiNueva(userId, clabe, banco, tipo = 'cuenta') {
   await query(
-    'INSERT IGNORE INTO users_cuentas_bancarias (user_id, clabe_bancaria, banco) VALUES (?, ?, ?)',
-    [userId, clabe, banco || '']
+    'INSERT IGNORE INTO users_cuentas_bancarias (user_id, tipo, clabe_bancaria, banco) VALUES (?, ?, ?, ?)',
+    [userId, tipo, clabe, banco || '']
   );
 }
 

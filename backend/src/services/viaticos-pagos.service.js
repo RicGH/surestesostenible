@@ -5,6 +5,7 @@ async function listarPorPagar() {
     SELECT s.id, s.folio, s.destino, s.fecha_inicio, s.fecha_fin, s.monto_total,
            u.nombre AS colaborador_nombre, u.email AS colaborador_email,
            'solicitud' AS tipo, NULL AS ajuste_id, NULL AS ajuste_motivo,
+           s.tipo_cuenta,
            COALESCE(s.clabe_bancaria, u.clabe_bancaria) AS clabe_bancaria,
            COALESCE(s.banco, u.banco) AS banco
     FROM viaticos_solicitudes s
@@ -14,6 +15,7 @@ async function listarPorPagar() {
     SELECT s.id, s.folio, s.destino, s.fecha_inicio, s.fecha_fin, a.monto_total,
            u.nombre AS colaborador_nombre, u.email AS colaborador_email,
            'ajuste' AS tipo, a.id AS ajuste_id, a.motivo AS ajuste_motivo,
+           s.tipo_cuenta,
            COALESCE(s.clabe_bancaria, u.clabe_bancaria) AS clabe_bancaria,
            COALESCE(s.banco, u.banco) AS banco
     FROM viaticos_ajustes a

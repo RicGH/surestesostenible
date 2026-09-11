@@ -59,6 +59,7 @@ const TITLES = {
 const matched = computed(() => {
   if (TITLES[route.path]) return TITLES[route.path];
   if (route.path.startsWith('/viaticos/')) return { title: 'Detalle de los viáticos', subtitle: 'Información y gastos' };
+  if (route.path.startsWith('/admin/facturas/')) return { title: 'Editar factura', subtitle: 'Archivos, contabilidad y autorización' };
   return { title: 'App Sureste Sostenible', subtitle: '' };
 });
 const title = computed(() => matched.value.title);

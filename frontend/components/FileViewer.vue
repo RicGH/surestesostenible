@@ -64,7 +64,8 @@ const error = ref('');
 
 const esImagen = computed(() => mime.value.startsWith('image/'));
 const esPdf = computed(() => mime.value === 'application/pdf' || (props.path || '').toLowerCase().endsWith('.pdf'));
-const esXml = computed(() => mime.value.includes('xml') || (props.path || '').toLowerCase().endsWith('.xml'));
+// Solo XML real: los mime de Office (application/vnd.openxmlformats-...) también contienen "xml"
+const esXml = computed(() => /(^|\/|\+)xml$/i.test(mime.value) || (props.path || '').toLowerCase().endsWith('.xml'));
 
 function formatearXml(xml) {
   try {

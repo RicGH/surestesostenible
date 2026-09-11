@@ -2,6 +2,7 @@ const z = require('zod');
 const svc = require('../services/cuentasBancarias.service');
 
 const cuentaSchema = z.object({
+  tipo: z.enum(['cuenta', 'tarjeta']).optional().default('cuenta'),
   clabe_bancaria: z.string().min(1).max(18),
   banco: z.string().max(120).optional().default(''),
 });
@@ -12,8 +13,8 @@ async function listar(req, res) {
 }
 
 async function agregar(req, res) {
-  const { clabe_bancaria, banco } = cuentaSchema.parse(req.body);
-  await svc.guardarSiNueva(req.user.sub, clabe_bancaria, banco);
+  const { tipo, clabe_bancaria, banco } = cuentaSchema.parse(req.body);
+  await svc.guardarSiNueva(req.user.sub, clabe_bancaria, banco, tipo);
   res.json({ ok: true });
 }
 
@@ -31,8 +32,8 @@ async function listarDeUsuario(req, res) {
 }
 
 async function guardarParaUsuario(req, res) {
-  const { clabe_bancaria, banco } = cuentaSchema.parse(req.body);
-  await svc.guardarSiNueva(Number(req.params.id), clabe_bancaria, banco);
+  const { tipo, clabe_bancaria, banco } = cuentaSchema.parse(req.body);
+  await svc.guardarSiNueva(Number(req.params.id), clabe_bancaria, banco, tipo);
   res.json({ ok: true });
 }
 

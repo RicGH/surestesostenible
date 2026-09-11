@@ -59,14 +59,14 @@ async function crearSolicitud(colaboradorId, data, justificantes = []) {
   const result = await query(
     `INSERT INTO viaticos_solicitudes
      (folio, colaborador_id, destino, fecha_inicio, fecha_fin, motivo,
-      autoriza_nombre, recibe_nombre, clabe_bancaria, banco,
+      autoriza_nombre, recibe_nombre, tipo_cuenta, clabe_bancaria, banco,
       monto_vuelos, monto_hospedaje, monto_alimentos, monto_transporte, monto_otros,
       monto_total, proyecto, cuenta, partida, objetivo_estrategico, resultado, donante, justificante_path, estado)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendiente')`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendiente')`,
     [
       folio, colaboradorId, data.destino, data.fecha_inicio, data.fecha_fin, data.motivo,
       data.autoriza_nombre || null, data.recibe_nombre || null,
-      data.clabe_bancaria || null, data.banco || null,
+      data.tipo_cuenta || 'cuenta', data.clabe_bancaria || null, data.banco || null,
       data.monto_vuelos || 0, data.monto_hospedaje || 0, data.monto_alimentos || 0,
       data.monto_transporte || 0, data.monto_otros || 0,
       monto_total,
@@ -274,7 +274,7 @@ async function editarSolicitud(id, colaboradorId, data) {
   await query(
     `UPDATE viaticos_solicitudes
      SET destino = ?, fecha_inicio = ?, fecha_fin = ?, motivo = ?,
-         autoriza_nombre = ?, recibe_nombre = ?, clabe_bancaria = ?, banco = ?,
+         autoriza_nombre = ?, recibe_nombre = ?, tipo_cuenta = ?, clabe_bancaria = ?, banco = ?,
          monto_vuelos = ?, monto_hospedaje = ?, monto_alimentos = ?,
          monto_transporte = ?, monto_otros = ?, monto_total = ?,
          proyecto = ?, cuenta = ?, partida = ?, objetivo_estrategico = ?, resultado = ?, donante = ?,
@@ -284,7 +284,7 @@ async function editarSolicitud(id, colaboradorId, data) {
     [
       data.destino, data.fecha_inicio, data.fecha_fin, data.motivo,
       data.autoriza_nombre || null, data.recibe_nombre || null,
-      data.clabe_bancaria || null, data.banco || null,
+      data.tipo_cuenta || 'cuenta', data.clabe_bancaria || null, data.banco || null,
       data.monto_vuelos || 0, data.monto_hospedaje || 0, data.monto_alimentos || 0,
       data.monto_transporte || 0, data.monto_otros || 0, monto_total,
       data.proyecto || null, data.cuenta || null, data.partida || null,
@@ -299,7 +299,7 @@ async function editarSolicitudAdmin(id, data) {
   await query(
     `UPDATE viaticos_solicitudes
      SET destino = ?, fecha_inicio = ?, fecha_fin = ?, motivo = ?,
-         autoriza_nombre = ?, recibe_nombre = ?, clabe_bancaria = ?, banco = ?,
+         autoriza_nombre = ?, recibe_nombre = ?, tipo_cuenta = ?, clabe_bancaria = ?, banco = ?,
          monto_vuelos = ?, monto_hospedaje = ?, monto_alimentos = ?,
          monto_transporte = ?, monto_otros = ?, monto_total = ?,
          proyecto = ?, cuenta = ?, partida = ?, objetivo_estrategico = ?, resultado = ?, donante = ?
@@ -307,7 +307,7 @@ async function editarSolicitudAdmin(id, data) {
     [
       data.destino, data.fecha_inicio, data.fecha_fin, data.motivo,
       data.autoriza_nombre || null, data.recibe_nombre || null,
-      data.clabe_bancaria || null, data.banco || null,
+      data.tipo_cuenta || 'cuenta', data.clabe_bancaria || null, data.banco || null,
       data.monto_vuelos || 0, data.monto_hospedaje || 0, data.monto_alimentos || 0,
       data.monto_transporte || 0, data.monto_otros || 0, monto_total,
       data.proyecto || null, data.cuenta || null, data.partida || null,
@@ -446,6 +446,7 @@ async function duplicar(id, colaboradorId) {
     motivo: orig.motivo,
     autoriza_nombre: orig.autoriza_nombre,
     recibe_nombre: orig.recibe_nombre,
+    tipo_cuenta: orig.tipo_cuenta,
     clabe_bancaria: orig.clabe_bancaria,
     banco: orig.banco,
     monto_vuelos: orig.monto_vuelos,
