@@ -52,11 +52,32 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div v-for="c in CAMPOS" :key="c.key">
             <label class="block text-sm font-medium text-ink-700 mb-1.5">{{ c.label }}</label>
-            <select v-model="form[c.key]" class="input">
+
+            <!-- Concepto: "Otra opción" cambia el selector por captura libre que se agrega al catálogo al guardar -->
+            <div v-if="c.key === 'concepto' && conceptoOtro" class="flex gap-2">
+              <input
+                v-model="conceptoNuevo"
+                type="text"
+                maxlength="160"
+                placeholder="Escribe el concepto nuevo"
+                class="input flex-1"
+              />
+              <button type="button" class="btn-secondary shrink-0 text-sm" @click="cancelarConceptoOtro">
+                Cancelar
+              </button>
+            </div>
+
+            <select
+              v-else
+              v-model="form[c.key]"
+              class="input"
+              @change="c.key === 'concepto' && alCambiarConcepto()"
+            >
               <option value="">Selecciona una opción</option>
               <!-- Valor guardado que ya no está en el catálogo (p. ej. capturado a mano antes) -->
               <option v-if="form[c.key] && !catalogos[c.key].includes(form[c.key])" :value="form[c.key]">{{ form[c.key] }}</option>
               <option v-for="o in catalogos[c.key]" :key="o" :value="o">{{ o }}</option>
+              <option v-if="c.key === 'concepto'" :value="CONCEPTO_OTRO">Otra opción…</option>
             </select>
           </div>
         </div>
@@ -67,17 +88,29 @@
           <div class="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 grid place-items-center"><Icon name="shield" /></div>
           <div>
             <h3 class="font-semibold text-ink-900">Autorización</h3>
-            <p class="text-xs text-ink-500">Persona que autoriza el pago (aparece en el oficio de pago)</p>
+            <p class="text-xs text-ink-500">Personas que solicitan y autorizan el pago (aparecen en el oficio de pago)</p>
           </div>
         </div>
 
-        <div>
-          <label class="block text-sm font-medium text-ink-700 mb-1.5">Autorizado por</label>
-          <select v-model="form.autoriza_nombre" class="input">
-            <option value="">Selecciona quien autoriza</option>
-            <option v-if="form.autoriza_nombre && !autorizadores.some((a) => a.nombre === form.autoriza_nombre)" :value="form.autoriza_nombre">{{ form.autoriza_nombre }}</option>
-            <option v-for="a in autorizadores" :key="a.id" :value="a.nombre">{{ a.nombre }}</option>
-          </select>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-ink-700 mb-1.5">Autorizado por</label>
+            <select v-model="form.autoriza_nombre" class="input">
+              <option value="">Selecciona quien autoriza</option>
+              <option v-if="form.autoriza_nombre && !autorizadores.some((a) => a.nombre === form.autoriza_nombre)" :value="form.autoriza_nombre">{{ form.autoriza_nombre }}</option>
+              <option v-for="a in autorizadores" :key="a.id" :value="a.nombre">{{ a.nombre }}</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-ink-700 mb-1.5">Solicitado por</label>
+            <select v-model="form.solicita_nombre" class="input">
+              <option value="">Selecciona quien solicita</option>
+              <!-- Valor guardado que ya no está en la lista de usuarios (p. ej. usuario inactivo) -->
+              <option v-if="form.solicita_nombre && !usuarios.some((u) => u.nombre === form.solicita_nombre)" :value="form.solicita_nombre">{{ form.solicita_nombre }}</option>
+              <option v-for="u in usuarios" :key="u.id" :value="u.nombre">{{ u.nombre }}</option>
+            </select>
+          </div>
         </div>
       </section>
     </form>
@@ -165,8 +198,14 @@ const oficioModal = reactive({ abierto: false, estado: '', url: null, error: '' 
 const factura = ref(null);
 const visor = ref(null);
 const autorizadores = ref([]);
+// Todos los usuarios del sistema, sin importar el rol (selector "Solicitado por")
+const usuarios = ref([]);
 const catalogos = reactive(Object.fromEntries(CAMPOS.map((c) => [c.key, []])));
-const form = reactive({ ...Object.fromEntries(CAMPOS.map((c) => [c.key, ''])), autoriza_nombre: '' });
+// Concepto capturado a mano con "Otra opción": se agrega al catálogo al guardar
+const CONCEPTO_OTRO = '__otro__';
+const conceptoOtro = ref(false);
+const conceptoNuevo = ref('');
+const form = reactive({ ...Object.fromEntries(CAMPOS.map((c) => [c.key, ''])), autoriza_nombre: '', solicita_nombre: '' });
 
 onMounted(async () => {
   try {
@@ -174,6 +213,7 @@ onMounted(async () => {
     const [f] = await Promise.all([
       api.get(`/facturas/${id}`),
       api.get('/users/autorizadores').then((r) => { autorizadores.value = r.data || []; }).catch(() => {}),
+      api.get('/users/nombres').then((r) => { usuarios.value = r.data || []; }).catch(() => {}),
       ...CAMPOS.map((c) =>
         api.get(`/catalogos?tipo=${c.key}`).then((r) => { catalogos[c.key] = (r.data || []).map((x) => x.nombre); }).catch(() => {})
       ),
@@ -181,12 +221,43 @@ onMounted(async () => {
     factura.value = f;
     CAMPOS.forEach((c) => { form[c.key] = f[c.key] || ''; });
     form.autoriza_nombre = f.autoriza_nombre || '';
+    form.solicita_nombre = f.solicita_nombre || '';
   } catch (e) {
     errorCarga.value = e.message;
   } finally {
     cargando.value = false;
   }
 });
+
+function alCambiarConcepto() {
+  if (form.concepto !== CONCEPTO_OTRO) return;
+  form.concepto = '';
+  conceptoNuevo.value = '';
+  conceptoOtro.value = true;
+}
+
+function cancelarConceptoOtro() {
+  conceptoOtro.value = false;
+  conceptoNuevo.value = '';
+}
+
+// Da de alta el concepto capturado a mano y lo deja seleccionado en el formulario
+async function guardarConceptoNuevo() {
+  if (!conceptoOtro.value) return;
+  const nombre = conceptoNuevo.value.trim().slice(0, 160);
+  if (!nombre) { cancelarConceptoOtro(); return; }
+  try {
+    await api.post('/catalogos', { tipo: 'concepto', nombre });
+  } catch (e) {
+    // Si ya existe en el catálogo se reutiliza tal cual; cualquier otro error sí detiene el guardado
+    if (!/ya existe/i.test(e.message)) throw e;
+  }
+  if (!catalogos.concepto.includes(nombre)) {
+    catalogos.concepto = [...catalogos.concepto, nombre].sort((a, b) => a.localeCompare(b, 'es'));
+  }
+  form.concepto = nombre;
+  cancelarConceptoOtro();
+}
 
 function verArchivo(a) {
   visor.value = {
@@ -200,6 +271,7 @@ function verArchivo(a) {
 async function guardar() {
   guardando.value = true;
   try {
+    await guardarConceptoNuevo();
     await api.put(`/facturas/${factura.value.id}/contabilidad`, { ...form });
     toast.success('Factura actualizada', `${factura.value.folio} guardada correctamente.`);
   } catch (e) {
@@ -215,6 +287,7 @@ async function verOficio() {
   Object.assign(oficioModal, { abierto: true, estado: 'generando', url: null, error: '' });
   try {
     // El oficio se genera con lo guardado: guardar primero lo que esté en pantalla
+    await guardarConceptoNuevo();
     await api.put(`/facturas/${factura.value.id}/contabilidad`, { ...form });
     const { url } = await api.viewBlob(`/facturas/${factura.value.id}/oficio`);
     oficioModal.url = url;

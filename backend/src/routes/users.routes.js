@@ -6,6 +6,7 @@ const asyncHandler = require('../utils/asyncHandler');
 
 // Accesible para cualquier usuario autenticado
 router.get('/autorizadores', verifyToken, asyncHandler(ctrl.listarAutorizadores));
+router.get('/nombres', verifyToken, asyncHandler(ctrl.listarNombres));
 
 router.use(verifyToken, requireRole('admin'));
 

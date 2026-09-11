@@ -99,6 +99,10 @@ async function listarAutorizadores(req, res) {
   res.json({ data: await service.listarAutorizadores() });
 }
 
+async function listarNombres(req, res) {
+  res.json({ data: await service.listarNombres() });
+}
+
 async function resetPassword(req, res) {
   const id = Number(req.params.id);
   const { password } = passwordSchema.parse(req.body);
@@ -163,5 +167,5 @@ async function eliminarVarios(req, res) {
 
 module.exports = {
   listar, crear, actualizar, setActivo, setAprobador, resetPassword,
-  eliminar, eliminarVarios, restaurar, eliminarFisico, listarAutorizadores,
+  eliminar, eliminarVarios, restaurar, eliminarFisico, listarAutorizadores, listarNombres,
 };

@@ -11,11 +11,11 @@ async function crear(proveedorId, cfdi, pdfPath, xmlPath, contabilidad = {}) {
   const result = await query(
     `INSERT INTO facturas_proveedor
      (folio, proveedor_id, uuid_cfdi, rfc_emisor, nombre_emisor, monto, moneda, fecha_emision, pdf_path, xml_path,
-      proyecto, cuenta, partida, objetivo_estrategico, resultado, concepto, autoriza_nombre, estado)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'en_revision')`,
+      proyecto, cuenta, partida, objetivo_estrategico, resultado, concepto, autoriza_nombre, solicita_nombre, estado)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'en_revision')`,
     [folio, proveedorId, cfdi.uuid, cfdi.rfc_emisor, cfdi.nombre_emisor, cfdi.monto, cfdi.moneda, cfdi.fecha_emision, pdfPath, xmlPath,
      contabilidad.proyecto, contabilidad.cuenta, contabilidad.partida, contabilidad.objetivo_estrategico, contabilidad.resultado, contabilidad.concepto,
-     contabilidad.autoriza_nombre]
+     contabilidad.autoriza_nombre, contabilidad.solicita_nombre]
   );
   return { id: result.insertId, folio };
 }
@@ -68,10 +68,10 @@ async function getById(id, { incluirEliminadas = false } = {}) {
 async function actualizarContabilidad(id, datos) {
   const result = await query(
     `UPDATE facturas_proveedor
-     SET proyecto = ?, cuenta = ?, partida = ?, objetivo_estrategico = ?, resultado = ?, concepto = ?, autoriza_nombre = ?
+     SET proyecto = ?, cuenta = ?, partida = ?, objetivo_estrategico = ?, resultado = ?, concepto = ?, autoriza_nombre = ?, solicita_nombre = ?
      WHERE id = ? AND eliminado = 0`,
     [datos.proyecto, datos.cuenta, datos.partida, datos.objetivo_estrategico, datos.resultado, datos.concepto,
-     datos.autoriza_nombre, id]
+     datos.autoriza_nombre, datos.solicita_nombre, id]
   );
   return result.affectedRows > 0;
 }

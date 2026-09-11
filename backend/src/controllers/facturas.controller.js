@@ -42,6 +42,7 @@ async function subir(req, res) {
     resultado:            req.body.resultado            || null,
     concepto:             req.body.concepto             || null,
     autoriza_nombre:      String(req.body.autoriza_nombre || '').trim().slice(0, 160) || null,
+    solicita_nombre:      String(req.body.solicita_nombre || '').trim().slice(0, 160) || null,
   };
 
   const result = await facturas.crear(prov.id, cfdi, `facturas/${pdf.filename}`, `facturas/${xml.filename}`, contabilidad);
@@ -98,6 +99,7 @@ const contabilidadSchema = z.object({
   resultado: texto(160),
   concepto: texto(255),
   autoriza_nombre: texto(160),
+  solicita_nombre: texto(160),
 });
 
 async function actualizarContabilidad(req, res) {

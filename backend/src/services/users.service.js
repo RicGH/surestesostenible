@@ -95,6 +95,13 @@ async function listarAutorizadores() {
   );
 }
 
+// Todos los usuarios activos, sin importar el rol (para selectores de solicita/autoriza)
+async function listarNombres() {
+  return query(
+    `SELECT id, nombre FROM users WHERE activo = 1 AND eliminado = 0 ORDER BY nombre ASC`
+  );
+}
+
 async function actualizarPerfil(id, { nombre, rfc, clabe_bancaria, banco }) {
   await query(
     'UPDATE users SET nombre = ?, rfc = ?, clabe_bancaria = ?, banco = ? WHERE id = ?',
@@ -142,5 +149,5 @@ module.exports = {
   findByEmail, findById, findByIdConPassword, create, listar, setActivo, actualizarPassword,
   existeEmailEnOtro, actualizar, actualizarPerfil, setAvatar, tieneProveedor, eliminar, eliminarVarios,
   findEliminadoById, restaurar, eliminarFisico,
-  setAprobador, listarAutorizadores, setNagPerfilIgnorado,
+  setAprobador, listarAutorizadores, listarNombres, setNagPerfilIgnorado,
 };

@@ -26,7 +26,8 @@
     "migrate:viaticos-soft-delete": "node src/db/migrate-viaticos-soft-delete.js",
     "migrate:cuenta-tipo": "node src/db/migrate-cuenta-tipo.js",
     "migrate:catalogos-concepto": "node src/db/migrate-catalogos-concepto.js",
-    "migrate:factura-autoriza": "node src/db/migrate-factura-autoriza.js"
+    "migrate:factura-autoriza": "node src/db/migrate-factura-autoriza.js",
+    "migrate:factura-solicita": "node src/db/migrate-factura-solicita.js"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",
