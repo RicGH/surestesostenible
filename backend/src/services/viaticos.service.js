@@ -4,10 +4,17 @@ const { query, queryOne, withTx } = require('../config/db');
 // puede tener activos a la vez para registrar gastos. Los demás quedan en cola.
 const LIMITE_VIATICOS_ABIERTOS = 3;
 
-function generarFolio() {
-  const ts = Date.now().toString(36).toUpperCase();
-  const rnd = Math.random().toString(36).slice(2, 6).toUpperCase();
-  return `V-${ts}-${rnd}`;
+// Folio corto y correlativo en base36 (0-9, A-Z). El id auto_increment garantiza
+// unicidad; se pega con padStart(2) para que arranque en 2 caracteres y crezca
+// solo cuando ya no quepa (…0Z, 10, …, ZZ, 100, …).
+function folioDesdeId(id) {
+  return `V-${id.toString(36).toUpperCase().padStart(2, '0')}`;
+}
+
+// Folio temporal usado al insertar; se reemplaza con folioDesdeId(insertId)
+// inmediatamente después. Es único por si acaso.
+function folioTemporal() {
+  return `TMP-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
 }
 
 function sumarMontos(d) {
@@ -51,7 +58,7 @@ async function getAbiertosDeColaborador(colaboradorId) {
 }
 
 async function crearSolicitud(colaboradorId, data, justificantes = []) {
-  const folio = generarFolio();
+  const folio = folioTemporal();
   const monto_total = sumarMontos(data);
   // Se conserva justificante_path (primer archivo) por compatibilidad con registros
   // y rutas antiguas; el conjunto completo vive en viaticos_justificantes.
@@ -75,6 +82,8 @@ async function crearSolicitud(colaboradorId, data, justificantes = []) {
     ]
   );
   const solicitudId = result.insertId;
+  const folioFinal = folioDesdeId(solicitudId);
+  await query('UPDATE viaticos_solicitudes SET folio = ? WHERE id = ?', [folioFinal, solicitudId]);
   for (const j of justificantes) {
     await query(
       `INSERT INTO viaticos_justificantes (solicitud_id, archivo, nombre_original)
@@ -82,7 +91,7 @@ async function crearSolicitud(colaboradorId, data, justificantes = []) {
       [solicitudId, j.archivo, j.nombre_original || null]
     );
   }
-  return { id: solicitudId, folio };
+  return { id: solicitudId, folio: folioFinal };
 }
 
 async function agregarJustificantes(solicitudId, archivos) {
