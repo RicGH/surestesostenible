@@ -4,11 +4,10 @@ const { query, queryOne, withTx } = require('../config/db');
 // puede tener activos a la vez para registrar gastos. Los demás quedan en cola.
 const LIMITE_VIATICOS_ABIERTOS = 3;
 
-// Folio corto y correlativo en base36 (0-9, A-Z). El id auto_increment garantiza
-// unicidad; se pega con padStart(2) para que arranque en 2 caracteres y crezca
-// solo cuando ya no quepa (…0Z, 10, …, ZZ, 100, …).
+// Folio numérico secuencial: V-1, V-2, V-3, ... usando el id auto_increment
+// de viaticos_solicitudes, que garantiza unicidad sin condiciones de carrera.
 function folioDesdeId(id) {
-  return `V-${id.toString(36).toUpperCase().padStart(2, '0')}`;
+  return `V-${id}`;
 }
 
 // Folio temporal usado al insertar; se reemplaza con folioDesdeId(insertId)

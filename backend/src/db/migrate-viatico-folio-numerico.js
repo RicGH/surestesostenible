@@ -2,11 +2,11 @@ require('dotenv').config();
 const { pool, query } = require('../config/db');
 
 function folioDesdeId(id) {
-  return `V-${id.toString(36).toUpperCase().padStart(2, '0')}`;
+  return `V-${id}`;
 }
 
 (async () => {
-  console.log('Renumerando folios de viaticos_solicitudes a base36 (id -> folio)...\n');
+  console.log('Renumerando folios de viaticos_solicitudes a formato numerico (V-<id>)...\n');
 
   const rows = await query('SELECT id, folio FROM viaticos_solicitudes ORDER BY id');
   let cambiados = 0;
