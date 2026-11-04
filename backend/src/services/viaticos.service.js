@@ -1,7 +1,8 @@
 const { query, queryOne, withTx } = require('../config/db');
 
 // Máximo de viáticos "abiertos" (en uso: pagado/en_proceso) que un colaborador
-// puede tener activos a la vez para registrar gastos. Los demás quedan en cola.
+// puede tener a la vez. Al llegar al límite no puede crear más hasta cerrar alguno;
+// en todos sus viáticos abiertos puede seguir subiendo comprobantes.
 const LIMITE_VIATICOS_ABIERTOS = 3;
 
 // Folio numérico secuencial: V-1, V-2, V-3, ... usando el id auto_increment
@@ -194,24 +195,6 @@ async function listarTodosAdmin(filtros = {}) {
   );
 }
 
-// Un viático queda EN COLA si el colaborador ya tiene LIMITE viáticos abiertos
-// (pagado/en_proceso) creados antes que éste. Devuelve la info de bloqueo o null.
-async function getBloqueadoraDeUso(solicitudId, colaboradorId) {
-  const adelante = await query(
-    `SELECT id, folio, estado, created_at
-     FROM viaticos_solicitudes
-     WHERE colaborador_id = ?
-       AND id <> ?
-       AND eliminado = 0
-       AND estado IN ('pagado','en_proceso')
-       AND created_at < (SELECT created_at FROM viaticos_solicitudes WHERE id = ?)
-     ORDER BY created_at ASC`,
-    [colaboradorId, solicitudId, solicitudId]
-  );
-  if (adelante.length < LIMITE_VIATICOS_ABIERTOS) return null;
-  return { limite: LIMITE_VIATICOS_ABIERTOS, abiertos: adelante };
-}
-
 async function getById(id, colaboradorId = null, { incluirEliminados = false } = {}) {
   const cond = ['s.id = ?'];
   const params = [id];
@@ -228,7 +211,7 @@ async function getById(id, colaboradorId = null, { incluirEliminados = false } =
     params
   );
   if (!solicitud) return null;
-  const [gastos, pago, ajustes, bloqueadora, justificantes] = await Promise.all([
+  const [gastos, pago, ajustes, justificantes] = await Promise.all([
     query(
       'SELECT id, archivo, xml_path, monto, rfc_emisor, razon_social, nombre_emisor, fecha, concepto, created_at FROM viaticos_gastos WHERE solicitud_id = ? ORDER BY fecha DESC',
       [id]
@@ -243,7 +226,6 @@ async function getById(id, colaboradorId = null, { incluirEliminados = false } =
        FROM viaticos_ajustes WHERE solicitud_id = ? AND eliminado = 0 ORDER BY created_at DESC`,
       [id]
     ),
-    getBloqueadoraDeUso(id, solicitud.colaborador_id),
     query(
       `SELECT id, archivo, nombre_original, created_at
        FROM viaticos_justificantes WHERE solicitud_id = ? ORDER BY id ASC`,
@@ -255,7 +237,7 @@ async function getById(id, colaboradorId = null, { incluirEliminados = false } =
   if (!listaJustificantes.length && solicitud.justificante_path) {
     listaJustificantes = [{ id: null, archivo: solicitud.justificante_path, nombre_original: null, legacy: true }];
   }
-  return { ...solicitud, gastos, pago, ajustes, justificantes: listaJustificantes, bloqueada_por_uso: bloqueadora || null };
+  return { ...solicitud, gastos, pago, ajustes, justificantes: listaJustificantes };
 }
 
 async function aprobar(id, adminId) {
@@ -365,22 +347,6 @@ async function agregarGasto(solicitudId, colaboradorId, data, archivo, xmlPath =
       throw new Error('Solo puedes subir comprobantes a un viático ya pagado');
     }
 
-    const [adelanteRows] = await conn.execute(
-      `SELECT COUNT(*) AS adelante FROM viaticos_solicitudes
-       WHERE colaborador_id = ?
-         AND id <> ?
-         AND estado IN ('pagado','en_proceso')
-         AND created_at < ?`,
-      [sol.colaborador_id, solicitudId, sol.created_at]
-    );
-    if (Number(adelanteRows[0].adelante) >= LIMITE_VIATICOS_ABIERTOS) {
-      const e = new Error(
-        `No puedes registrar gastos en este viático aún: ya tienes ${LIMITE_VIATICOS_ABIERTOS} viáticos abiertos en uso. Cierra alguno para activar este.`
-      );
-      e.code = 'BLOQUEADO_POR_USO';
-      throw e;
-    }
-
     const disponible = Number(sol.monto_total) - Number(sol.monto_gastado);
     const monto = Number(data.monto);
     if (monto > disponible + 0.001) {
@@ -477,6 +443,6 @@ module.exports = {
   getById,
   aprobar, rechazar, editarSolicitud, editarSolicitudAdmin, cerrarViaje, agregarGasto, agregarJustificantes, duplicar,
   eliminarLogico, eliminarFisico, getArchivos,
-  getActivaDeColaborador, getAbiertosDeColaborador, getBloqueadoraDeUso,
+  getActivaDeColaborador, getAbiertosDeColaborador,
   LIMITE_VIATICOS_ABIERTOS,
 };

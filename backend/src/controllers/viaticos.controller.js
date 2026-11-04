@@ -45,6 +45,17 @@ async function crear(req, res) {
   const data = solicitudSchema.parse(req.body);
   const colaboradorId = await resolverColaboradorId(req, data);
   const { colaborador_id: _ignore, ...payload } = data;
+  if (req.user.rol === 'colaborador') {
+    const abiertos = await service.getAbiertosDeColaborador(colaboradorId);
+    const limite = service.LIMITE_VIATICOS_ABIERTOS;
+    if (abiertos.length >= limite) {
+      for (const f of req.files || []) fs.promises.unlink(f.path).catch(() => {});
+      throw new HttpError(
+        409,
+        `Ya tienes ${abiertos.length} viáticos abiertos (máximo ${limite}). Cierra alguno para poder crear uno nuevo.`
+      );
+    }
+  }
   const justificantes = (req.files || []).map((f) => ({
     archivo: `justificantes/${f.filename}`,
     nombre_original: f.originalname,
@@ -77,8 +88,8 @@ async function puedoCrear(req, res) {
     service.getAbiertosDeColaborador(colaboradorId),
   ]);
   res.json({
-    // Crear siempre se permite; al pasar de 3 en uso, los nuevos quedan en cola.
-    puede: true,
+    // Con el límite de viáticos abiertos alcanzado, el colaborador no puede crear más.
+    puede: req.user.rol !== 'colaborador' || abiertos.length < limite,
     activa: activa || null,
     abiertos,
     enUso: abiertos.length,
@@ -349,7 +360,6 @@ async function subirGasto(req, res) {
     res.status(201).json({ id: gastoId, archivo, xml_path: xmlPath });
   } catch (e) {
     if (e.code === 'SALDO_INSUFICIENTE') throw new HttpError(409, e.message);
-    if (e.code === 'BLOQUEADO_POR_USO') throw new HttpError(409, e.message);
     throw e;
   }
 }

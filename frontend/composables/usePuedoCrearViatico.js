@@ -31,7 +31,7 @@ export const usePuedoCrearViatico = () => {
     enumerable: true,
     get() {
       if (state.lleno) {
-        return `Ya tienes ${state.enUso} viáticos abiertos en uso (máximo ${state.limite}). Puedes crear otro, pero quedará en cola y no podrás registrar gastos en él hasta cerrar alguno de los abiertos.`;
+        return `Ya tienes ${state.enUso} viáticos abiertos en uso (máximo ${state.limite}). Puedes seguir subiendo comprobantes en ellos, pero para crear uno nuevo primero debes cerrar alguno.`;
       }
       if (state.enUso > 0) {
         return `Tienes ${state.enUso} de ${state.limite} viáticos abiertos en uso. Puedes crear y usar hasta ${state.limite} a la vez.`;

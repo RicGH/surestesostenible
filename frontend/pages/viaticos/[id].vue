@@ -19,7 +19,7 @@
       <Icon name="chevron-left" size="w-4 h-4" /> Volver a {{ breadcrumb.label }}
     </NuxtLink>
 
-    <div v-if="puedeSubir && !bloqueadaPorUso && disponible <= 0" class="rounded-lg bg-amber-50 border border-amber-200 p-4 text-sm text-amber-800 flex items-start gap-3">
+    <div v-if="puedeSubir && disponible <= 0" class="rounded-lg bg-amber-50 border border-amber-200 p-4 text-sm text-amber-800 flex items-start gap-3">
       <Icon name="alert" size="w-5 h-5" class="text-amber-600 mt-0.5 shrink-0" />
       <div class="flex-1">
         Sin saldo disponible.
@@ -334,23 +334,7 @@
           </div>
         </div>
 
-        <div v-if="bloqueadaPorUso" class="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800 mb-4 flex items-start gap-2">
-          <Icon name="alert" size="w-4 h-4" class="text-amber-600 mt-0.5 shrink-0" />
-          <div class="flex-1">
-            Este viático está en cola: ya tienes {{ bloqueadaPorUso.limite }} viáticos abiertos en uso.
-            Cierra alguno para registrar gastos aquí.
-            <span class="block mt-1">
-              <NuxtLink
-                v-for="v in bloqueadaPorUso.abiertos"
-                :key="v.id"
-                :to="`/viaticos/${v.id}`"
-                class="font-semibold underline mr-3"
-              >{{ v.folio }}</NuxtLink>
-            </span>
-          </div>
-        </div>
-
-        <div v-else-if="disponible <= 0" class="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800 mb-4 flex items-start gap-2">
+        <div v-if="disponible <= 0" class="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800 mb-4 flex items-start gap-2">
           <Icon name="alert" size="w-4 h-4" class="text-amber-600 mt-0.5 shrink-0" />
           <div class="flex-1">
             Sin saldo disponible.
@@ -359,7 +343,7 @@
           </div>
         </div>
 
-        <form id="subir-comprobante-form" class="space-y-4" :class="(disponible <= 0 || bloqueadaPorUso) ? 'opacity-50 pointer-events-none' : ''" @submit.prevent="subirGasto">
+        <form id="subir-comprobante-form" class="space-y-4" :class="disponible <= 0 ? 'opacity-50 pointer-events-none' : ''" @submit.prevent="subirGasto">
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label class="block text-xs font-medium text-ink-600 mb-1">Monto <span class="text-red-500">*</span></label>
@@ -406,7 +390,7 @@
       </div>
       <template #footer>
         <button class="btn-secondary" :disabled="subiendo" @click="cerrarSubir">Cancelar</button>
-        <button form="subir-comprobante-form" type="submit" class="btn-primary" :disabled="subiendo || (!archivoGasto && !xmlGasto) || disponible <= 0 || !!bloqueadaPorUso">
+        <button form="subir-comprobante-form" type="submit" class="btn-primary" :disabled="subiendo || (!archivoGasto && !xmlGasto) || disponible <= 0">
           <Icon name="upload" size="w-4 h-4" /> {{ subiendo ? `Subiendo... ${progreso}%` : 'Subir comprobante' }}
         </button>
       </template>
@@ -794,8 +778,7 @@ const categorias = [
 const esColaborador = computed(() => auth.rol === 'colaborador');
 const esAdmin = computed(() => auth.rol === 'admin');
 const estaActivo = computed(() => sol.value && ['pagado', 'en_proceso'].includes(sol.value.estado));
-const bloqueadaPorUso = computed(() => sol.value?.bloqueada_por_uso || null);
-const puedeCerrar = computed(() => sol.value && ['aprobado', 'pagado', 'en_proceso'].includes(sol.value.estado) && (esColaborador.value || esAdmin.value) && !bloqueadaPorUso.value);
+const puedeCerrar = computed(() => sol.value && ['aprobado', 'pagado', 'en_proceso'].includes(sol.value.estado) && (esColaborador.value || esAdmin.value));
 const puedeSubir = computed(() => estaActivo.value && (esColaborador.value || esAdmin.value));
 const puedeAprobar = computed(() => sol.value?.estado === 'pendiente' && esAdmin.value);
 const puedeAbonar = computed(() => sol.value?.estado === 'aprobado' && !sol.value?.pago && (auth.rol === 'finanzas' || esAdmin.value));
