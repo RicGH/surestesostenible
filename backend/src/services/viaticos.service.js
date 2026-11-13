@@ -240,6 +240,10 @@ async function getById(id, colaboradorId = null, { incluirEliminados = false } =
   return { ...solicitud, gastos, pago, ajustes, justificantes: listaJustificantes };
 }
 
+async function actualizarSharepoint(id, url) {
+  await query('UPDATE viaticos_solicitudes SET sharepoint_url = ? WHERE id = ?', [url, id]);
+}
+
 async function aprobar(id, adminId) {
   await query(
     `UPDATE viaticos_solicitudes
@@ -440,7 +444,7 @@ async function duplicar(id, colaboradorId) {
 module.exports = {
   crearSolicitud, listarPorColaborador, listarPendientesAdmin,
   listarActivosAdmin, listarCerradosAdmin, listarRechazadosAdmin, listarTodosAdmin,
-  getById,
+  getById, actualizarSharepoint,
   aprobar, rechazar, editarSolicitud, editarSolicitudAdmin, cerrarViaje, agregarGasto, agregarJustificantes, duplicar,
   eliminarLogico, eliminarFisico, getArchivos,
   getActivaDeColaborador, getAbiertosDeColaborador,

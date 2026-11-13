@@ -132,6 +132,23 @@ async function detalle(req, res) {
   res.json(sol);
 }
 
+const sharepointSchema = z.object({
+  sharepoint_url: z.string().trim().max(1000).refine(
+    (v) => v === '' || /^https?:\/\/\S+$/i.test(v),
+    'El enlace debe empezar con http:// o https://'
+  ),
+});
+
+async function guardarSharepoint(req, res) {
+  const id = Number(req.params.id);
+  const { sharepoint_url } = sharepointSchema.parse(req.body);
+  const restringir = req.user.rol === 'colaborador' ? req.user.sub : null;
+  const sol = await service.getById(id, restringir);
+  if (!sol) throw new HttpError(404, 'Solicitud no encontrada');
+  await service.actualizarSharepoint(id, sharepoint_url || null);
+  res.json({ ok: true, sharepoint_url: sharepoint_url || null });
+}
+
 async function aprobar(req, res) {
   const id = Number(req.params.id);
   await service.aprobar(id, req.user.sub);
@@ -406,7 +423,7 @@ async function eliminar(req, res) {
 
 module.exports = {
   crear, listarMios, listarPendientes, listarActivos, listarCerrados,
-  listarRechazados, listarTodos, detalle,
+  listarRechazados, listarTodos, detalle, guardarSharepoint,
   aprobar, rechazar, editar, duplicar, cerrar, eliminar, subirGasto, subirJustificantes, puedoCrear,
   listarPorPagar, listarPagosHistorial, pagarSolicitud, descargarComprobantePago,
   descargarGasto, descargarGastoXml, descargarJustificante, descargarJustificanteItem, descargarOficio,

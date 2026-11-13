@@ -132,6 +132,40 @@
       </div>
     </section>
 
+    <section class="card-pad">
+      <div class="flex items-center justify-between gap-4 flex-wrap">
+        <div class="flex items-center gap-3 min-w-0">
+          <div class="w-10 h-10 rounded-lg bg-sky-50 text-sky-600 grid place-items-center shrink-0"><Icon name="link" /></div>
+          <div class="min-w-0">
+            <p class="text-sm font-semibold text-ink-900">Carpeta de SharePoint</p>
+            <a
+              v-if="sol.sharepoint_url"
+              :href="sol.sharepoint_url"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-xs text-brand-600 hover:text-brand-700 hover:underline mt-0.5 block truncate max-w-[60vw]"
+            >{{ sol.sharepoint_url }}</a>
+            <p v-else class="text-xs text-ink-400 italic mt-0.5">Sin enlace registrado</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <a
+            v-if="sol.sharepoint_url"
+            :href="sol.sharepoint_url"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="btn-secondary text-sm"
+          >
+            <Icon name="link" size="w-4 h-4" /> Abrir
+          </a>
+          <button class="btn-secondary text-sm" @click="abrirSharepoint">
+            <Icon :name="sol.sharepoint_url ? 'edit' : 'plus'" size="w-4 h-4" />
+            {{ sol.sharepoint_url ? 'Editar' : 'Agregar enlace' }}
+          </button>
+        </div>
+      </div>
+    </section>
+
     <section class="grid grid-cols-2 lg:grid-cols-4 gap-4">
       <div class="card p-5">
         <div class="flex items-center justify-between">
@@ -476,6 +510,26 @@
       </template>
     </Modal>
 
+    <Modal v-if="sharepointModal.abierto" :title="`Carpeta de SharePoint · ${sol.folio}`" @close="sharepointModal.abierto = false">
+      <div class="space-y-3 text-sm">
+        <p class="text-ink-700">Pega el enlace de la carpeta de SharePoint de este viático. Déjalo vacío para quitarlo.</p>
+        <input
+          v-model="sharepointModal.url"
+          type="url"
+          class="input"
+          placeholder="https://...sharepoint.com/..."
+          @keyup.enter="guardarSharepoint"
+        />
+        <p v-if="sharepointModal.error" class="text-red-600">{{ sharepointModal.error }}</p>
+      </div>
+      <template #footer>
+        <button class="btn-secondary" :disabled="sharepointModal.guardando" @click="sharepointModal.abierto = false">Cancelar</button>
+        <button class="btn-primary" :disabled="sharepointModal.guardando" @click="guardarSharepoint">
+          {{ sharepointModal.guardando ? 'Guardando...' : 'Guardar' }}
+        </button>
+      </template>
+    </Modal>
+
     <Modal v-if="cerrarModal.abierto" :title="`Cerrar viáticos ${sol.folio}`" @close="cerrarModal.abierto = false">
       <div class="space-y-3 text-sm">
         <p class="text-ink-700">
@@ -639,6 +693,7 @@ const ajuste = reactive({
 const visor = reactive({ abierto: false, path: '', title: '', subtitle: '', downloadName: '' });
 
 const cerrarModal = reactive({ abierto: false, cerrando: false, error: '' });
+const sharepointModal = reactive({ abierto: false, url: '', guardando: false, error: '' });
 const subirModal = reactive({ abierto: false });
 const rechazoModal = reactive({ abierto: false, motivo: '', permiteEdicion: false, enviando: false, error: '' });
 const abonoModal = reactive({ abierto: false, metodo: '', referencia: '', comprobante: null, enviando: false, error: '' });
@@ -745,6 +800,31 @@ async function confirmarRechazo() {
     toast.error('No se pudo rechazar', e.message);
   } finally {
     rechazoModal.enviando = false;
+  }
+}
+
+function abrirSharepoint() {
+  sharepointModal.url = sol.value?.sharepoint_url || '';
+  sharepointModal.error = '';
+  sharepointModal.abierto = true;
+}
+
+async function guardarSharepoint() {
+  const url = sharepointModal.url.trim();
+  if (url && !/^https?:\/\/\S+$/i.test(url)) {
+    sharepointModal.error = 'El enlace debe empezar con http:// o https://';
+    return;
+  }
+  sharepointModal.guardando = true; sharepointModal.error = '';
+  try {
+    await api.put(`/viaticos/${route.params.id}/sharepoint`, { sharepoint_url: url });
+    sol.value.sharepoint_url = url || null;
+    toast.success(url ? 'Enlace guardado' : 'Enlace eliminado', sol.value.folio);
+    sharepointModal.abierto = false;
+  } catch (e) {
+    sharepointModal.error = e.message;
+  } finally {
+    sharepointModal.guardando = false;
   }
 }
 
