@@ -307,4 +307,54 @@ async function procesarFirma(token, firmas) {
   return { ok: true, completado: false };
 }
 
-module.exports = { enviarInterno, obtenerSesion, streamPdf, procesarFirma };
+/**
+ * Devuelve la URL de firma interna (/firma/<token>) de un firmante.
+ * Si el documento se envió antes por DocuSign, le prepara lo necesario para la
+ * firma interna: copia de trabajo del PDF y token del firmante.
+ */
+async function urlFirmaInterna(documentoId, firmanteId) {
+  const doc = await queryOne(`SELECT * FROM documentos WHERE id = ?`, [documentoId]);
+  if (!doc) throw new Error('Documento no encontrado');
+
+  const firmante = await queryOne(
+    `SELECT * FROM documento_firmantes WHERE id = ? AND documento_id = ?`,
+    [firmanteId, documentoId]
+  );
+  if (!firmante) throw new Error('Firmante no encontrado');
+  if (firmante.estado === 'firmado') throw new Error('Este firmante ya firmó');
+
+  const [prev] = await query(
+    `SELECT COUNT(*) AS cnt FROM documento_firmantes
+     WHERE documento_id = ? AND orden < ? AND estado != 'firmado'`,
+    [documentoId, firmante.orden]
+  );
+  if (prev && prev.cnt > 0) {
+    throw new Error('Aún no es el turno de este firmante (debe firmar primero el anterior en el orden).');
+  }
+
+  // Copia de trabajo del PDF para no sobrescribir el original al firmar
+  if (!doc.archivo_firmado_path) {
+    const absOrig = path.resolve(__dirname, '..', '..', doc.archivo_path);
+    if (!fs.existsSync(absOrig)) throw new Error('No se encontró el archivo PDF del documento');
+    const origName = path.basename(doc.archivo_path, path.extname(doc.archivo_path));
+    const firmadoName = `${origName}_interno_firmado.pdf`;
+    fs.copyFileSync(absOrig, path.join(path.dirname(absOrig), firmadoName));
+    const relFirmado = path.posix.join(path.dirname(doc.archivo_path), firmadoName);
+    await query(
+      `UPDATE documentos SET archivo_firmado_path = ?, modo_envio = 'interno' WHERE id = ?`,
+      [relFirmado, documentoId]
+    );
+  } else if (doc.modo_envio !== 'interno') {
+    await query(`UPDATE documentos SET modo_envio = 'interno' WHERE id = ?`, [documentoId]);
+  }
+
+  let token = firmante.firma_token;
+  if (!token) {
+    token = generarToken();
+    await query(`UPDATE documento_firmantes SET firma_token = ? WHERE id = ?`, [token, firmante.id]);
+  }
+
+  return `${BASE_URL}/firma/${token}`;
+}
+
+module.exports = { enviarInterno, obtenerSesion, streamPdf, procesarFirma, urlFirmaInterna };

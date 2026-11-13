@@ -215,7 +215,7 @@ const flujos = {
       { n: 2, rol: 'admin', icon: 'edit', titulo: 'Definir firmantes y campos',
         desc: 'Se asignan los firmantes y se colocan las zonas de firma, iniciales o datos sobre el documento.' },
       { n: 3, rol: 'admin', icon: 'send', titulo: 'Enviar a firma', estado: 'enviado',
-        desc: 'El documento se envía a los firmantes mediante DocuSign para su firma electrónica.' },
+        desc: 'El documento se envía a los firmantes para su firma electrónica dentro del sistema.' },
       { n: 4, rol: 'sistema', icon: 'check', titulo: 'Documento firmado', estado: 'firmado',
         desc: 'Cuando todos firman, el documento queda firmado y disponible para descarga.' },
     ],

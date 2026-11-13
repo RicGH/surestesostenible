@@ -86,8 +86,9 @@
                   variant="success"
                   @click="abrirFirma(d)"
                 />
+                <!-- DocuSign deshabilitado: se conserva oculto por si se vuelve a usar -->
                 <IconButton
-                  v-if="['enviado','parcial'].includes(d.estado)"
+                  v-if="false && ['enviado','parcial'].includes(d.estado)"
                   icon="refresh"
                   tooltip="Refrescar estado en DocuSign"
                   variant="warning"
@@ -134,7 +135,7 @@
       <div class="space-y-4">
         <p class="text-sm text-ink-600">
           Vas a cancelar el envío de <span class="font-medium text-ink-800">{{ cancelarModal.doc.nombre }}</span>.
-          El documento se anulará en DocuSign y los firmantes ya no podrán firmarlo.
+          El documento se anulará y los firmantes ya no podrán firmarlo.
         </p>
         <div>
           <label class="block text-sm font-medium text-ink-700 mb-1.5">Motivo de cancelación <span class="text-ink-400 font-normal">(opcional)</span></label>
@@ -178,7 +179,7 @@
 
     <Modal v-if="firma.doc" :title="`Firmar: ${firma.doc.nombre}`" size="lg" @close="firma.doc = null">
       <p class="text-sm text-ink-600 mb-4">
-        Firma electrónica dentro del sistema (ceremonia oficial de DocuSign, sin correo).
+        Firma electrónica dentro del sistema, sin necesidad de correo.
         Elige el firmante para abrir su pantalla de firma.
       </p>
       <div v-if="firma.cargando" class="py-8 text-center text-ink-400">Cargando firmantes…</div>

@@ -6,6 +6,7 @@ const { HttpError } = require('../middleware/error');
 const service = require('../services/documentos.service');
 const proveedoresService = require('../services/proveedores.service');
 const docusign = require('../services/docusign.service');
+const firmaInterna = require('../services/firma-interna.service');
 const pdfService = require('../services/pdf.service');
 const pdfEstampa = require('../services/pdf-estampa.service');
 const plantillasService = require('../services/plantillas.service');
@@ -363,35 +364,14 @@ async function urlFirma(req, res) {
   const firmanteId = Number(req.params.firmanteId);
   const doc = await service.findById(id);
   if (!doc) throw new HttpError(404, 'Documento no encontrado');
-  if (!doc.envelope_id) throw new HttpError(400, 'El documento aún no se ha enviado a firma');
   if (!['enviado', 'parcial'].includes(doc.estado)) {
     throw new HttpError(400, 'El documento no está en proceso de firma');
   }
-  const firmantes = await service.obtenerFirmantes(id);
-  const firmante = firmantes.find((f) => f.id === firmanteId);
-  if (!firmante) throw new HttpError(404, 'Firmante no encontrado');
-  if (firmante.estado === 'firmado') throw new HttpError(400, 'Este firmante ya firmó');
-  const base = process.env.APP_BASE_URL || 'http://localhost:3000';
-  const returnUrl = `${base}/admin/documentos?firma=ok`;
   try {
-    const url = await docusign.obtenerUrlFirma({
-      envelopeId: doc.envelope_id,
-      firmante,
-      returnUrl,
-    });
+    const url = await firmaInterna.urlFirmaInterna(id, firmanteId);
     res.json({ url });
   } catch (err) {
-    const body = (err.response && (err.response.data || err.response.body)) || {};
-    if (body.errorCode === 'UNKNOWN_ENVELOPE_RECIPIENT') {
-      throw new HttpError(
-        409,
-        'Este documento se envió antes de activar la firma en sitio, por lo que no admite firma embebida. Crea y envía un documento nuevo para usar "Firmar en sitio".'
-      );
-    }
-    if (body.errorCode === 'RECIPIENT_NOT_IN_SEQUENCE') {
-      throw new HttpError(409, 'Aún no es el turno de este firmante (debe firmar primero el anterior en el orden).');
-    }
-    throw err;
+    throw new HttpError(400, err.message);
   }
 }
 
@@ -425,7 +405,6 @@ async function firmarComoProveedor(req, res) {
   if (!prov || doc.proveedor_id !== prov.id) {
     throw new HttpError(403, 'Este contrato no está asignado a tu cuenta');
   }
-  if (!doc.envelope_id) throw new HttpError(400, 'El contrato aún no se ha enviado a firma');
   if (!['enviado', 'parcial'].includes(doc.estado)) {
     throw new HttpError(400, 'El contrato no está en proceso de firma');
   }
@@ -433,17 +412,11 @@ async function firmarComoProveedor(req, res) {
   const firmante = firmantes.find((f) => f.tipo === 'proveedor' && f.referencia_id === prov.id);
   if (!firmante) throw new HttpError(404, 'No estás registrado como firmante de este contrato');
   if (firmante.estado === 'firmado') throw new HttpError(400, 'Ya firmaste este contrato');
-  const base = process.env.APP_BASE_URL || 'http://localhost:3000';
-  const returnUrl = `${base}/proveedores/contratos?firma=ok`;
   try {
-    const url = await docusign.obtenerUrlFirma({ envelopeId: doc.envelope_id, firmante, returnUrl });
+    const url = await firmaInterna.urlFirmaInterna(id, firmante.id);
     res.json({ url });
   } catch (err) {
-    const body = (err.response && (err.response.data || err.response.body)) || {};
-    if (body.errorCode === 'RECIPIENT_NOT_IN_SEQUENCE') {
-      throw new HttpError(409, 'Aún no es tu turno de firmar (debe firmar primero quien va antes en el orden).');
-    }
-    throw err;
+    throw new HttpError(400, err.message);
   }
 }
 
@@ -458,7 +431,12 @@ async function cancelar(req, res) {
   if (['firmado', 'cancelado', 'declinado'].includes(doc.estado)) {
     throw new HttpError(400, 'No se puede cancelar un documento ya finalizado');
   }
-  await docusign.cancelarEnvelope(doc.envelope_id, req.body?.motivo);
+  // DocuSign ya no se usa: si su API falla, se cancela igual en el sistema
+  try {
+    await docusign.cancelarEnvelope(doc.envelope_id, req.body?.motivo);
+  } catch (err) {
+    console.warn(`[documentos] No se pudo anular el envelope ${doc.envelope_id} en DocuSign:`, err.message);
+  }
   await service.actualizarEstado(id, 'cancelado');
   res.json({ ok: true });
 }
