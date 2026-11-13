@@ -140,4 +140,14 @@ async function generarContrato({ plantilla, proveedor, valoresExtra, creadoPor }
   return { documentoId, nombre };
 }
 
-module.exports = { generarContrato };
+// PDF de la plantilla tal cual (con sus etiquetas «CAMPO» sin llenar), convertido
+// con el mismo motor que genera los contratos para que se vea igual que el resultado.
+async function vistaPreviaPlantilla(plantilla) {
+  const abs = path.resolve(__dirname, '..', '..', plantilla.archivo_path);
+  if (!fs.existsSync(abs)) throw new Error('No se encontró el archivo de la plantilla');
+  let buffer = fs.readFileSync(abs);
+  if (!esDocx(buffer)) buffer = await docADocx(buffer);
+  return docxAPdf(buffer);
+}
+
+module.exports = { generarContrato, vistaPreviaPlantilla };

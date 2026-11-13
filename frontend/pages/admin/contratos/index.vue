@@ -88,9 +88,14 @@
             <p class="font-semibold text-ink-900 truncate">{{ p.nombre }}</p>
             <p v-if="p.descripcion" class="text-xs text-ink-500 mt-0.5 line-clamp-2">{{ p.descripcion }}</p>
           </div>
-          <button class="text-ink-400 hover:text-red-600 shrink-0 p-1" title="Eliminar plantilla" @click="confirmarEliminar(p)">
-            <Icon name="trash" size="w-4 h-4" />
-          </button>
+          <div class="flex items-center shrink-0">
+            <button class="text-ink-400 hover:text-brand-600 p-1" title="Ver plantilla" @click="verPlantilla(p)">
+              <Icon name="eye" size="w-4 h-4" />
+            </button>
+            <button class="text-ink-400 hover:text-red-600 p-1" title="Eliminar plantilla" @click="confirmarEliminar(p)">
+              <Icon name="trash" size="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         <div class="flex-1">
@@ -174,6 +179,24 @@
       </template>
     </Modal>
 
+    <!-- Modal vista previa de la plantilla -->
+    <Modal v-if="vistaModal.abierto" :title="`Vista previa: ${vistaModal.nombre}`" size="full" @close="cerrarVista">
+      <div v-if="vistaModal.estado === 'generando'" class="py-16 text-center text-ink-500 text-sm">
+        Generando vista previa… puede tardar unos segundos.
+      </div>
+      <p v-else-if="vistaModal.estado === 'error'" class="py-10 text-center text-sm text-red-600">{{ vistaModal.error }}</p>
+      <template v-else>
+        <p class="text-xs text-ink-500 mb-2">
+          Así se verá el contrato al generarlo; las etiquetas «CAMPO» se reemplazan por los datos del proveedor.
+        </p>
+        <iframe :src="vistaModal.url" class="w-full h-[75vh] rounded-lg border border-ink-100" title="Vista previa de la plantilla"></iframe>
+      </template>
+      <template #footer>
+        <a v-if="vistaModal.url" :href="vistaModal.url" target="_blank" rel="noopener" class="btn-secondary">Abrir en pestaña nueva</a>
+        <button class="btn-primary" @click="cerrarVista">Cerrar</button>
+      </template>
+    </Modal>
+
     <!-- Modal confirmar eliminar -->
     <Modal v-if="eliminarModal.abierto" title="Eliminar plantilla" @close="eliminarModal.abierto = false">
       <p class="text-sm text-ink-700">
@@ -204,6 +227,25 @@ const subirModal = reactive({
   form: { nombre: '', descripcion: '', archivo: null },
 });
 const eliminarModal = reactive({ abierto: false, eliminando: false, plantilla: null });
+const vistaModal = reactive({ abierto: false, estado: 'generando', url: null, nombre: '', error: '' });
+
+async function verPlantilla(p) {
+  Object.assign(vistaModal, { abierto: true, estado: 'generando', url: null, nombre: p.nombre, error: '' });
+  try {
+    const { url } = await api.viewBlob(`/contratos/plantillas/${p.id}/vista-previa`);
+    if (!vistaModal.abierto) { URL.revokeObjectURL(url); return; }
+    vistaModal.url = url;
+    vistaModal.estado = 'listo';
+  } catch (e) {
+    vistaModal.estado = 'error';
+    vistaModal.error = `No se pudo generar la vista previa (${e.message}).`;
+  }
+}
+
+function cerrarVista() {
+  if (vistaModal.url) URL.revokeObjectURL(vistaModal.url);
+  Object.assign(vistaModal, { abierto: false, url: null });
+}
 const camposModal = reactive({ abierto: false, cargando: false, error: '', busqueda: '', lista: [] });
 
 const normalizar = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/_/g, ' ');

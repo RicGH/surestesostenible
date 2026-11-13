@@ -46,6 +46,15 @@ async function subirPlantilla(req, res) {
   res.status(201).json({ id, etiquetas });
 }
 
+async function vistaPreviaPlantilla(req, res) {
+  const p = await plantillasService.findById(Number(req.params.id));
+  if (!p) throw new HttpError(404, 'Plantilla no encontrada');
+  const pdf = await contratosService.vistaPreviaPlantilla(p);
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', 'inline; filename="plantilla.pdf"');
+  res.send(pdf);
+}
+
 async function eliminarPlantilla(req, res) {
   const p = await plantillasService.findById(Number(req.params.id));
   if (!p) throw new HttpError(404, 'Plantilla no encontrada');
@@ -78,4 +87,4 @@ async function generarContrato(req, res) {
   }
 }
 
-module.exports = { listarPlantillas, camposReconocidos, detallePlantilla, subirPlantilla, eliminarPlantilla, generarContrato };
+module.exports = { listarPlantillas, camposReconocidos, detallePlantilla, vistaPreviaPlantilla, subirPlantilla, eliminarPlantilla, generarContrato };

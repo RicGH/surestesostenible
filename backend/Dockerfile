@@ -9,7 +9,16 @@ RUN apk add --no-cache \
   ca-certificates \
   ttf-freefont \
   font-noto \
+  font-carlito \
+  font-liberation \
+  font-dejavu \
   libreoffice
+
+# Fuentes que usan las plantillas de Word y no vienen en Alpine (Lato, OFL).
+# Sin ellas LibreOffice las sustituye por otras mas anchas y el contrato se
+# descuadra (hojas casi en blanco, firmas partidas).
+COPY fonts/ /usr/share/fonts/custom/
+RUN fc-cache -f
 
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
