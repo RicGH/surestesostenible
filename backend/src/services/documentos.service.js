@@ -14,6 +14,8 @@ async function listar(filtros = {}) {
   const params = [];
   if (filtros.estado) { where.push('d.estado = ?'); params.push(filtros.estado); }
   if (filtros.tipo) { where.push('d.tipo = ?'); params.push(filtros.tipo); }
+  // Los oficios de comisión de viáticos se gestionan desde Viáticos, no desde Documentos
+  else where.push("d.tipo <> 'oficio'");
   if (filtros.q) {
     where.push('(d.nombre LIKE ? OR d.descripcion LIKE ?)');
     params.push(`%${filtros.q}%`, `%${filtros.q}%`);

@@ -4,6 +4,7 @@ const fs = require('fs');
 const { HttpError } = require('../middleware/error');
 const service = require('../services/viaticos.service');
 const oficioService = require('../services/viaticos-oficio.service');
+const oficioFirmaService = require('../services/viaticos-oficio-firma.service');
 const pagosService = require('../services/viaticos-pagos.service');
 const notifService = require('../services/notificaciones.service');
 const { UPLOAD_ROOT } = require('../config/upload');
@@ -230,6 +231,31 @@ async function descargarOficio(req, res) {
   res.send(pdf);
 }
 
+// --- Firma del oficio de comisión (Autoriza → Recibe) ---
+async function estadoFirmaOficio(req, res) {
+  res.json(await oficioFirmaService.estado(Number(req.params.id)));
+}
+
+async function enviarFirmaOficio(req, res) {
+  const body = z.object({
+    autoriza_email: z.string().max(200).optional(),
+    recibe_email: z.string().max(200).optional(),
+  }).parse(req.body || {});
+  res.json(await oficioFirmaService.enviar(Number(req.params.id), body, req.user.sub));
+}
+
+async function descargarOficioFirmado(req, res) {
+  const id = Number(req.params.id);
+  if (req.user.rol === 'colaborador') {
+    const sol = await service.getById(id, req.user.sub);
+    if (!sol) throw new HttpError(404, 'Solicitud no encontrada');
+  }
+  const { pdf, folio, firmado } = await oficioFirmaService.pdfFirmado(id);
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `inline; filename="oficio-${folio}${firmado ? '-firmado' : ''}.pdf"`);
+  res.send(pdf);
+}
+
 async function descargarJustificanteItem(req, res) {
   const id = Number(req.params.id);
   const jid = Number(req.params.jid);
@@ -427,4 +453,5 @@ module.exports = {
   aprobar, rechazar, editar, duplicar, cerrar, eliminar, subirGasto, subirJustificantes, puedoCrear,
   listarPorPagar, listarPagosHistorial, pagarSolicitud, descargarComprobantePago,
   descargarGasto, descargarGastoXml, descargarJustificante, descargarJustificanteItem, descargarOficio,
+  estadoFirmaOficio, enviarFirmaOficio, descargarOficioFirmado,
 };

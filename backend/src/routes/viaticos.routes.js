@@ -20,6 +20,9 @@ router.get('/pagos-historial', requireRole('admin', 'finanzas'), asyncHandler(ct
 router.post('/:id/pagar', requireRole('admin', 'finanzas'), uploadComprobantes.single('comprobante'), asyncHandler(ctrl.pagarSolicitud));
 router.get('/:id/comprobante-pago', requireRole('admin', 'finanzas', 'colaborador'), asyncHandler(ctrl.descargarComprobantePago));
 router.get('/:id/oficio', requireRole('admin', 'finanzas', 'colaborador'), asyncHandler(ctrl.descargarOficio));
+router.get('/:id/oficio/firma', requireRole('admin'), asyncHandler(ctrl.estadoFirmaOficio));
+router.post('/:id/oficio/firma', requireRole('admin'), asyncHandler(ctrl.enviarFirmaOficio));
+router.get('/:id/oficio/firmado', requireRole('admin', 'finanzas', 'colaborador'), asyncHandler(ctrl.descargarOficioFirmado));
 router.get('/:id/justificante', requireRole('admin', 'finanzas', 'colaborador'), asyncHandler(ctrl.descargarJustificante));
 router.get('/:id/justificantes/:jid', requireRole('admin', 'finanzas', 'colaborador'), asyncHandler(ctrl.descargarJustificanteItem));
 router.get('/:id/gastos/:gastoId/archivo', requireRole('admin', 'finanzas', 'colaborador'), asyncHandler(ctrl.descargarGasto));

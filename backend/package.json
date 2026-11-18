@@ -28,15 +28,16 @@
     "migrate:catalogos-concepto": "node src/db/migrate-catalogos-concepto.js",
     "migrate:factura-autoriza": "node src/db/migrate-factura-autoriza.js",
     "migrate:factura-solicita": "node src/db/migrate-factura-solicita.js",
-    "migrate:viatico-sharepoint": "node src/db/migrate-viatico-sharepoint.js"
+    "migrate:viatico-sharepoint": "node src/db/migrate-viatico-sharepoint.js",
+    "migrate:viatico-oficio-firma": "node src/db/migrate-viatico-oficio-firma.js"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",
     "cors": "^2.8.5",
     "docusign-esign": "^7.0.0",
     "docxtemplater": "^3.68.7",
-    "exceljs": "^4.4.0",
     "dotenv": "^16.4.5",
+    "exceljs": "^4.4.0",
     "express": "^4.21.0",
     "fast-xml-parser": "^4.5.0",
     "jsonwebtoken": "^9.0.2",
@@ -45,6 +46,7 @@
     "mysql2": "^3.11.3",
     "nodemailer": "^6.9.15",
     "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^4.10.38",
     "pdfkit": "^0.15.1",
     "pizzip": "^3.2.0",
     "puppeteer-core": "^23.5.0",

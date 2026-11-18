@@ -126,10 +126,20 @@ async function listarPorColaborador(colaboradorId, filtros = {}) {
   );
 }
 
+// Estado de firma del oficio de comisión (Autoriza -> Recibe) para los listados
+const FIRMA_OFICIO_COLS = `
+            s.oficio_documento_id,
+            (SELECT d.estado FROM documentos d WHERE d.id = s.oficio_documento_id) AS oficio_estado,
+            (SELECT COUNT(*) FROM documento_firmantes f WHERE f.documento_id = s.oficio_documento_id) AS oficio_total_firmantes,
+            (SELECT COUNT(*) FROM documento_firmantes f WHERE f.documento_id = s.oficio_documento_id AND f.estado = 'firmado') AS oficio_total_firmados,
+            (SELECT CASE f.orden WHEN 1 THEN 'Autoriza' ELSE 'Recibe' END FROM documento_firmantes f
+              WHERE f.documento_id = s.oficio_documento_id AND f.estado <> 'firmado'
+              ORDER BY f.orden ASC LIMIT 1) AS oficio_falta`;
+
 async function listarPendientesAdmin() {
   return query(
     `SELECT s.id, s.folio, s.destino, s.fecha_inicio, s.fecha_fin, s.motivo, s.monto_total, s.monto_gastado,
-            s.estado, s.created_at, u.nombre AS colaborador_nombre, u.email AS colaborador_email
+            s.estado, s.created_at, u.nombre AS colaborador_nombre,${FIRMA_OFICIO_COLS}, u.email AS colaborador_email
      FROM viaticos_solicitudes s
      JOIN users u ON u.id = s.colaborador_id
      WHERE s.eliminado = 0 AND s.estado = 'pendiente'
@@ -141,7 +151,7 @@ async function listarActivosAdmin() {
   return query(
     `SELECT s.id, s.folio, s.destino, s.fecha_inicio, s.fecha_fin,
             s.monto_total, s.monto_gastado, s.estado, s.aprobado_at,
-            u.nombre AS colaborador_nombre, u.email AS colaborador_email,
+            u.nombre AS colaborador_nombre,${FIRMA_OFICIO_COLS}, u.email AS colaborador_email,
             (SELECT COUNT(*) FROM viaticos_gastos WHERE solicitud_id = s.id) AS gastos_count
      FROM viaticos_solicitudes s
      JOIN users u ON u.id = s.colaborador_id
@@ -154,7 +164,7 @@ async function listarCerradosAdmin() {
   return query(
     `SELECT s.id, s.folio, s.destino, s.fecha_inicio, s.fecha_fin,
             s.monto_total, s.monto_gastado, s.estado,
-            u.nombre AS colaborador_nombre
+            u.nombre AS colaborador_nombre,${FIRMA_OFICIO_COLS}
      FROM viaticos_solicitudes s
      JOIN users u ON u.id = s.colaborador_id
      WHERE s.eliminado = 0 AND s.estado = 'cerrado'
@@ -166,7 +176,7 @@ async function listarRechazadosAdmin() {
   return query(
     `SELECT s.id, s.folio, s.destino, s.fecha_inicio, s.fecha_fin,
             s.monto_total, s.monto_gastado, s.estado, s.motivo_rechazo, s.permite_edicion, s.aprobado_at,
-            u.nombre AS colaborador_nombre, u.email AS colaborador_email
+            u.nombre AS colaborador_nombre,${FIRMA_OFICIO_COLS}, u.email AS colaborador_email
      FROM viaticos_solicitudes s
      JOIN users u ON u.id = s.colaborador_id
      WHERE s.eliminado = 0 AND s.estado = 'rechazado'
@@ -186,7 +196,7 @@ async function listarTodosAdmin(filtros = {}) {
   return query(
     `SELECT s.id, s.folio, s.destino, s.fecha_inicio, s.fecha_fin,
             s.monto_total, s.monto_gastado, s.estado, s.created_at,
-            u.nombre AS colaborador_nombre, u.email AS colaborador_email
+            u.nombre AS colaborador_nombre,${FIRMA_OFICIO_COLS}, u.email AS colaborador_email
      FROM viaticos_solicitudes s
      JOIN users u ON u.id = s.colaborador_id
      WHERE ${where.join(' AND ')}
