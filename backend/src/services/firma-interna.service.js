@@ -2,7 +2,7 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
-const { query, queryOne } = require('../config/db');
+const { query, queryOne, withTx } = require('../config/db');
 const mail = require('./mail.service');
 const pdfService = require('./pdf.service');
 const documentosService = require('./documentos.service');
@@ -99,7 +99,7 @@ async function prepararDocumentoCreado(doc) {
 
 async function enviarCorreoFirma(firmante, doc) {
   const url = `${BASE_URL}/firma/${firmante.firma_token}`;
-  await mail.enviar({
+  return mail.enviar({
     to: firmante.email,
     subject: `Documento pendiente de firma: ${doc.nombre}`,
     text: `Hola ${firmante.nombre},\n\nSe te ha solicitado firmar el documento: "${doc.nombre}".\n\nRevisa y firma aquí: ${url}\n\nEste enlace es personal e intransferible.`,
@@ -357,4 +357,104 @@ async function urlFirmaInterna(documentoId, firmanteId) {
   return `${BASE_URL}/firma/${token}`;
 }
 
-module.exports = { enviarInterno, obtenerSesion, streamPdf, procesarFirma, urlFirmaInterna };
+/**
+ * Agrega firmantes a un documento que ya se envió a firmar (o que ya quedó firmado
+ * porque se olvidó a alguien). Los firmantes existentes y sus firmas no se tocan:
+ * los nuevos van al final del orden y firman sobre el PDF que ya lleva las firmas.
+ *
+ * firmantes: [{ tmp_id, tipo, referencia_id, nombre, email }]
+ * tags:      [{ firmante_tmp_id, tipo, pagina, x, y, ancho, alto, requerido }]
+ */
+async function agregarFirmantes(documentoId, firmantes, tags) {
+  const doc = await queryOne(`SELECT * FROM documentos WHERE id = ?`, [documentoId]);
+  if (!doc) throw new Error('Documento no encontrado');
+  if (!['enviado', 'parcial', 'firmado'].includes(doc.estado)) {
+    throw new Error('Solo se pueden agregar firmantes a documentos enviados o firmados');
+  }
+  if (!doc.archivo_path) throw new Error('El documento no tiene PDF generado');
+
+  const existentes = await query(
+    `SELECT * FROM documento_firmantes WHERE documento_id = ? ORDER BY orden ASC, id ASC`,
+    [documentoId]
+  );
+  const correos = new Set(existentes.map((f) => String(f.email).toLowerCase()));
+  for (const f of firmantes) {
+    const email = String(f.email).toLowerCase();
+    if (correos.has(email)) throw new Error(`${f.email} ya es firmante de este documento`);
+    correos.add(email);
+    const tiene = tags.some((t) => String(t.firmante_tmp_id) === String(f.tmp_id));
+    if (!tiene) throw new Error(`Falta colocar al menos un tag para ${f.nombre}`);
+  }
+
+  // Copia de trabajo del PDF: los nuevos firmantes firman sobre el documento ya firmado
+  let relFirmado = doc.archivo_firmado_path;
+  if (!relFirmado) {
+    const absOrig = path.resolve(__dirname, '..', '..', doc.archivo_path);
+    if (!fs.existsSync(absOrig)) throw new Error('No se encontró el archivo PDF del documento');
+    const origName = path.basename(doc.archivo_path, path.extname(doc.archivo_path));
+    const firmadoName = `${origName}_interno_firmado.pdf`;
+    fs.copyFileSync(absOrig, path.join(path.dirname(absOrig), firmadoName));
+    relFirmado = path.posix.join(path.dirname(doc.archivo_path), firmadoName);
+  }
+
+  const maxOrden = existentes.reduce((m, f) => Math.max(m, Number(f.orden) || 0), 0);
+  const nuevos = await withTx(async (conn) => {
+    const creados = [];
+    const mapaIds = new Map();
+    for (let i = 0; i < firmantes.length; i++) {
+      const f = firmantes[i];
+      const token = generarToken();
+      const orden = maxOrden + i + 1;
+      const [res] = await conn.execute(
+        `INSERT INTO documento_firmantes
+           (documento_id, tipo, referencia_id, nombre, email, orden, color, estado, firma_token)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'pendiente', ?)`,
+        [
+          documentoId, f.tipo, f.referencia_id || null, f.nombre, f.email, orden,
+          documentosService.colorParaIndice(existentes.length + i), token,
+        ]
+      );
+      mapaIds.set(String(f.tmp_id), res.insertId);
+      creados.push({ id: res.insertId, nombre: f.nombre, email: f.email, orden, firma_token: token });
+    }
+    for (const t of tags) {
+      const firmanteId = mapaIds.get(String(t.firmante_tmp_id));
+      if (!firmanteId) continue;
+      await conn.execute(
+        `INSERT INTO documento_tags
+           (documento_id, firmante_id, tipo, pagina, x, y, ancho, alto, requerido)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          documentoId, firmanteId, t.tipo || 'firma', t.pagina || 1, t.x, t.y,
+          t.ancho || 140, t.alto || 40, t.requerido === false ? 0 : 1,
+        ]
+      );
+    }
+    const algunoFirmado = existentes.some((f) => f.estado === 'firmado');
+    await conn.execute(
+      `UPDATE documentos
+       SET estado = ?, completado_at = NULL, modo_envio = 'interno',
+           archivo_firmado_path = ?, enviado_at = COALESCE(enviado_at, NOW())
+       WHERE id = ?`,
+      [algunoFirmado ? 'parcial' : 'enviado', relFirmado, documentoId]
+    );
+    return creados;
+  });
+
+  // Si el primer pendiente del orden es uno de los nuevos, ya es su turno: avisarle.
+  // Si no, le llegará el aviso cuando firme quien va antes que él.
+  const pendienteExistente = existentes.some((f) => f.estado !== 'firmado');
+  let notificado = null;
+  if (!pendienteExistente && nuevos.length) {
+    try {
+      const r = await enviarCorreoFirma(nuevos[0], doc);
+      if (!r?.skipped) notificado = nuevos[0].email;
+    } catch (e) {
+      console.error('[firma-interna] correo:', e.message);
+    }
+  }
+
+  return { ok: true, agregados: nuevos.length, notificado };
+}
+
+module.exports = { enviarInterno, obtenerSesion, streamPdf, procesarFirma, urlFirmaInterna, agregarFirmantes };

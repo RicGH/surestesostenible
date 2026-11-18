@@ -18,7 +18,7 @@
       </div>
       <!-- Leyenda: firmante seleccionado para colocar su etiqueta -->
       <div
-        v-if="puedeEditar && firmanteActivo"
+        v-if="(puedeEditar || modoAgregar) && firmanteActivo"
         class="flex-1 min-w-[280px] max-w-3xl mx-auto flex items-center gap-3 px-4 py-2 text-sm rounded-lg border border-l-4 shadow-sm"
         :style="{ borderColor: firmanteActivo.color, background: colorConAlfa(firmanteActivo.color, '14') }"
       >
@@ -42,21 +42,37 @@
         <button v-if="false && puedeEditar" class="btn-primary" :disabled="!puedeEnviar || enviando" @click="abrirEnviar">
           <Icon name="send" size="w-4 h-4" /> {{ enviando ? 'Enviando...' : 'Enviar a DocuSign' }}
         </button>
-        <button v-if="['firmado'].includes(doc?.estado)" class="btn-primary" @click="descargarFirmado">
+        <button v-if="puedeAgregar && !modoAgregar" class="btn-secondary" @click="entrarModoAgregar">
+          <Icon name="users" size="w-4 h-4" /> Agregar firmantes
+        </button>
+        <template v-if="modoAgregar">
+          <button class="btn-secondary" :disabled="guardandoAgregados" @click="salirModoAgregar">Cancelar</button>
+          <button class="btn-primary" :disabled="!puedeGuardarAgregados || guardandoAgregados" @click="guardarAgregados">
+            <Icon name="send" size="w-4 h-4" /> {{ guardandoAgregados ? 'Guardando...' : 'Guardar y enviar a firma' }}
+          </button>
+        </template>
+        <button v-if="['firmado'].includes(doc?.estado) && !modoAgregar" class="btn-primary" @click="descargarFirmado">
           <Icon name="download" size="w-4 h-4" /> Descargar firmado
         </button>
       </div>
     </div>
 
-    <div v-if="cargando" class="card-pad text-center text-ink-500">Cargando documento...</div>
+    <div v-if="modoAgregar && !cargando" class="flex items-start gap-3 px-4 py-3 text-sm rounded-lg border border-amber-200 bg-amber-50 text-amber-900">
+      <Icon name="alert" size="w-4 h-4 shrink-0 mt-0.5" />
+      <p>
+        Estás agregando firmantes a un documento ya enviado. Los firmantes actuales y sus firmas no se modifican;
+        los nuevos firmarán después, en el orden en que los agregues. Agrega cada firmante, selecciónalo y coloca su etiqueta en el PDF.
+      </p>
+    </div>
 
+    <div v-if="cargando" class="card-pad text-center text-ink-500">Cargando documento...</div>
     <div v-else-if="doc" class="grid grid-cols-1 lg:grid-cols-[260px_1fr_280px] gap-4">
       <!-- SIDEBAR IZQUIERDO -->
       <div class="space-y-3">
         <div class="card-pad space-y-3">
           <div class="flex items-center justify-between">
             <h3 class="font-semibold text-ink-900 text-sm">Firmantes</h3>
-            <button v-if="puedeEditar" class="text-xs text-brand-600 hover:underline inline-flex items-center gap-1" @click="abrirAgregarFirmante">
+            <button v-if="puedeEditar || modoAgregar" class="text-xs text-brand-600 hover:underline inline-flex items-center gap-1" @click="abrirAgregarFirmante">
               <Icon name="plus" size="w-3 h-3" /> Agregar
             </button>
           </div>
@@ -83,7 +99,8 @@
                 >
                   <Icon name="check" size="w-3 h-3" />
                 </span>
-                <button v-if="puedeEditar" class="text-ink-400 hover:text-red-600 shrink-0" @click.stop="quitarFirmante(i)">
+                <EstadoBadge v-if="modoAgregar && f.id > 0" :estado="f.estado" class="shrink-0" />
+                <button v-if="firmanteEditable(f)" class="text-ink-400 hover:text-red-600 shrink-0" @click.stop="quitarFirmante(i)">
                   <Icon name="x" size="w-3 h-3" />
                 </button>
               </div>
@@ -94,14 +111,16 @@
               >
                 <Icon name="edit" size="w-3 h-3" /> Seleccionado · haz clic en el PDF para colocar la etiqueta
               </p>
-              <p v-else-if="puedeEditar" class="mt-1 text-[11px] text-ink-400">Clic para seleccionar</p>
+              <p v-else-if="firmanteEditable(f)" class="mt-1 text-[11px] text-ink-400">
+                {{ modoAgregar ? 'Nuevo · clic para seleccionar' : 'Clic para seleccionar' }}
+              </p>
             </div>
           </div>
         </div>
 
-        <div v-if="puedeEditar" class="card-pad space-y-2">
+        <div v-if="puedeEditar || modoAgregar" class="card-pad space-y-2">
           <h4 class="text-xs font-semibold text-ink-700 uppercase tracking-wide">Modo de inserción</h4>
-          <div class="grid grid-cols-2 gap-1">
+          <div v-if="!modoAgregar" class="grid grid-cols-2 gap-1">
             <button :class="['btn-secondary !py-1 text-xs', modoInsercion === 'tag' ? '!bg-ink-900 !text-white' : '']" @click="modoInsercion = 'tag'">Tag</button>
             <button :class="['btn-secondary !py-1 text-xs', modoInsercion === 'texto' ? '!bg-ink-900 !text-white' : '']" @click="modoInsercion = 'texto'">Texto</button>
             <!-- <button :class="['btn-secondary !py-1 text-xs', modoInsercion === 'campo' ? '!bg-ink-900 !text-white' : '']" @click="modoInsercion = 'campo'">Campo</button> -->
@@ -160,9 +179,9 @@
       <!-- VISOR PDF -->
       <div class="card overflow-hidden">
         <!-- TABS: solo cuando está firmado -->
-        <div v-if="doc.estado === 'firmado'" class="flex border-b border-ink-200 bg-white">
+        <div v-if="doc.estado === 'firmado' || (modoAgregar && doc.archivo_firmado_path)" class="flex border-b border-ink-200 bg-white">
           <button
-            v-for="tab in [{ id: 'firmado', label: 'Documento firmado', icon: 'check' }, { id: 'original', label: 'Plantilla original', icon: 'document' }]"
+            v-for="tab in [{ id: 'firmado', label: doc.estado === 'firmado' ? 'Documento firmado' : 'Con firmas actuales', icon: 'check' }, { id: 'original', label: 'Plantilla original', icon: 'document' }]"
             :key="tab.id"
             :class="['inline-flex items-center gap-1.5 px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors',
                      tabVisor === tab.id ? 'border-brand-600 text-brand-700 bg-white' : 'border-transparent text-ink-500 hover:text-ink-800']"
@@ -187,16 +206,15 @@
             />
             <!-- TAGS DOCUSIGN (ocultar en tab firmado) -->
             <div
-              v-if="tabVisor !== 'firmado'"
-              v-for="t in tagsEnPagina(p)"
+              v-for="t in tagsVisibles(p)"
               :key="`tag-${t._key}`"
               class="absolute group flex items-center justify-center text-xs font-medium select-none"
-              :class="[puedeEditar ? 'cursor-move' : '']"
+              :class="[tagEditable(t) ? 'cursor-move' : '']"
               :style="estiloTag(t)"
               @mousedown="(e) => iniciarArrastre(e, t, 'tag')"
             >
               <span class="text-white drop-shadow pointer-events-none">{{ tipoTagLabel(t.tipo) }}</span>
-              <button v-if="puedeEditar" class="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-white border border-ink-300 text-ink-600 hover:bg-red-50 hover:text-red-600 hover:border-red-300 grid place-items-center opacity-0 group-hover:opacity-100" @click.stop="eliminarTag(t)">
+              <button v-if="tagEditable(t)"class="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-white border border-ink-300 text-ink-600 hover:bg-red-50 hover:text-red-600 hover:border-red-300 grid place-items-center opacity-0 group-hover:opacity-100" @click.stop="eliminarTag(t)">
                 <Icon name="x" size="w-3 h-3" />
               </button>
             </div>
@@ -404,7 +422,21 @@ const modoInsercion = ref('tag');
 const COLORES = ['#2563eb', '#16a34a', '#dc2626', '#ea580c', '#9333ea', '#0891b2', '#ca8a04'];
 const puedeEditar = computed(() => doc.value?.estado === 'borrador');
 
+// Modo "agregar firmantes": documento ya enviado/firmado al que le faltó alguien.
+// Los firmantes existentes (id > 0) quedan bloqueados; solo se editan los nuevos (id < 0).
+const modoAgregar = ref(false);
+const guardandoAgregados = ref(false);
+const puedeAgregar = computed(() => ['enviado', 'parcial', 'firmado'].includes(doc.value?.estado));
+const firmantesNuevos = computed(() => firmantes.value.filter((f) => f.id < 0));
+const puedeGuardarAgregados = computed(() =>
+  firmantesNuevos.value.length > 0 &&
+  firmantesNuevos.value.every((f) => tags.value.some((t) => t.firmante_id === f.id))
+);
+function firmanteEditable(f) { return puedeEditar.value || (modoAgregar.value && f.id < 0); }
+function tagEditable(t) { return puedeEditar.value || (modoAgregar.value && t.firmante_id < 0); }
+
 const cursorPagina = computed(() => {
+  if (modoAgregar.value) return firmanteSeleccionado.value ? 'cursor-crosshair' : '';
   if (!puedeEditar.value) return '';
   if (modoInsercion.value === 'tag' && firmanteSeleccionado.value) return 'cursor-crosshair';
   if (modoInsercion.value === 'texto') return 'cursor-text';
@@ -460,7 +492,10 @@ async function cargar() {
   cargando.value = true;
   try {
     const d = await api.get(`/documentos/${docId.value}`);
-    if (d.tipo === 'creado') {
+    const quiereAgregar = route.query.agregar === '1' && ['enviado', 'parcial', 'firmado'].includes(d.estado);
+    // Los documentos del editor HTML ya tienen PDF una vez enviados: para agregar
+    // firmantes se usan aquí, colocando las etiquetas sobre ese PDF.
+    if (d.tipo === 'creado' && !quiereAgregar) {
       router.replace(`/admin/documentos/${docId.value}/editor-html`);
       return;
     }
@@ -488,9 +523,14 @@ async function cargar() {
     campos.value = d.campos || [];
     meta.asunto_correo = d.asunto_correo || '';
     meta.mensaje_correo = d.mensaje_correo || '';
+    modoAgregar.value = quiereAgregar;
+    firmanteSeleccionado.value = null;
+    if (quiereAgregar) modoInsercion.value = 'tag';
     await nextTick();
-    tabVisor.value = d.estado === 'firmado' ? 'firmado' : 'original';
-    await cargarPdf(d.estado === 'firmado');
+    // En modo agregar se muestra el PDF con las firmas que ya tiene
+    const verFirmado = d.estado === 'firmado' || (quiereAgregar && !!d.archivo_firmado_path);
+    tabVisor.value = verFirmado ? 'firmado' : 'original';
+    await cargarPdf(verFirmado);
   } catch (e) {
     toast.error('No se pudo cargar', e.message);
     router.push('/admin/documentos');
@@ -565,6 +605,15 @@ async function cambiarEscala(delta) {
 }
 
 function tagsEnPagina(p) { return tags.value.filter((t) => t.pagina === p); }
+// Sobre el PDF firmado no se dibujan las etiquetas de quien ya firmó (taparían su firma)
+function tagsVisibles(p) {
+  if (tabVisor.value !== 'firmado') return tagsEnPagina(p);
+  if (!modoAgregar.value) return [];
+  return tagsEnPagina(p).filter((t) => {
+    const f = firmantes.value.find((x) => x.id === t.firmante_id);
+    return f && f.estado !== 'firmado';
+  });
+}
 function anotacionesEnPagina(p) { return anotaciones.value.filter((a) => a.pagina === p); }
 
 function estiloTag(t) {
@@ -619,7 +668,7 @@ function estiloFirmanteActivo(f) {
 }
 
 function seleccionarFirmante(f) {
-  if (!puedeEditar.value) return;
+  if (!firmanteEditable(f)) return;
   const yaActivo = esFirmanteActivo(f);
   modoInsercion.value = 'tag';
   firmanteSeleccionado.value = yaActivo ? null : f.id;
@@ -636,7 +685,7 @@ function seleccionarCampo(c) {
 }
 
 function onClickPagina(e, pagina) {
-  if (!puedeEditar.value) return;
+  if (!puedeEditar.value && !(modoAgregar.value && modoInsercion.value === 'tag')) return;
   const rect = e.currentTarget.getBoundingClientRect();
   const cssX = e.clientX - rect.left;
   const cssY = e.clientY - rect.top;
@@ -683,7 +732,7 @@ function onClickPagina(e, pagina) {
 }
 
 function iniciarArrastre(e, item, tipoItem) {
-  if (!puedeEditar.value) return;
+  if (tipoItem === 'tag' ? !tagEditable(item) : !puedeEditar.value) return;
   if (e.target.isContentEditable) return;
   e.preventDefault();
   e.stopPropagation();
@@ -756,9 +805,10 @@ function agregarExterno() {
 }
 function quitarFirmante(idx) {
   const f = firmantes.value[idx];
+  if (!firmanteEditable(f)) return;
   tags.value = tags.value.filter((t) => t.firmante_id !== f.id);
   firmantes.value.splice(idx, 1);
-  firmantes.value.forEach((x, i) => { x.orden = i + 1; });
+  if (!modoAgregar.value) firmantes.value.forEach((x, i) => { x.orden = i + 1; });
   if (firmanteSeleccionado.value === f.id) firmanteSeleccionado.value = null;
 }
 
@@ -878,6 +928,56 @@ async function enviarInterno() {
     toast.error('No se pudo enviar', e.message);
   } finally {
     enviandoInterno.value = false;
+  }
+}
+
+function entrarModoAgregar() {
+  router.replace({ query: { ...route.query, agregar: '1' } });
+}
+
+function salirModoAgregar() {
+  const { agregar, ...resto } = route.query;
+  if (doc.value?.tipo === 'creado') {
+    router.replace(`/admin/documentos/${docId.value}/editor-html`);
+    return;
+  }
+  router.replace({ query: resto });
+}
+
+// Al entrar/salir del modo se recarga: así se descartan los firmantes nuevos sin guardar
+watch(() => route.query.agregar, () => { if (doc.value) cargar(); });
+
+async function guardarAgregados() {
+  if (!puedeGuardarAgregados.value) return;
+  guardandoAgregados.value = true;
+  try {
+    const nuevos = firmantesNuevos.value;
+    const ids = new Set(nuevos.map((f) => f.id));
+    const r = await api.post(`/documentos/${docId.value}/firmantes/agregar`, {
+      firmantes: nuevos.map((f) => ({
+        tmp_id: f.id,
+        tipo: f.tipo,
+        referencia_id: f.tipo === 'externo' ? null : f.referencia_id,
+        nombre: f.nombre,
+        email: f.email,
+      })),
+      tags: tags.value.filter((t) => ids.has(t.firmante_id)).map((t) => ({
+        firmante_tmp_id: t.firmante_id, tipo: t.tipo || 'firma', pagina: t.pagina,
+        x: Number(t.x), y: Number(t.y), ancho: Number(t.ancho || 140), alto: Number(t.alto || 40),
+        requerido: t.requerido !== false,
+      })),
+    });
+    toast.success(
+      `${r.agregados} firmante(s) agregado(s)`,
+      r.notificado
+        ? `Se envió el enlace de firma a ${r.notificado}`
+        : 'Pueden firmar desde "Firmar en sitio" en el listado de contratos'
+    );
+    salirModoAgregar();
+  } catch (e) {
+    toast.error('No se pudieron agregar', e.message);
+  } finally {
+    guardandoAgregados.value = false;
   }
 }
 

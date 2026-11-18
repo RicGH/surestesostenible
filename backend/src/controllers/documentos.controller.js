@@ -260,6 +260,24 @@ async function guardarFirmantes(req, res) {
   res.json({ ids, firmantes });
 }
 
+const agregarFirmantesSchema = z.object({
+  firmantes: z.array(firmanteSchema.extend({ tmp_id: z.union([z.number(), z.string()]) })).min(1).max(20),
+  tags: z.array(tagSchema.omit({ firmante_id: true }).extend({
+    firmante_tmp_id: z.union([z.number(), z.string()]),
+  })).min(1).max(200),
+});
+
+async function agregarFirmantes(req, res) {
+  const id = Number(req.params.id);
+  const data = agregarFirmantesSchema.parse(req.body);
+  try {
+    const r = await firmaInterna.agregarFirmantes(id, data.firmantes, data.tags);
+    res.json(r);
+  } catch (err) {
+    throw new HttpError(400, err.message);
+  }
+}
+
 async function guardarTags(req, res) {
   const id = Number(req.params.id);
   const doc = await service.findById(id);
@@ -522,6 +540,7 @@ module.exports = {
   descargarArchivo,
   guardarFirmantes,
   guardarTags,
+  agregarFirmantes,
   enviarADocusign,
   urlFirma,
   misContratos,

@@ -35,6 +35,13 @@
         </button>
       </div>
       <div class="flex gap-2">
+        <NuxtLink
+          v-if="['enviado','parcial','firmado'].includes(doc?.estado)"
+          :to="`/admin/documentos/${doc.id}/editor?agregar=1`"
+          class="btn-secondary"
+        >
+          <Icon name="users" size="w-4 h-4" /> Agregar firmantes
+        </NuxtLink>
         <button v-if="puedeEditar" class="btn-secondary" :disabled="guardando" @click="guardarBorrador">
           <Icon name="check" size="w-4 h-4" /> {{ guardando ? 'Guardando...' : 'Guardar borrador' }}
         </button>

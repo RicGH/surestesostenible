@@ -86,6 +86,13 @@
                   variant="success"
                   @click="abrirFirma(d)"
                 />
+                <IconButton
+                  v-if="['enviado','parcial','firmado'].includes(d.estado)"
+                  icon="users"
+                  tooltip="Agregar firmantes"
+                  variant="primary"
+                  @click="agregarFirmantes(d)"
+                />
                 <!-- DocuSign deshabilitado: se conserva oculto por si se vuelve a usar -->
                 <IconButton
                   v-if="false && ['enviado','parcial'].includes(d.estado)"
@@ -234,6 +241,10 @@ onMounted(cargar);
 function abrirEditor(d) {
   const ruta = d.tipo === 'creado' ? 'editor-html' : 'editor';
   router.push(`/admin/documentos/${d.id}/${ruta}`);
+}
+
+function agregarFirmantes(d) {
+  router.push(`/admin/documentos/${d.id}/editor?agregar=1`);
 }
 
 async function verFirmantes(d) {
