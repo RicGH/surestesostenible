@@ -14,9 +14,11 @@ function parseCfdi(xmlPath) {
   if (!comprobante) throw new Error('XML no es un CFDI válido');
 
   const emisor = comprobante.Emisor || comprobante['cfdi:Emisor'] || {};
-  const tfd = comprobante.Complemento?.TimbreFiscalDigital
-    || comprobante['cfdi:Complemento']?.['tfd:TimbreFiscalDigital']
-    || {};
+  // Complemento puede venir repetido (arreglo); el timbre está en alguno de ellos
+  const complementos = [].concat(comprobante.Complemento || comprobante['cfdi:Complemento'] || []);
+  const tfd = complementos
+    .map((c) => c?.TimbreFiscalDigital || c?.['tfd:TimbreFiscalDigital'])
+    .find(Boolean) || {};
 
   return {
     uuid: tfd['@_UUID'] || null,

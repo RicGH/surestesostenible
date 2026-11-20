@@ -29,7 +29,10 @@
     "migrate:factura-autoriza": "node src/db/migrate-factura-autoriza.js",
     "migrate:factura-solicita": "node src/db/migrate-factura-solicita.js",
     "migrate:viatico-sharepoint": "node src/db/migrate-viatico-sharepoint.js",
-    "migrate:viatico-oficio-firma": "node src/db/migrate-viatico-oficio-firma.js"
+    "migrate:viatico-oficio-firma": "node src/db/migrate-viatico-oficio-firma.js",
+    "migrate:gasto-nombre-original": "node src/db/migrate-gasto-nombre-original.js",
+    "migrate:gasto-categoria": "node src/db/migrate-gasto-categoria.js",
+    "migrate:viatico-informe": "node src/db/migrate-viatico-informe.js"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",

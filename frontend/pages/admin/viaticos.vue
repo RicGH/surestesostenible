@@ -46,7 +46,7 @@
     <section v-if="tab === 'pendientes'">
       <div class="card overflow-hidden">
         <table class="table">
-          <thead><tr><th>Folio</th><th>Colaborador</th><th>Destino</th><th>Fechas</th><th>Avance</th><th>Firmas</th><th class="!text-center">Acciones</th></tr></thead>
+          <thead><tr><th>Folio</th><th>Colaborador</th><th>Destino</th><th>Fechas</th><th>Avance</th><th>Firmas</th><th>Creado</th><th class="!text-center">Acciones</th></tr></thead>
           <tbody>
             <tr v-for="s in pendientesFiltrados" :key="s.id">
               <td class="font-mono text-xs">{{ s.folio }}</td>
@@ -55,18 +55,19 @@
               <td class="text-ink-600">{{ s.fecha_inicio }} → {{ s.fecha_fin }}</td>
               <td><AvanceCelda :total="s.monto_total" :gastado="s.monto_gastado" /></td>
               <td><FirmasOficioCelda :fila="s" @click="abrirFirmaOficio(s)" /></td>
+              <td class="text-ink-600 text-xs whitespace-nowrap">{{ fechaCreacion(s.created_at) }}</td>
               <td>
                 <div class="flex gap-1 justify-center">
                   <IconButton icon="eye" tooltip="Ver detalle" variant="primary" @click="$router.push(`/viaticos/${s.id}?from=admin`)" />
                   <IconButton icon="edit" tooltip="Editar solicitud" variant="warning" @click="$router.push(`/viaticos/nueva?editar=${s.id}&from=admin`)" />
-                  <IconButton icon="fileText" tooltip="Oficio de comisión: firmas" @click="abrirFirmaOficio(s)" />
+                  <IconButton icon="fileText" tooltip="Documentos de viáticos" @click="abrirFirmaOficio(s)" />
                   <IconButton icon="check" tooltip="Aprobar" variant="success" @click="aprobar(s.id)" />
                   <IconButton icon="x" tooltip="Rechazar" variant="danger" @click="abrirRechazo(s)" />
                   <IconButton v-if="esAdmin" icon="trash" tooltip="Eliminar viático" variant="danger" @click="abrirEliminar(s)" />
                 </div>
               </td>
             </tr>
-            <tr v-if="!pendientesFiltrados.length"><td colspan="7" class="py-12 text-center text-ink-400">{{ pendientes.length ? 'Sin coincidencias con los filtros' : 'Sin solicitudes pendientes' }}</td></tr>
+            <tr v-if="!pendientesFiltrados.length"><td colspan="8" class="py-12 text-center text-ink-400">{{ pendientes.length ? 'Sin coincidencias con los filtros' : 'Sin solicitudes pendientes' }}</td></tr>
           </tbody>
         </table>
       </div>
@@ -75,24 +76,25 @@
     <section v-if="tab === 'ajustes'">
       <div class="card overflow-hidden">
         <table class="table">
-          <thead><tr><th>Folio viaje</th><th>Colaborador</th><th>Motivo</th><th>Monto</th><th class="!text-center">Acciones</th></tr></thead>
+          <thead><tr><th>Folio viaje</th><th>Colaborador</th><th>Motivo</th><th>Monto</th><th>Viático creado</th><th class="!text-center">Acciones</th></tr></thead>
           <tbody>
             <tr v-for="a in ajustesFiltrados" :key="a.id">
               <td class="font-mono text-xs">{{ a.solicitud_folio }}</td>
               <td class="font-medium text-ink-800">{{ a.colaborador_nombre }}</td>
               <td>{{ a.motivo }}</td>
               <td class="font-medium">+${{ Number(a.monto_total).toFixed(2) }}</td>
+              <td class="text-ink-600 text-xs whitespace-nowrap">{{ fechaCreacion(a.solicitud_created_at) }}</td>
               <td>
                 <div class="flex gap-1 justify-center">
                   <IconButton icon="eye" tooltip="Ver viaje" variant="primary" @click="$router.push(`/viaticos/${a.solicitud_id}?from=admin`)" />
-                  <IconButton icon="fileText" tooltip="Oficio de comisión: firmas" @click="abrirFirmaOficio({id: a.solicitud_id, folio: a.solicitud_folio})" />
+                  <IconButton icon="fileText" tooltip="Documentos de viáticos" @click="abrirFirmaOficio({id: a.solicitud_id, folio: a.solicitud_folio})" />
                   <IconButton icon="check" tooltip="Aprobar ajuste" variant="success" @click="aprobarAjuste(a.id)" />
                   <IconButton icon="x" tooltip="Rechazar ajuste" variant="danger" @click="abrirRechazoAjuste(a)" />
                   <IconButton v-if="esAdmin" icon="trash" tooltip="Eliminar ajuste" variant="danger" @click="abrirEliminarAjuste(a)" />
                 </div>
               </td>
             </tr>
-            <tr v-if="!ajustesFiltrados.length"><td colspan="5" class="py-12 text-center text-ink-400">{{ ajustes.length ? 'Sin coincidencias con los filtros' : 'Sin ajustes pendientes' }}</td></tr>
+            <tr v-if="!ajustesFiltrados.length"><td colspan="6" class="py-12 text-center text-ink-400">{{ ajustes.length ? 'Sin coincidencias con los filtros' : 'Sin ajustes pendientes' }}</td></tr>
           </tbody>
         </table>
       </div>
@@ -101,7 +103,7 @@
     <section v-if="tab === 'activos'">
       <div class="card overflow-hidden">
         <table class="table">
-          <thead><tr><th>Folio</th><th>Colaborador</th><th>Destino</th><th>Avance</th><th>Comprobantes</th><th>Estado</th><th>Firmas</th><th class="!text-center">Acciones</th></tr></thead>
+          <thead><tr><th>Folio</th><th>Colaborador</th><th>Destino</th><th>Avance</th><th>Comprobantes</th><th>Estado</th><th>Firmas</th><th>Creado</th><th class="!text-center">Acciones</th></tr></thead>
           <tbody>
             <tr v-for="s in activosFiltrados" :key="s.id">
               <td class="font-mono text-xs">{{ s.folio }}</td>
@@ -111,17 +113,18 @@
               <td><span class="badge-blue">{{ s.gastos_count }}</span></td>
               <td><EstadoBadge :estado="s.estado" /></td>
               <td><FirmasOficioCelda :fila="s" @click="abrirFirmaOficio(s)" /></td>
+              <td class="text-ink-600 text-xs whitespace-nowrap">{{ fechaCreacion(s.created_at) }}</td>
               <td>
                 <div class="flex gap-1 justify-center">
                   <IconButton icon="eye" tooltip="Ver comprobantes" variant="primary" @click="$router.push(`/viaticos/${s.id}?from=admin`)" />
                   <IconButton icon="edit" tooltip="Editar solicitud" variant="warning" @click="$router.push(`/viaticos/nueva?editar=${s.id}&from=admin`)" />
-                  <IconButton icon="fileText" tooltip="Oficio de comisión: firmas" @click="abrirFirmaOficio(s)" />
+                  <IconButton icon="fileText" tooltip="Documentos de viáticos" @click="abrirFirmaOficio(s)" />
                   <IconButton icon="check" tooltip="Cerrar viáticos" variant="success" @click="abrirCerrar(s)" />
                   <IconButton v-if="esAdmin" icon="trash" tooltip="Eliminar viático" variant="danger" @click="abrirEliminar(s)" />
                 </div>
               </td>
             </tr>
-            <tr v-if="!activosFiltrados.length"><td colspan="8" class="py-12 text-center text-ink-400">{{ activos.length ? 'Sin coincidencias con los filtros' : 'Sin viáticos activos' }}</td></tr>
+            <tr v-if="!activosFiltrados.length"><td colspan="9" class="py-12 text-center text-ink-400">{{ activos.length ? 'Sin coincidencias con los filtros' : 'Sin viáticos activos' }}</td></tr>
           </tbody>
         </table>
       </div>
@@ -130,7 +133,7 @@
     <section v-if="tab === 'rechazados'">
       <div class="card overflow-hidden">
         <table class="table">
-          <thead><tr><th>Folio</th><th>Colaborador</th><th>Destino</th><th>Avance</th><th>Motivo</th><th>Edición</th><th>Firmas</th><th class="!text-center">Acciones</th></tr></thead>
+          <thead><tr><th>Folio</th><th>Colaborador</th><th>Destino</th><th>Avance</th><th>Motivo</th><th>Edición</th><th>Firmas</th><th>Creado</th><th class="!text-center">Acciones</th></tr></thead>
           <tbody>
             <tr v-for="s in rechazadosFiltrados" :key="s.id">
               <td class="font-mono text-xs">{{ s.folio }}</td>
@@ -143,16 +146,17 @@
                 <span v-else class="badge-gray">Bloqueada</span>
               </td>
               <td><FirmasOficioCelda :fila="s" @click="abrirFirmaOficio(s)" /></td>
+              <td class="text-ink-600 text-xs whitespace-nowrap">{{ fechaCreacion(s.created_at) }}</td>
               <td>
                 <div class="flex gap-1 justify-center">
                   <IconButton icon="eye" tooltip="Ver detalle" variant="primary" @click="$router.push(`/viaticos/${s.id}?from=admin`)" />
                   <IconButton icon="edit" tooltip="Editar solicitud" variant="warning" @click="$router.push(`/viaticos/nueva?editar=${s.id}&from=admin`)" />
-                  <IconButton icon="fileText" tooltip="Oficio de comisión: firmas" @click="abrirFirmaOficio(s)" />
+                  <IconButton icon="fileText" tooltip="Documentos de viáticos" @click="abrirFirmaOficio(s)" />
                   <IconButton v-if="esAdmin" icon="trash" tooltip="Eliminar viático" variant="danger" @click="abrirEliminar(s)" />
                 </div>
               </td>
             </tr>
-            <tr v-if="!rechazadosFiltrados.length"><td colspan="8" class="py-12 text-center text-ink-400">{{ rechazados.length ? 'Sin coincidencias con los filtros' : 'Sin viajes rechazados' }}</td></tr>
+            <tr v-if="!rechazadosFiltrados.length"><td colspan="9" class="py-12 text-center text-ink-400">{{ rechazados.length ? 'Sin coincidencias con los filtros' : 'Sin viajes rechazados' }}</td></tr>
           </tbody>
         </table>
       </div>
@@ -161,7 +165,7 @@
     <section v-if="tab === 'cerrados'">
       <div class="card overflow-hidden">
         <table class="table">
-          <thead><tr><th>Folio</th><th>Colaborador</th><th>Destino</th><th>Avance</th><th>Firmas</th><th class="!text-center">Acciones</th></tr></thead>
+          <thead><tr><th>Folio</th><th>Colaborador</th><th>Destino</th><th>Avance</th><th>Firmas</th><th>Creado</th><th class="!text-center">Acciones</th></tr></thead>
           <tbody>
             <tr v-for="s in cerradosFiltrados" :key="s.id">
               <td class="font-mono text-xs">{{ s.folio }}</td>
@@ -169,16 +173,17 @@
               <td>{{ s.destino }}</td>
               <td><AvanceCelda :total="s.monto_total" :gastado="s.monto_gastado" /></td>
               <td><FirmasOficioCelda :fila="s" @click="abrirFirmaOficio(s)" /></td>
+              <td class="text-ink-600 text-xs whitespace-nowrap">{{ fechaCreacion(s.created_at) }}</td>
               <td>
                 <div class="flex gap-1 justify-center">
                   <IconButton icon="eye" tooltip="Ver detalle" variant="primary" @click="$router.push(`/viaticos/${s.id}?from=admin`)" />
                   <IconButton icon="edit" tooltip="Editar solicitud" variant="warning" @click="$router.push(`/viaticos/nueva?editar=${s.id}&from=admin`)" />
-                  <IconButton icon="fileText" tooltip="Oficio de comisión: firmas" @click="abrirFirmaOficio(s)" />
+                  <IconButton icon="fileText" tooltip="Documentos de viáticos" @click="abrirFirmaOficio(s)" />
                   <IconButton v-if="esAdmin" icon="trash" tooltip="Eliminar viático" variant="danger" @click="abrirEliminar(s)" />
                 </div>
               </td>
             </tr>
-            <tr v-if="!cerradosFiltrados.length"><td colspan="6" class="py-12 text-center text-ink-400">{{ cerrados.length ? 'Sin coincidencias con los filtros' : 'Sin viajes cerrados' }}</td></tr>
+            <tr v-if="!cerradosFiltrados.length"><td colspan="7" class="py-12 text-center text-ink-400">{{ cerrados.length ? 'Sin coincidencias con los filtros' : 'Sin viajes cerrados' }}</td></tr>
           </tbody>
         </table>
       </div>
@@ -187,7 +192,7 @@
     <section v-if="tab === 'todos'">
       <div class="card overflow-hidden">
         <table class="table">
-          <thead><tr><th>Folio</th><th>Colaborador</th><th>Destino</th><th>Fechas</th><th>Avance</th><th>Estado</th><th>Firmas</th><th class="!text-center">Acciones</th></tr></thead>
+          <thead><tr><th>Folio</th><th>Colaborador</th><th>Destino</th><th>Fechas</th><th>Avance</th><th>Estado</th><th>Firmas</th><th>Creado</th><th class="!text-center">Acciones</th></tr></thead>
           <tbody>
             <tr v-for="s in todosFiltrados" :key="s.id">
               <td class="font-mono text-xs">{{ s.folio }}</td>
@@ -197,16 +202,17 @@
               <td><AvanceCelda :total="s.monto_total" :gastado="s.monto_gastado" /></td>
               <td><EstadoBadge :estado="s.estado" /></td>
               <td><FirmasOficioCelda :fila="s" @click="abrirFirmaOficio(s)" /></td>
+              <td class="text-ink-600 text-xs whitespace-nowrap">{{ fechaCreacion(s.created_at) }}</td>
               <td>
                 <div class="flex gap-1 justify-center">
                   <IconButton icon="eye" tooltip="Ver detalle" variant="primary" @click="$router.push(`/viaticos/${s.id}?from=admin`)" />
                   <IconButton icon="edit" tooltip="Editar solicitud" variant="warning" @click="$router.push(`/viaticos/nueva?editar=${s.id}&from=admin`)" />
-                  <IconButton icon="fileText" tooltip="Oficio de comisión: firmas" @click="abrirFirmaOficio(s)" />
+                  <IconButton icon="fileText" tooltip="Documentos de viáticos" @click="abrirFirmaOficio(s)" />
                   <IconButton v-if="esAdmin" icon="trash" tooltip="Eliminar viático" variant="danger" @click="abrirEliminar(s)" />
                 </div>
               </td>
             </tr>
-            <tr v-if="!todosFiltrados.length"><td colspan="8" class="py-12 text-center text-ink-400">{{ todos.length ? 'Sin coincidencias con los filtros' : 'Sin resultados' }}</td></tr>
+            <tr v-if="!todosFiltrados.length"><td colspan="9" class="py-12 text-center text-ink-400">{{ todos.length ? 'Sin coincidencias con los filtros' : 'Sin resultados' }}</td></tr>
           </tbody>
         </table>
       </div>
@@ -313,31 +319,19 @@
       </template>
     </Modal>
 
-    <Modal v-if="cerrarModal.abierto" :title="`Cerrar viáticos ${cerrarModal.folio}`" @close="cerrarModal.abierto = false">
-      <div class="space-y-3 text-sm">
-        <p class="text-ink-700">¿Confirmas el cierre? Una vez cerrado no se podrán agregar más comprobantes.</p>
-        <div class="rounded-lg bg-ink-50 border border-ink-200 p-3 text-xs space-y-1">
-          <p><span class="text-ink-500">Total:</span> <strong>${{ Number(cerrarModal.total).toFixed(2) }}</strong></p>
-          <p><span class="text-ink-500">Gastado:</span> <strong>${{ Number(cerrarModal.gastado).toFixed(2) }}</strong></p>
-          <p><span class="text-ink-500">Diferencia:</span>
-            <strong :class="cerrarModal.total - cerrarModal.gastado < 0 ? 'text-red-600' : 'text-emerald-600'">
-              ${{ (cerrarModal.total - cerrarModal.gastado).toFixed(2) }}
-            </strong>
-          </p>
-        </div>
-      </div>
-      <template #footer>
-        <button class="btn-secondary" @click="cerrarModal.abierto = false">Cancelar</button>
-        <button class="btn-success" @click="confirmarCierre">Cerrar viáticos</button>
-      </template>
-    </Modal>
+    <CerrarViaticoModal
+      v-if="cerrarModal.abierto"
+      :viatico="cerrarModal.viatico"
+      @close="cerrarModal.abierto = false"
+      @cerrado="cerrarModal.abierto = false; cargar()"
+    />
 
-    <Modal v-if="firmaModal.abierto" :title="`Oficio de comisión · ${firmaModal.folio}`" size="md" @close="firmaModal.abierto = false">
+    <Modal v-if="firmaModal.abierto" :title="`Documentos de viáticos · ${firmaModal.folio}`" size="md" @close="firmaModal.abierto = false">
       <!-- Cargando / enviando -->
       <div v-if="firmaModal.cargando" class="py-8 text-center">
         <div class="mx-auto w-12 h-12 rounded-full border-[3px] border-brand-100 border-t-brand-600 animate-spin"></div>
         <p class="mt-4 font-semibold text-ink-800">{{ firmaModal.enviando ? 'Enviando a firma…' : 'Cargando…' }}</p>
-        <p v-if="firmaModal.enviando" class="text-sm text-ink-500 mt-1">Generando el oficio y notificando a quien autoriza.</p>
+        <p v-if="firmaModal.enviando" class="text-sm text-ink-500 mt-1">Generando el oficio y el informe de comisión y notificando a quien autoriza.</p>
       </div>
 
       <div v-else-if="firmaModal.errorCarga" class="py-6 text-center">
@@ -348,40 +342,61 @@
 
       <!-- Ya enviado: seguimiento de firmas -->
       <div v-else-if="firmaModal.documento && !firmaModal.reenviar" class="space-y-4">
+        <DocumentosViaticoLista :viatico="{ id: firmaModal.id, folio: firmaModal.folio }" :documento="firmaModal.documento" @ver-firmado="verOficioFirmado" />
         <div v-if="firmaModal.documento.estado === 'firmado'" class="rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-sm text-emerald-700 flex items-center gap-2">
-          <Icon name="check" size="w-4 h-4" /> Oficio firmado por ambas partes.
+          <Icon name="check" size="w-4 h-4" /> Documentos firmados por ambas partes.
         </div>
         <p v-else class="text-sm text-ink-500">
-          Se firma en orden: primero quien autoriza y, en cuanto firma, se envía automáticamente el correo a quien recibe.
+          Se firman juntos en un solo enlace: primero quien autoriza y, en cuanto firma, se envía automáticamente el correo a quien recibe.
         </p>
+        <div v-if="firmaModal.correoError" class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-700 flex items-start gap-2">
+          <Icon name="alert" size="w-4 h-4" class="mt-0.5 shrink-0" />
+          <span>El correo de firma no se envió. Copia el enlace de quien autoriza y compártelo por otro medio.</span>
+        </div>
 
         <ol class="space-y-2">
-          <li v-for="f in firmaModal.documento.firmantes" :key="f.orden" class="flex items-center gap-3 rounded-lg border border-ink-100 px-3 py-2.5">
-            <span class="w-7 h-7 shrink-0 rounded-full grid place-items-center text-xs font-semibold"
-                  :class="f.estado === 'firmado' ? 'bg-emerald-100 text-emerald-700' : 'bg-ink-100 text-ink-600'">
-              <Icon v-if="f.estado === 'firmado'" name="check" size="w-4 h-4" />
-              <template v-else>{{ f.orden }}</template>
-            </span>
-            <div class="min-w-0 flex-1">
-              <p class="text-xs uppercase tracking-wide text-ink-400">{{ f.rol === 'autoriza' ? 'Autoriza' : 'Recibe' }}</p>
-              <p class="font-medium text-ink-800 truncate">{{ f.nombre }}</p>
-              <p class="text-xs text-ink-500 truncate">{{ f.email }}</p>
+          <li v-for="f in firmaModal.documento.firmantes" :key="f.orden" class="rounded-lg border border-ink-100 px-3 py-2.5">
+            <div class="flex items-center gap-3">
+              <span class="w-7 h-7 shrink-0 rounded-full grid place-items-center text-xs font-semibold"
+                    :class="f.estado === 'firmado' ? 'bg-emerald-100 text-emerald-700' : 'bg-ink-100 text-ink-600'">
+                <Icon v-if="f.estado === 'firmado'" name="check" size="w-4 h-4" />
+                <template v-else>{{ f.orden }}</template>
+              </span>
+              <div class="min-w-0 flex-1">
+                <p class="text-xs uppercase tracking-wide text-ink-400">{{ f.rol === 'autoriza' ? 'Autoriza' : 'Recibe' }}</p>
+                <p class="font-medium text-ink-800 truncate">{{ f.nombre }}</p>
+                <p class="text-xs text-ink-500 truncate">{{ f.email }}</p>
+              </div>
+              <span class="text-xs font-medium px-2 py-1 rounded-full whitespace-nowrap" :class="claseEstadoFirmante(f)">
+                {{ textoEstadoFirmante(f) }}
+              </span>
             </div>
-            <span class="text-xs font-medium px-2 py-1 rounded-full whitespace-nowrap" :class="claseEstadoFirmante(f)">
-              {{ textoEstadoFirmante(f) }}
-            </span>
+            <!-- Enlace de firma para compartirlo a mano si el correo no llega -->
+            <div v-if="f.url && f.estado !== 'firmado'" class="mt-2 pl-10">
+              <div class="flex items-center gap-2">
+                <input :value="f.url" readonly class="input !py-1.5 text-xs font-mono text-ink-600" @focus="$event.target.select()" />
+                <button type="button" class="btn-secondary text-xs !px-2.5 !py-1.5 shrink-0" @click="copiarEnlace(f)">
+                  <Icon :name="firmaModal.copiado === f.orden ? 'check' : 'copy'" size="w-4 h-4" />
+                  {{ firmaModal.copiado === f.orden ? 'Copiado' : 'Copiar' }}
+                </button>
+              </div>
+              <p v-if="textoEstadoFirmante(f) === 'En espera'" class="text-[11px] text-ink-400 mt-1">
+                Podrá firmar con este enlace cuando firme quien autoriza.
+              </p>
+            </div>
           </li>
         </ol>
       </div>
 
       <!-- Sin enviar (o reenvío): capturar correos -->
       <form v-else id="form-firma-oficio" class="space-y-4" @submit.prevent="enviarFirmaOficio">
+        <DocumentosViaticoLista :viatico="{ id: firmaModal.id, folio: firmaModal.folio }" />
         <p class="text-sm text-ink-500">
-          El oficio se enviará a firma en este orden: <strong class="text-ink-700">1. Autoriza</strong> y, cuando firme,
+          Ambos documentos se enviarán a firma en un solo enlace, en este orden: <strong class="text-ink-700">1. Autoriza</strong> y, cuando firme,
           automáticamente a <strong class="text-ink-700">2. Recibe</strong>.
         </p>
         <div v-if="firmaModal.reenviar" class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-700">
-          Se generará un oficio nuevo y se anularán los enlaces de firma enviados antes (las firmas previas se descartan).
+          Se generarán los documentos de nuevo y se anularán los enlaces de firma enviados antes (las firmas previas se descartan).
         </div>
         <div v-for="f in FIRMANTES_OFICIO" :key="f.key" class="rounded-lg border border-ink-100 p-3">
           <p class="text-xs uppercase tracking-wide text-ink-400">{{ f.label }}</p>
@@ -402,44 +417,16 @@
             <Icon name="refresh" size="w-4 h-4" /> Reenviar
           </button>
           <button class="btn-primary" @click="verOficioFirmado">
-            <Icon name="eye" size="w-4 h-4" /> {{ firmaModal.documento.estado === 'firmado' ? 'Ver oficio firmado' : 'Ver oficio' }}
+            <Icon name="eye" size="w-4 h-4" /> {{ firmaModal.documento.estado === 'firmado' ? 'Ver documentos firmados' : 'Ver documentos enviados' }}
           </button>
         </template>
         <template v-else>
-          <button class="btn-secondary mr-auto" @click="verOficio({ id: firmaModal.id, folio: firmaModal.folio })">
-            <Icon name="eye" size="w-4 h-4" /> Vista previa
-          </button>
-          <button v-if="firmaModal.reenviar" class="btn-secondary" @click="firmaModal.reenviar = false">Cancelar</button>
+          <button v-if="firmaModal.reenviar" class="btn-secondary mr-auto" @click="firmaModal.reenviar = false">Cancelar</button>
           <button type="submit" form="form-firma-oficio" class="btn-primary" :disabled="!firmaModal.sugeridos.autoriza.nombre">
             <Icon name="send" size="w-4 h-4" /> Enviar a firma
           </button>
         </template>
       </template>
-    </Modal>
-
-    <Modal v-if="oficioModal.abierto" title="Oficio de comisión" size="sm" @close="oficioModal.abierto = false">
-      <div class="py-4 text-center">
-        <template v-if="oficioModal.estado === 'generando'">
-          <div class="mx-auto w-12 h-12 rounded-full border-[3px] border-brand-100 border-t-brand-600 animate-spin"></div>
-          <p class="mt-4 font-semibold text-ink-800">Generando documento…</p>
-          <p class="text-sm text-ink-500 mt-1">Preparando el oficio de <span class="font-mono">{{ oficioModal.folio }}</span>. Esto puede tardar unos segundos.</p>
-        </template>
-
-        <template v-else-if="oficioModal.estado === 'listo'">
-          <div class="mx-auto w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 grid place-items-center"><Icon name="check" /></div>
-          <p class="mt-4 font-semibold text-ink-800">Documento listo</p>
-          <p class="text-sm text-ink-500 mt-1">Tu navegador bloqueó la pestaña automática. Ábrelo manualmente.</p>
-          <a :href="oficioModal.url" target="_blank" class="btn-primary mt-4 inline-flex" @click="oficioModal.abierto = false">
-            <Icon name="eye" size="w-4 h-4" /> Abrir documento
-          </a>
-        </template>
-
-        <template v-else>
-          <div class="mx-auto w-12 h-12 rounded-full bg-red-50 text-red-600 grid place-items-center"><Icon name="alert" /></div>
-          <p class="mt-4 font-semibold text-ink-800">No se pudo generar</p>
-          <p class="text-sm text-red-600 mt-1">{{ oficioModal.error }}</p>
-        </template>
-      </div>
     </Modal>
   </div>
 </template>
@@ -482,6 +469,15 @@ function coincideTexto(s, campos) {
   if (!filtros.q) return true;
   const q = filtros.q.toLowerCase();
   return campos.some((c) => String(s[c] || '').toLowerCase().includes(q));
+}
+
+// Fecha y hora en que se creó el viático (ej. 20/11/2026 14:01). La BD guarda
+// "YYYY-MM-DD HH:MM:SS" en UTC sin zona; se marca como UTC para mostrar la hora local.
+function fechaCreacion(v) {
+  if (!v) return '—';
+  const d = new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(v) ? v : `${String(v).replace(' ', 'T')}Z`);
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
 function dentroDeRango(s) {
@@ -531,7 +527,7 @@ const counts = computed(() => ({
 
 const modal = reactive({ abierto: false, id: null, folio: '', motivo: '', permiteEdicion: false });
 const modalAjuste = reactive({ abierto: false, id: null, motivo: '' });
-const cerrarModal = reactive({ abierto: false, id: null, folio: '', total: 0, gastado: 0 });
+const cerrarModal = reactive({ abierto: false, viatico: null });
 
 function pct(s) {
   if (!s.monto_total) return 0;
@@ -589,14 +585,7 @@ async function rechazarAjuste() {
 }
 
 function abrirCerrar(s) {
-  Object.assign(cerrarModal, { abierto: true, id: s.id, folio: s.folio, total: s.monto_total, gastado: s.monto_gastado });
-}
-async function confirmarCierre() {
-  try {
-    await api.post(`/viaticos/${cerrarModal.id}/cerrar`);
-    toast.success('Viáticos cerrados', `${cerrarModal.folio} se cerró correctamente.`);
-    cerrarModal.abierto = false; cargar();
-  } catch (e) { toast.error('No se pudo cerrar', e.message); }
+  Object.assign(cerrarModal, { abierto: true, viatico: s });
 }
 
 // Eliminar viático o ajuste: el mismo modal sirve para ambos, con un switch que
@@ -646,35 +635,20 @@ async function confirmarEliminar() {
   }
 }
 
-// Genera el oficio de comisión mostrando un modal con loading; al terminar abre
-// el PDF en una pestaña nueva (con respaldo manual si el navegador la bloquea).
-const oficioModal = reactive({ abierto: false, estado: 'generando', url: null, folio: '', error: '' });
-
-async function verOficio(s) {
-  Object.assign(oficioModal, { abierto: true, estado: 'generando', url: null, folio: s.folio, error: '' });
-  try {
-    const { url } = await api.viewBlob(`/viaticos/${s.id}/oficio`);
-    oficioModal.url = url;
-    oficioModal.estado = 'listo';
-    const win = window.open(url, '_blank');
-    if (win) oficioModal.abierto = false; // se abrió la pestaña, cerramos el modal
-  } catch (e) {
-    oficioModal.estado = 'error';
-    oficioModal.error = e.message;
-  }
-}
-// --- Firma del oficio de comisión: Autoriza (1) -> Recibe (2) ---
+// --- Documentos de viáticos (oficio + informe de comisión): firma Autoriza (1) -> Recibe (2) ---
 const FIRMANTES_OFICIO = [{ key: 'autoriza', label: '1. Autoriza' }, { key: 'recibe', label: '2. Recibe' }];
 const firmaModal = reactive({
   abierto: false, cargando: false, enviando: false, id: null, folio: '',
   documento: null, reenviar: false, error: '', errorCarga: '',
   sugeridos: { autoriza: { nombre: '', email: '' }, recibe: { nombre: '', email: '' } },
   correos: { autoriza: '', recibe: '' },
+  correoError: '', copiado: null,
 });
 
 function aplicarEstadoFirma(data) {
   firmaModal.documento = data.documento;
   firmaModal.sugeridos = data.sugeridos;
+  firmaModal.correoError = data.correo_error || '';
   // En un reenvío se proponen los correos usados en el envío anterior
   const previo = (rol) => data.documento?.firmantes?.find((f) => f.rol === rol)?.email;
   firmaModal.correos.autoriza = previo('autoriza') || data.sugeridos.autoriza.email || '';
@@ -682,7 +656,7 @@ function aplicarEstadoFirma(data) {
 }
 
 async function abrirFirmaOficio(s) {
-  Object.assign(firmaModal, { abierto: true, cargando: true, enviando: false, id: s.id, folio: s.folio, documento: null, reenviar: false, error: '', errorCarga: '' });
+  Object.assign(firmaModal, { abierto: true, cargando: true, enviando: false, id: s.id, folio: s.folio, documento: null, reenviar: false, error: '', errorCarga: '', correoError: '', copiado: null });
   try {
     aplicarEstadoFirma(await api.get(`/viaticos/${s.id}/oficio/firma`));
   } catch (e) {
@@ -704,13 +678,34 @@ async function enviarFirmaOficio() {
     aplicarEstadoFirma(data);
     firmaModal.reenviar = false;
     cargar();
-    toast.success('Oficio enviado a firma', `Se notificó a ${firmaModal.sugeridos.autoriza.nombre} (autoriza).`);
+    if (data.correo_error) {
+      toast.warning('Documentos listos, pero el correo no se envió', 'Copia el enlace de firma y compártelo por otro medio.', { duration: 10000 });
+    } else {
+      toast.success('Documentos enviados a firma', `Oficio e informe de comisión: se notificó a ${firmaModal.sugeridos.autoriza.nombre} (autoriza).`);
+    }
   } catch (e) {
     firmaModal.error = e.message;
   } finally {
     firmaModal.cargando = false;
     firmaModal.enviando = false;
   }
+}
+
+// Copia el enlace de firma (con respaldo si el navegador no permite el portapapeles)
+async function copiarEnlace(f) {
+  try {
+    await navigator.clipboard.writeText(f.url);
+  } catch {
+    const ta = document.createElement('textarea');
+    ta.value = f.url;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+  }
+  firmaModal.copiado = f.orden;
+  toast.success('Enlace copiado', `Enlace de firma de ${f.nombre}.`);
+  setTimeout(() => { if (firmaModal.copiado === f.orden) firmaModal.copiado = null; }, 2500);
 }
 
 function textoEstadoFirmante(f) {
@@ -729,7 +724,7 @@ async function verOficioFirmado() {
     const { url } = await api.viewBlob(`/viaticos/${firmaModal.id}/oficio/firmado`);
     window.open(url, '_blank');
   } catch (e) {
-    toast.error('No se pudo abrir el oficio', e.message);
+    toast.error('No se pudieron abrir los documentos', e.message);
   }
 }
 </script>

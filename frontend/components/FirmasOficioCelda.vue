@@ -1,9 +1,9 @@
 <template>
-  <!-- Estado de firma del oficio de comisión: Autoriza (1) → Recibe (2) -->
+  <!-- Estado de firma de los documentos del viático (oficio + informe): Autoriza (1) → Recibe (2) -->
   <button
     type="button"
     class="text-left group"
-    :title="fila.oficio_documento_id ? 'Ver firmantes del oficio' : 'Enviar oficio a firma'"
+    :title="fila.oficio_documento_id ? 'Ver firmas de los documentos del viático' : 'Enviar documentos a firma'"
     @click="$emit('click')"
   >
     <template v-if="!fila.oficio_documento_id">

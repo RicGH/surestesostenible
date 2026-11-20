@@ -86,4 +86,14 @@ const uploadDocx = multer({
   },
 });
 
-module.exports = { UPLOAD_ROOT, uploadGastos, uploadFacturas, uploadComprobantes, uploadJustificantes, uploadAvatars, uploadDocsProveedor, uploadDocumentos, uploadDocx };
+// Multer 1.x entrega originalname decodificado como latin1, así que los nombres
+// con acentos llegan como "ReuniÃ³n". Lo re-decodificamos como UTF-8; si el
+// resultado no es UTF-8 válido, se deja el nombre tal como llegó.
+function nombreOriginal(file) {
+  const raw = file?.originalname;
+  if (!raw) return null;
+  const utf8 = Buffer.from(raw, 'latin1').toString('utf8');
+  return (utf8.includes('�') ? raw : utf8).slice(0, 255);
+}
+
+module.exports = { UPLOAD_ROOT, nombreOriginal, uploadGastos, uploadFacturas, uploadComprobantes, uploadJustificantes, uploadAvatars, uploadDocsProveedor, uploadDocumentos, uploadDocx };

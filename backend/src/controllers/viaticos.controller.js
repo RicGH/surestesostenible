@@ -7,7 +7,10 @@ const oficioService = require('../services/viaticos-oficio.service');
 const oficioFirmaService = require('../services/viaticos-oficio-firma.service');
 const pagosService = require('../services/viaticos-pagos.service');
 const notifService = require('../services/notificaciones.service');
-const { UPLOAD_ROOT } = require('../config/upload');
+const informeService = require('../services/viaticos-informe.service');
+const informeDocService = require('../services/viaticos-informe-doc.service');
+const { parseCfdi } = require('../utils/cfdi-parser');
+const { UPLOAD_ROOT, nombreOriginal } = require('../config/upload');
 
 const solicitudSchema = z.object({
   destino: z.string().min(2).max(160),
@@ -59,7 +62,7 @@ async function crear(req, res) {
   }
   const justificantes = (req.files || []).map((f) => ({
     archivo: `justificantes/${f.filename}`,
-    nombre_original: f.originalname,
+    nombre_original: nombreOriginal(f),
   }));
   const result = await service.crearSolicitud(colaboradorId, payload, justificantes);
   await notifService.crearParaRol('admin', {
@@ -231,7 +234,7 @@ async function descargarOficio(req, res) {
   res.send(pdf);
 }
 
-// --- Firma del oficio de comisión (Autoriza → Recibe) ---
+// --- Firma de los documentos del viático: oficio + informe de comisión (Autoriza → Recibe) ---
 async function estadoFirmaOficio(req, res) {
   res.json(await oficioFirmaService.estado(Number(req.params.id)));
 }
@@ -252,7 +255,7 @@ async function descargarOficioFirmado(req, res) {
   }
   const { pdf, folio, firmado } = await oficioFirmaService.pdfFirmado(id);
   res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `inline; filename="oficio-${folio}${firmado ? '-firmado' : ''}.pdf"`);
+  res.setHeader('Content-Disposition', `inline; filename="documentos-${folio}${firmado ? '-firmados' : ''}.pdf"`);
   res.send(pdf);
 }
 
@@ -345,48 +348,107 @@ async function duplicar(req, res) {
   res.status(201).json(result);
 }
 
+// Monto obligatorio (>= 0) que captura administración/finanzas al cerrar
+const montoRequerido = (etiqueta) => z.preprocess(
+  (v) => (v === '' || v === null || v === undefined ? undefined : Number(v)),
+  z.number({ required_error: `Captura ${etiqueta}`, invalid_type_error: `${etiqueta} debe ser un número` })
+    .nonnegative(`${etiqueta} no puede ser negativo`),
+);
+
+const cierreSchema = z.object({
+  ret_isr: montoRequerido('la retención de ISR'),
+  monto_total: montoRequerido('el monto total'),
+  autoriza_email: z.string().max(200).optional(),
+  recibe_email: z.string().max(200).optional(),
+});
+
+const ESTADOS_CERRABLES = ['aprobado', 'pagado', 'en_proceso'];
+
+/**
+ * Cierre del viático (administración o finanzas):
+ *  1. Se capturan Ret ISR y Monto total del informe de comisión.
+ *  2. Se cierra el viático.
+ *  3. Se envían a firma, en un solo enlace, el oficio de comisión y el informe
+ *     de comisión con gastos y bitácoras (Autoriza → Recibe).
+ * Si el envío falla (p. ej. el correo) el viático queda cerrado y se puede
+ * reenviar desde "Documentos de viáticos".
+ */
 async function cerrar(req, res) {
   const id = Number(req.params.id);
+  const body = cierreSchema.parse(req.body || {});
 
-  if (req.user.rol === 'colaborador') {
-    const sol = await service.getById(id);
-    if (!sol) throw new HttpError(404, 'Viático no encontrado');
-    if (sol.colaborador_id !== req.user.sub) throw new HttpError(403, 'Solo puedes cerrar tus propios viáticos');
+  const sol = await service.getById(id);
+  if (!sol) throw new HttpError(404, 'Viático no encontrado');
+  if (!ESTADOS_CERRABLES.includes(sol.estado)) {
+    throw new HttpError(400, `No se puede cerrar el viático ${sol.folio} porque está en estado "${sol.estado}".`);
   }
 
+  // Validar los firmantes antes de cerrar, para no dejar el viático cerrado sin poder firmarse
+  const firma = await oficioFirmaService.estado(id);
+  const yaFirmado = firma.documento?.estado === 'firmado';
+  if (!yaFirmado) {
+    if (!sol.autoriza_nombre) {
+      throw new HttpError(400, 'El viático no tiene asignado quién autoriza. Edítalo y elige "Autorizado por" antes de cerrarlo.');
+    }
+    body.autoriza_email = String(body.autoriza_email || firma.sugeridos.autoriza.email || '').trim();
+    body.recibe_email = String(body.recibe_email || firma.sugeridos.recibe.email || '').trim();
+    if (!oficioFirmaService.EMAIL_RE.test(body.autoriza_email)) {
+      throw new HttpError(400, `Captura un correo válido para quien autoriza (${firma.sugeridos.autoriza.nombre})`);
+    }
+    if (!oficioFirmaService.EMAIL_RE.test(body.recibe_email)) {
+      throw new HttpError(400, `Captura un correo válido para quien recibe (${firma.sugeridos.recibe.nombre})`);
+    }
+  }
+
+  await informeService.guardar(id, { ret_isr: body.ret_isr, monto_total: body.monto_total }, req.user.sub, { esAdmin: true });
   try {
     await service.cerrarViaje(id, req.user.sub);
   } catch (e) {
     throw new HttpError(400, e.message);
   }
-  const sol = await service.getById(id);
-  if (sol) {
-    if (req.user.rol === 'colaborador') {
-      await notifService.crearParaRol('admin', {
-        tipo: 'viaticos_cerrado_colaborador',
-        titulo: 'Viaje cerrado por colaborador',
-        mensaje: `${sol.colaborador_nombre} cerró el viático ${sol.folio}.`,
-        url: `/admin/viaticos`,
-      });
-    } else {
-      await notifService.crear(sol.colaborador_id, {
-        tipo: 'viaticos_cerrado',
-        titulo: 'Viaje cerrado',
-        mensaje: `Tu viático ${sol.folio} fue cerrado por el administrador.`,
-        url: `/viaticos/${id}`,
-      });
+
+  const quien = req.user.rol === 'finanzas' ? 'finanzas' : 'el administrador';
+  await notifService.crear(sol.colaborador_id, {
+    tipo: 'viaticos_cerrado',
+    titulo: 'Viaje cerrado',
+    mensaje: `Tu viático ${sol.folio} fue cerrado por ${quien}.`,
+    url: `/viaticos/${id}`,
+  });
+
+  let resultadoFirma;
+  if (yaFirmado) {
+    resultadoFirma = { enviado: false, motivo: 'Los documentos de este viático ya estaban firmados.' };
+  } else {
+    try {
+      const estadoFirma = await oficioFirmaService.enviar(
+        id, { autoriza_email: body.autoriza_email, recibe_email: body.recibe_email }, req.user.sub,
+      );
+      // Si solo falló el correo, el envío queda listo y el enlace se copia desde "Documentos de viáticos"
+      resultadoFirma = {
+        enviado: true,
+        autoriza: estadoFirma.sugeridos.autoriza.nombre,
+        correo_error: estadoFirma.correo_error || null,
+      };
+    } catch (e) {
+      console.error(`[cerrar] viático ${sol.folio}: no se pudieron enviar los documentos a firma:`, e.message);
+      resultadoFirma = { enviado: false, error: e.message };
     }
   }
-  res.json({ ok: true });
+  res.json({ ok: true, firma: resultadoFirma });
 }
 
 const gastoSchema = z.object({
   monto: z.coerce.number().positive(),
   fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  categoria: z.enum(['vuelos', 'hospedaje', 'alimentos', 'transporte', 'otros'], {
+    errorMap: () => ({ message: 'Selecciona el tipo de gasto (vuelos, hospedaje, alimentos, transporte u otros)' }),
+  }),
   rfc_emisor: z.string().min(12).max(13).optional().or(z.literal('')),
   razon_social: z.string().max(255).optional(),
   nombre_emisor: z.string().max(200).optional(),
   concepto: z.string().max(255).optional(),
+  // "Fact. o rec. núm.": si se sube el XML se toma el UUID del timbre fiscal
+  folio_fiscal: z.string().trim().max(64).optional(),
 });
 
 async function subirGasto(req, res) {
@@ -395,11 +457,27 @@ async function subirGasto(req, res) {
   if (!archivoFile && !xmlFile) throw new HttpError(400, 'Debes subir el comprobante (PDF/imagen) o el XML del CFDI');
   const id = Number(req.params.id);
   const data = gastoSchema.parse(req.body);
+  if (req.user.rol === 'colaborador') {
+    const sol = await service.getById(id);
+    if (sol && !sol.sharepoint_url) {
+      [archivoFile, xmlFile].forEach((f) => f && fs.unlink(f.path, () => {}));
+      throw new HttpError(400, 'Antes de subir comprobantes, vincula la carpeta de SharePoint del viático');
+    }
+  }
+  if (xmlFile) {
+    try {
+      const { uuid } = parseCfdi(xmlFile.path);
+      if (uuid) data.folio_fiscal = uuid.toUpperCase();
+    } catch { /* XML sin timbre legible: se conserva el folio capturado */ }
+  }
   const archivo = archivoFile ? `gastos/${archivoFile.filename}` : null;
   const xmlPath = xmlFile ? `gastos/${xmlFile.filename}` : null;
   try {
     const colaboradorId = req.user.rol === 'colaborador' ? req.user.sub : null;
-    const gastoId = await service.agregarGasto(id, colaboradorId, data, archivo, xmlPath);
+    const gastoId = await service.agregarGasto(id, colaboradorId, data, archivo, xmlPath, {
+      archivo: nombreOriginal(archivoFile),
+      xml: nombreOriginal(xmlFile),
+    });
     res.status(201).json({ id: gastoId, archivo, xml_path: xmlPath });
   } catch (e) {
     if (e.code === 'SALDO_INSUFICIENTE') throw new HttpError(409, e.message);
@@ -411,7 +489,7 @@ async function subirJustificantes(req, res) {
   const id = Number(req.params.id);
   const archivos = (req.files || []).map((f) => ({
     archivo: `justificantes/${f.filename}`,
-    nombre_original: f.originalname,
+    nombre_original: nombreOriginal(f),
   }));
   if (!archivos.length) return res.json({ ok: true, count: 0 });
   await service.agregarJustificantes(id, archivos);
@@ -447,7 +525,72 @@ async function eliminar(req, res) {
   res.json({ ok: true, modo });
 }
 
+// --- Informe de comisión con gastos y bitácoras ---
+
+const numOpcional = z.union([z.coerce.number().nonnegative(), z.literal(''), z.null()]).optional()
+  .transform((v) => (v === '' ? null : v)); // ausente (undefined) = no se modifica
+const textoOpcional = (max) => z.string().max(max).optional().nullable();
+
+const informeSchema = z.object({
+  objetivo: textoOpcional(2000),
+  fecha_presentacion: z.union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/), z.literal(''), z.null()]).optional(),
+  nota: textoOpcional(2000),
+  resumen: textoOpcional(10000),
+  usa_vehiculo: z.boolean().optional(),
+  vehiculo_marca: textoOpcional(80),
+  vehiculo_submarca: textoOpcional(80),
+  vehiculo_modelo: textoOpcional(80),
+  vehiculo_placa: textoOpcional(30),
+  kilometraje: z.array(z.object({
+    comentarios: z.string().max(300).optional().nullable(),
+    km_inicial: numOpcional,
+    km_final: numOpcional,
+    litros: numOpcional,
+    monto: numOpcional,
+  })).max(50).optional(),
+  // Solo administración
+  ret_isr: numOpcional,
+  monto_total: numOpcional,
+});
+
+/** Verifica acceso al viático; el colaborador solo al suyo. */
+async function viaticoConAcceso(req) {
+  const id = Number(req.params.id);
+  const sol = await service.getById(id);
+  if (!sol) throw new HttpError(404, 'Viático no encontrado');
+  if (req.user.rol === 'colaborador' && sol.colaborador_id !== req.user.sub) throw new HttpError(403, 'Sin acceso');
+  return sol;
+}
+
+async function guardarInforme(req, res) {
+  const sol = await viaticoConAcceso(req);
+  const esAdmin = req.user.rol === 'admin';
+  if (!esAdmin && sol.estado === 'cerrado') {
+    throw new HttpError(400, 'El viático ya está cerrado; el informe no se puede modificar');
+  }
+  const data = informeSchema.parse(req.body);
+  const informe = await informeService.guardar(sol.id, data, req.user.sub, { esAdmin });
+  res.json(informe);
+}
+
+async function descargarInformePdf(req, res) {
+  const sol = await viaticoConAcceso(req);
+  const { pdf, folio } = await informeDocService.generarPdf(sol.id);
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `inline; filename="informe-comision-${folio}.pdf"`);
+  res.send(pdf);
+}
+
+async function descargarInformeXlsx(req, res) {
+  const sol = await viaticoConAcceso(req);
+  const { buffer, folio } = await informeDocService.generarXlsx(sol.id);
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', `attachment; filename="informe-comision-${folio}.xlsx"`);
+  res.send(buffer);
+}
+
 module.exports = {
+  guardarInforme, descargarInformePdf, descargarInformeXlsx,
   crear, listarMios, listarPendientes, listarActivos, listarCerrados,
   listarRechazados, listarTodos, detalle, guardarSharepoint,
   aprobar, rechazar, editar, duplicar, cerrar, eliminar, subirGasto, subirJustificantes, puedoCrear,

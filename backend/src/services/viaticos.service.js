@@ -1,4 +1,5 @@
 const { query, queryOne, withTx } = require('../config/db');
+const informeService = require('./viaticos-informe.service');
 
 // Máximo de viáticos "abiertos" (en uso: pagado/en_proceso) que un colaborador
 // puede tener a la vez. Al llegar al límite no puede crear más hasta cerrar alguno;
@@ -150,7 +151,7 @@ async function listarPendientesAdmin() {
 async function listarActivosAdmin() {
   return query(
     `SELECT s.id, s.folio, s.destino, s.fecha_inicio, s.fecha_fin,
-            s.monto_total, s.monto_gastado, s.estado, s.aprobado_at,
+            s.monto_total, s.monto_gastado, s.estado, s.aprobado_at, s.created_at,
             u.nombre AS colaborador_nombre,${FIRMA_OFICIO_COLS}, u.email AS colaborador_email,
             (SELECT COUNT(*) FROM viaticos_gastos WHERE solicitud_id = s.id) AS gastos_count
      FROM viaticos_solicitudes s
@@ -163,7 +164,7 @@ async function listarActivosAdmin() {
 async function listarCerradosAdmin() {
   return query(
     `SELECT s.id, s.folio, s.destino, s.fecha_inicio, s.fecha_fin,
-            s.monto_total, s.monto_gastado, s.estado,
+            s.monto_total, s.monto_gastado, s.estado, s.created_at,
             u.nombre AS colaborador_nombre,${FIRMA_OFICIO_COLS}
      FROM viaticos_solicitudes s
      JOIN users u ON u.id = s.colaborador_id
@@ -175,7 +176,7 @@ async function listarCerradosAdmin() {
 async function listarRechazadosAdmin() {
   return query(
     `SELECT s.id, s.folio, s.destino, s.fecha_inicio, s.fecha_fin,
-            s.monto_total, s.monto_gastado, s.estado, s.motivo_rechazo, s.permite_edicion, s.aprobado_at,
+            s.monto_total, s.monto_gastado, s.estado, s.motivo_rechazo, s.permite_edicion, s.aprobado_at, s.created_at,
             u.nombre AS colaborador_nombre,${FIRMA_OFICIO_COLS}, u.email AS colaborador_email
      FROM viaticos_solicitudes s
      JOIN users u ON u.id = s.colaborador_id
@@ -221,9 +222,9 @@ async function getById(id, colaboradorId = null, { incluirEliminados = false } =
     params
   );
   if (!solicitud) return null;
-  const [gastos, pago, ajustes, justificantes] = await Promise.all([
+  const [gastos, pago, ajustes, justificantes, informe] = await Promise.all([
     query(
-      'SELECT id, archivo, xml_path, monto, rfc_emisor, razon_social, nombre_emisor, fecha, concepto, created_at FROM viaticos_gastos WHERE solicitud_id = ? ORDER BY fecha DESC',
+      'SELECT id, archivo, archivo_nombre_original, xml_path, xml_nombre_original, folio_fiscal, monto, categoria, rfc_emisor, razon_social, nombre_emisor, fecha, concepto, created_at FROM viaticos_gastos WHERE solicitud_id = ? ORDER BY fecha DESC',
       [id]
     ),
     queryOne(
@@ -241,13 +242,14 @@ async function getById(id, colaboradorId = null, { incluirEliminados = false } =
        FROM viaticos_justificantes WHERE solicitud_id = ? ORDER BY id ASC`,
       [id]
     ),
+    informeService.obtener(id),
   ]);
   // Fallback: solicitudes antiguas que solo tienen justificante_path (sin filas en la tabla).
   let listaJustificantes = justificantes;
   if (!listaJustificantes.length && solicitud.justificante_path) {
     listaJustificantes = [{ id: null, archivo: solicitud.justificante_path, nombre_original: null, legacy: true }];
   }
-  return { ...solicitud, gastos, pago, ajustes, justificantes: listaJustificantes };
+  return { ...solicitud, gastos, pago, ajustes, justificantes: listaJustificantes, informe };
 }
 
 async function actualizarSharepoint(id, url) {
@@ -348,7 +350,7 @@ async function cerrarViaje(id, adminId) {
   console.log(`[cerrarViaje] viático ${sol.folio} (id=${id}) cerrado por admin ${adminId} (estado anterior: ${sol.estado})`);
 }
 
-async function agregarGasto(solicitudId, colaboradorId, data, archivo, xmlPath = null) {
+async function agregarGasto(solicitudId, colaboradorId, data, archivo, xmlPath = null, nombres = {}) {
   return withTx(async (conn) => {
     const sql = colaboradorId
       ? "SELECT id, colaborador_id, estado, monto_total, monto_gastado, created_at FROM viaticos_solicitudes WHERE id = ? AND colaborador_id = ? AND eliminado = 0 FOR UPDATE"
@@ -373,9 +375,9 @@ async function agregarGasto(solicitudId, colaboradorId, data, archivo, xmlPath =
 
     const [ins] = await conn.execute(
       `INSERT INTO viaticos_gastos
-       (solicitud_id, archivo, xml_path, monto, rfc_emisor, razon_social, nombre_emisor, fecha, concepto)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [solicitudId, archivo, xmlPath, monto, data.rfc_emisor || null, data.razon_social || null, data.nombre_emisor || null, data.fecha, data.concepto || null]
+       (solicitud_id, archivo, archivo_nombre_original, xml_path, xml_nombre_original, folio_fiscal, monto, categoria, rfc_emisor, razon_social, nombre_emisor, fecha, concepto)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [solicitudId, archivo, nombres.archivo || null, xmlPath, nombres.xml || null, data.folio_fiscal || null, monto, data.categoria || null, data.rfc_emisor || null, data.razon_social || null, data.nombre_emisor || null, data.fecha, data.concepto || null]
     );
 
     await conn.execute(

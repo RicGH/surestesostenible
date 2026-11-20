@@ -132,7 +132,11 @@
       </div>
     </section>
 
-    <section class="card-pad">
+    <section
+      ref="sharepointCard"
+      class="card-pad scroll-mt-28 transition-shadow duration-300"
+      :class="resaltarSharepoint ? 'ring-2 ring-amber-400 ring-offset-2 animate-pulse' : ''"
+    >
       <div class="flex items-center justify-between gap-4 flex-wrap">
         <div class="flex items-center gap-3 min-w-0">
           <div class="w-10 h-10 rounded-lg bg-sky-50 text-sky-600 grid place-items-center shrink-0"><Icon name="link" /></div>
@@ -304,7 +308,7 @@
         <span class="text-sm text-ink-500">{{ sol.gastos?.length || 0 }} registro(s)</span>
       </div>
       <table class="table">
-        <thead><tr><th>Comprobante</th><th>Fecha</th><th>Razón social</th><th>RFC</th><th>Concepto</th><th class="text-right">Monto</th></tr></thead>
+        <thead><tr><th>Comprobante</th><th>Fecha</th><th>Tipo</th><th>Razón social</th><th>RFC</th><th>Concepto</th><th class="text-right">Monto</th></tr></thead>
         <tbody>
           <tr v-for="g in sol.gastos" :key="g.id">
             <td>
@@ -313,27 +317,41 @@
                 :path="`/viaticos/${sol.id}/gastos/${g.id}/archivo`"
                 :filename="g.archivo"
                 tooltip="Ver comprobante"
-                @open="abrirVisor({ path: `/viaticos/${sol.id}/gastos/${g.id}/archivo`, title: 'Comprobante de gasto', subtitle: `${g.nombre_emisor || g.concepto || ''} · $${Number(g.monto).toFixed(2)}`, downloadName: `gasto-${g.id}` })"
+                @open="abrirVisor({ path: `/viaticos/${sol.id}/gastos/${g.id}/archivo`, title: 'Comprobante de gasto', subtitle: `${g.nombre_emisor || g.concepto || ''} · $${Number(g.monto).toFixed(2)}`, downloadName: nombreArchivoGasto(g) })"
               />
               <Thumbnail
                 v-else-if="g.xml_path"
                 :path="`/viaticos/${sol.id}/gastos/${g.id}/xml`"
                 :filename="g.xml_path"
                 tooltip="Ver XML (CFDI)"
-                @open="abrirVisor({ path: `/viaticos/${sol.id}/gastos/${g.id}/xml`, title: 'XML del CFDI', subtitle: `${g.nombre_emisor || g.concepto || ''} · $${Number(g.monto).toFixed(2)}`, downloadName: `cfdi-gasto-${g.id}.xml` })"
+                @open="abrirVisor({ path: `/viaticos/${sol.id}/gastos/${g.id}/xml`, title: 'XML del CFDI', subtitle: `${g.nombre_emisor || g.concepto || ''} · $${Number(g.monto).toFixed(2)}`, downloadName: nombreXmlGasto(g) })"
               />
               <span v-else class="text-ink-300 text-xs">—</span>
             </td>
             <td>{{ g.fecha }}</td>
-            <td class="font-medium text-ink-800">{{ g.razon_social || g.nombre_emisor || '—' }}</td>
+            <td>
+              <span v-if="g.categoria" class="badge-blue">{{ etiquetaCategoria(g.categoria) }}</span>
+              <span v-else class="text-ink-300">—</span>
+            </td>
+            <td class="font-medium text-ink-800">
+              {{ g.razon_social || g.nombre_emisor || '—' }}
+              <span v-if="g.folio_fiscal" class="block font-mono text-[10px] font-normal text-ink-400" title="Fact. o rec. núm.">{{ g.folio_fiscal }}</span>
+            </td>
             <td class="font-mono text-xs">{{ g.rfc_emisor || '—' }}</td>
             <td>{{ g.concepto || '—' }}</td>
             <td class="text-right font-medium">${{ Number(g.monto).toFixed(2) }}</td>
           </tr>
-          <tr v-if="!sol.gastos?.length"><td colspan="6" class="py-12 text-center text-ink-400">Sin comprobantes</td></tr>
+          <tr v-if="!sol.gastos?.length"><td colspan="7" class="py-12 text-center text-ink-400">Sin comprobantes</td></tr>
         </tbody>
       </table>
     </section>
+
+    <InformeComisionCard
+      v-if="['aprobado', 'pagado', 'en_proceso', 'cerrado'].includes(sol.estado)"
+      :sol="sol"
+      :puede-editar="puedeEditarInforme"
+      @actualizado="(inf) => { sol.informe = inf; }"
+    />
 
     <FileViewer
       v-if="visor.abierto"
@@ -398,6 +416,24 @@
               <label class="block text-xs font-medium text-ink-600 mb-1">Concepto</label>
               <input v-model="gasto.concepto" class="input" placeholder="Detalle del gasto" />
             </div>
+            <div class="sm:col-span-2">
+              <label class="block text-xs font-medium text-ink-600 mb-1">Fact. o rec. núm.</label>
+              <input
+                v-model="gasto.folio_fiscal"
+                maxlength="64"
+                class="input font-mono text-xs"
+                :readonly="!!xmlGasto && !!gasto.folio_fiscal"
+                :placeholder="xmlGasto ? 'Se toma del XML (folio fiscal)' : 'Folio fiscal o número de recibo'"
+              />
+              <p v-if="xmlGasto && gasto.folio_fiscal" class="text-[11px] text-ink-400 mt-1">Folio fiscal (UUID) leído del XML</p>
+            </div>
+            <div class="sm:col-span-2">
+              <label class="block text-xs font-medium text-ink-600 mb-1">Tipo de gasto <span class="text-red-500">*</span></label>
+              <select v-model="gasto.categoria" required class="input">
+                <option value="" disabled>Selecciona el tipo de gasto</option>
+                <option v-for="c in CATEGORIAS_GASTO" :key="c.value" :value="c.value">{{ c.label }}</option>
+              </select>
+            </div>
           </div>
 
           <FileDrop
@@ -424,7 +460,7 @@
       </div>
       <template #footer>
         <button class="btn-secondary" :disabled="subiendo" @click="cerrarSubir">Cancelar</button>
-        <button form="subir-comprobante-form" type="submit" class="btn-primary" :disabled="subiendo || (!archivoGasto && !xmlGasto) || disponible <= 0">
+        <button form="subir-comprobante-form" type="submit" class="btn-primary" :disabled="subiendo || (!archivoGasto && !xmlGasto) || !gasto.categoria || disponible <= 0">
           <Icon name="upload" size="w-4 h-4" /> {{ subiendo ? `Subiendo... ${progreso}%` : 'Subir comprobante' }}
         </button>
       </template>
@@ -530,28 +566,12 @@
       </template>
     </Modal>
 
-    <Modal v-if="cerrarModal.abierto" :title="`Cerrar viáticos ${sol.folio}`" @close="cerrarModal.abierto = false">
-      <div class="space-y-3 text-sm">
-        <p class="text-ink-700">
-          ¿Confirmas el cierre de estos viáticos? Una vez cerrados no se podrán agregar más comprobantes ni solicitar ajustes.
-        </p>
-        <div class="rounded-lg bg-ink-50 border border-ink-200 p-3 space-y-1">
-          <div class="flex justify-between"><span class="text-ink-500">Total aprobado</span><strong>${{ Number(sol.monto_total).toFixed(2) }}</strong></div>
-          <div class="flex justify-between"><span class="text-ink-500">Gastado</span><strong>${{ Number(sol.monto_gastado).toFixed(2) }}</strong></div>
-          <div class="flex justify-between border-t border-ink-200 pt-1 mt-1">
-            <span class="text-ink-500">Diferencia</span>
-            <strong :class="disponible < 0 ? 'text-red-600' : 'text-emerald-600'">${{ disponible.toFixed(2) }}</strong>
-          </div>
-        </div>
-        <p v-if="cerrarModal.error" class="text-red-600">{{ cerrarModal.error }}</p>
-      </div>
-      <template #footer>
-        <button class="btn-secondary" @click="cerrarModal.abierto = false">Cancelar</button>
-        <button class="btn-success" :disabled="cerrarModal.cerrando" @click="confirmarCierre">
-          {{ cerrarModal.cerrando ? 'Cerrando...' : 'Cerrar viáticos' }}
-        </button>
-      </template>
-    </Modal>
+    <CerrarViaticoModal
+      v-if="cerrarModal.abierto"
+      :viatico="sol"
+      @close="cerrarModal.abierto = false"
+      @cerrado="alCerrar"
+    />
 
     <Modal v-if="edicion.abierto" title="Corregir solicitud" @close="edicion.abierto = false">
       <form class="space-y-3" @submit.prevent="guardarEdicion">
@@ -661,7 +681,7 @@ const errorCarga = ref('');
 const archivoGasto = ref(null);
 const xmlGasto = ref(null);
 const errorXml = ref('');
-const gasto = reactive({ monto: 0, fecha: '', rfc_emisor: '', razon_social: '', nombre_emisor: '', concepto: '' });
+const gasto = reactive({ monto: 0, fecha: '', categoria: '', folio_fiscal: '', rfc_emisor: '', razon_social: '', nombre_emisor: '', concepto: '' });
 const subiendo = ref(false);
 const progreso = ref(0);
 const errorGasto = ref('');
@@ -692,7 +712,7 @@ const ajuste = reactive({
 
 const visor = reactive({ abierto: false, path: '', title: '', subtitle: '', downloadName: '' });
 
-const cerrarModal = reactive({ abierto: false, cerrando: false, error: '' });
+const cerrarModal = reactive({ abierto: false });
 const sharepointModal = reactive({ abierto: false, url: '', guardando: false, error: '' });
 const subirModal = reactive({ abierto: false });
 const rechazoModal = reactive({ abierto: false, motivo: '', permiteEdicion: false, enviando: false, error: '' });
@@ -717,10 +737,31 @@ const breadcrumb = computed(() => {
 });
 
 function abrirCerrar() {
-  Object.assign(cerrarModal, { abierto: true, cerrando: false, error: '' });
+  cerrarModal.abierto = true;
+}
+
+// El colaborador debe vincular la carpeta de SharePoint antes de subir comprobantes:
+// si no la tiene, se le lleva a esa tarjeta, se resalta y se le avisa.
+const sharepointCard = ref(null);
+const resaltarSharepoint = ref(false);
+let resaltadoTimer = null;
+
+function pedirSharepoint() {
+  sharepointCard.value?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  resaltarSharepoint.value = true;
+  clearTimeout(resaltadoTimer);
+  resaltadoTimer = setTimeout(() => { resaltarSharepoint.value = false; }, 3000);
+  toast.warning(
+    'Vincula la carpeta de SharePoint',
+    'Antes de subir comprobantes, agrega el enlace de la carpeta de SharePoint de este viático.'
+  );
 }
 
 function abrirSubir() {
+  if (esColaborador.value && !sol.value?.sharepoint_url) {
+    pedirSharepoint();
+    return;
+  }
   errorGasto.value = '';
   subirModal.abierto = true;
 }
@@ -728,7 +769,7 @@ function abrirSubir() {
 function cerrarSubir() {
   if (subiendo.value) return;
   subirModal.abierto = false;
-  Object.assign(gasto, { monto: 0, fecha: '', rfc_emisor: '', razon_social: '', nombre_emisor: '', concepto: '' });
+  Object.assign(gasto, { monto: 0, fecha: '', categoria: '', folio_fiscal: '', rfc_emisor: '', razon_social: '', nombre_emisor: '', concepto: '' });
   archivoGasto.value = null;
   xmlGasto.value = null;
   errorXml.value = '';
@@ -828,19 +869,9 @@ async function guardarSharepoint() {
   }
 }
 
-async function confirmarCierre() {
-  cerrarModal.cerrando = true; cerrarModal.error = '';
-  try {
-    await api.post(`/viaticos/${route.params.id}/cerrar`);
-    toast.success('Viáticos cerrados', `${sol.value.folio} fue cerrado correctamente.`);
-    cerrarModal.abierto = false;
-    await cargar();
-  } catch (e) {
-    cerrarModal.error = e.message;
-    toast.error('No se pudo cerrar', e.message);
-  } finally {
-    cerrarModal.cerrando = false;
-  }
+async function alCerrar() {
+  cerrarModal.abierto = false;
+  await cargar();
 }
 
 function abrirVisor({ path, title, subtitle, downloadName }) {
@@ -855,10 +886,19 @@ const categorias = [
   { key: 'monto_otros',      label: 'Otros',      icon: 'document' },
 ];
 
+// Tipo de gasto de cada comprobante: las mismas categorías del desglose del viático.
+const CATEGORIAS_GASTO = categorias.map((c) => ({ value: c.key.replace('monto_', ''), label: c.label }));
+function etiquetaCategoria(v) {
+  return CATEGORIAS_GASTO.find((c) => c.value === v)?.label || v;
+}
+
 const esColaborador = computed(() => auth.rol === 'colaborador');
+// Informe de comisión: el colaborador lo llena mientras el viático no esté cerrado;
+// administración siempre puede corregirlo. Finanzas solo lo consulta.
+const puedeEditarInforme = computed(() => auth.rol === 'admin' || (auth.rol === 'colaborador' && sol.value?.estado !== 'cerrado'));
 const esAdmin = computed(() => auth.rol === 'admin');
 const estaActivo = computed(() => sol.value && ['pagado', 'en_proceso'].includes(sol.value.estado));
-const puedeCerrar = computed(() => sol.value && ['aprobado', 'pagado', 'en_proceso'].includes(sol.value.estado) && (esColaborador.value || esAdmin.value));
+const puedeCerrar = computed(() => sol.value && ['aprobado', 'pagado', 'en_proceso'].includes(sol.value.estado) && (esAdmin.value || auth.rol === 'finanzas'));
 const puedeSubir = computed(() => estaActivo.value && (esColaborador.value || esAdmin.value));
 const puedeAprobar = computed(() => sol.value?.estado === 'pendiente' && esAdmin.value);
 const puedeAbonar = computed(() => sol.value?.estado === 'aprobado' && !sol.value?.pago && (auth.rol === 'finanzas' || esAdmin.value));
@@ -1019,18 +1059,27 @@ function parsearCfdi(texto) {
       .filter(Boolean)
       .join(', ');
   }
+  // Folio fiscal: UUID del TimbreFiscalDigital (puede haber varios Complemento)
+  const timbre = [...comp.children]
+    .filter((c) => c.localName?.toLowerCase() === 'complemento')
+    .map((c) => hijoPorNombre(c, 'timbrefiscaldigital'))
+    .find(Boolean);
   return {
     total: leerAtributo(comp, ['Total', 'total']),
     fecha: leerAtributo(comp, ['Fecha', 'fecha']),
     rfc: leerAtributo(emisor, ['Rfc', 'rfc']),
     nombre: leerAtributo(emisor, ['Nombre', 'nombre']),
     concepto,
+    uuid: leerAtributo(timbre, ['UUID', 'Uuid', 'uuid']),
   };
 }
 
-watch(xmlGasto, async (file) => {
+watch(xmlGasto, async (file, anterior) => {
   errorXml.value = '';
-  if (!file) return;
+  if (!file) {
+    if (anterior) gasto.folio_fiscal = ''; // se quitó el XML: el folio venía de él
+    return;
+  }
   try {
     const texto = await file.text();
     const cfdi = parsearCfdi(texto);
@@ -1039,6 +1088,7 @@ watch(xmlGasto, async (file) => {
     if (cfdi.rfc) gasto.rfc_emisor = cfdi.rfc.toUpperCase();
     if (cfdi.nombre) { gasto.razon_social = cfdi.nombre; gasto.nombre_emisor = cfdi.nombre; }
     if (cfdi.concepto) gasto.concepto = cfdi.concepto;
+    if (cfdi.uuid) gasto.folio_fiscal = cfdi.uuid.toUpperCase();
     toast.success('XML leído', 'Se llenaron los datos del comprobante');
   } catch (e) {
     errorXml.value = e.message;
@@ -1047,9 +1097,23 @@ watch(xmlGasto, async (file) => {
   }
 });
 
+// Al descargar, el comprobante y el XML conservan el nombre con el que el
+// colaborador los subió. Los gastos anteriores a este cambio no lo tienen
+// guardado y usan un nombre genérico con su extensión real.
+function extensionDe(ruta) {
+  const m = /\.[a-z0-9]+$/i.exec(ruta || '');
+  return m ? m[0].toLowerCase() : '';
+}
+function nombreArchivoGasto(g) {
+  return g.archivo_nombre_original || `gasto-${g.id}${extensionDe(g.archivo)}`;
+}
+function nombreXmlGasto(g) {
+  return g.xml_nombre_original || `cfdi-gasto-${g.id}.xml`;
+}
+
 async function descargarXml(g) {
   try {
-    await api.download(`/viaticos/${route.params.id}/gastos/${g.id}/xml`, `cfdi-gasto-${g.id}.xml`);
+    await api.download(`/viaticos/${route.params.id}/gastos/${g.id}/xml`, nombreXmlGasto(g));
   } catch (e) {
     toast.error('No se pudo descargar el XML', e.message);
   }
@@ -1071,13 +1135,15 @@ async function subirGasto() {
     if (xmlGasto.value) fd.append('xml', xmlGasto.value);
     fd.append('monto', String(gasto.monto));
     fd.append('fecha', gasto.fecha);
+    fd.append('categoria', gasto.categoria);
     if (gasto.rfc_emisor) fd.append('rfc_emisor', gasto.rfc_emisor);
     if (gasto.razon_social) fd.append('razon_social', gasto.razon_social);
     if (gasto.nombre_emisor) fd.append('nombre_emisor', gasto.nombre_emisor);
     if (gasto.concepto) fd.append('concepto', gasto.concepto);
+    if (gasto.folio_fiscal) fd.append('folio_fiscal', gasto.folio_fiscal.trim());
     await api.uploadWithProgress(`/viaticos/${route.params.id}/gastos`, fd, (p) => { progreso.value = p; });
     toast.success('Comprobante subido', `Monto $${Number(gasto.monto).toFixed(2)}`);
-    Object.assign(gasto, { monto: 0, fecha: '', rfc_emisor: '', razon_social: '', nombre_emisor: '', concepto: '' });
+    Object.assign(gasto, { monto: 0, fecha: '', categoria: '', folio_fiscal: '', rfc_emisor: '', razon_social: '', nombre_emisor: '', concepto: '' });
     archivoGasto.value = null;
     xmlGasto.value = null;
     errorXml.value = '';
