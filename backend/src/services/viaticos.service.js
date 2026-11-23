@@ -118,7 +118,7 @@ async function listarPorColaborador(colaboradorId, filtros = {}) {
 
   return query(
     `SELECT id, folio, destino, fecha_inicio, fecha_fin, motivo, monto_total, monto_gastado,
-            proyecto, cuenta, partida, estado, motivo_rechazo, permite_edicion, created_at
+            proyecto, cuenta, partida, estado, motivo_rechazo, permite_edicion, cierre_solicitado_at, created_at
      FROM viaticos_solicitudes
      WHERE ${where.join(' AND ')}
      ORDER BY created_at DESC
@@ -137,10 +137,25 @@ const FIRMA_OFICIO_COLS = `
               WHERE f.documento_id = s.oficio_documento_id AND f.estado <> 'firmado'
               ORDER BY f.orden ASC LIMIT 1) AS oficio_falta`;
 
+// Última actualización del viático: el registro mismo (edición, aprobación, cierre,
+// solicitud de cierre...) y todo lo que cuelga de él: comprobantes, ajustes, informe,
+// justificantes, abonos y firmas del oficio/informe.
+const ULTIMA_ACTUALIZACION_SQL = `GREATEST(
+              s.updated_at,
+              COALESCE((SELECT MAX(g.created_at) FROM viaticos_gastos g WHERE g.solicitud_id = s.id), s.updated_at),
+              COALESCE((SELECT MAX(a.updated_at) FROM viaticos_ajustes a WHERE a.solicitud_id = s.id), s.updated_at),
+              COALESCE((SELECT i.updated_at FROM viaticos_informe i WHERE i.solicitud_id = s.id), s.updated_at),
+              COALESCE((SELECT MAX(j.created_at) FROM viaticos_justificantes j WHERE j.solicitud_id = s.id), s.updated_at),
+              COALESCE((SELECT MAX(p.created_at) FROM viaticos_pagos p WHERE p.solicitud_id = s.id), s.updated_at),
+              COALESCE((SELECT d.updated_at FROM documentos d WHERE d.id = s.oficio_documento_id), s.updated_at)
+            )`;
+const ULTIMA_ACTUALIZACION_COL = `,
+            ${ULTIMA_ACTUALIZACION_SQL} AS actualizado_at`;
+
 async function listarPendientesAdmin() {
   return query(
     `SELECT s.id, s.folio, s.destino, s.fecha_inicio, s.fecha_fin, s.motivo, s.monto_total, s.monto_gastado,
-            s.estado, s.created_at, u.nombre AS colaborador_nombre,${FIRMA_OFICIO_COLS}, u.email AS colaborador_email
+            s.estado, s.created_at, u.nombre AS colaborador_nombre,${FIRMA_OFICIO_COLS}${ULTIMA_ACTUALIZACION_COL}, u.email AS colaborador_email
      FROM viaticos_solicitudes s
      JOIN users u ON u.id = s.colaborador_id
      WHERE s.eliminado = 0 AND s.estado = 'pendiente'
@@ -151,13 +166,13 @@ async function listarPendientesAdmin() {
 async function listarActivosAdmin() {
   return query(
     `SELECT s.id, s.folio, s.destino, s.fecha_inicio, s.fecha_fin,
-            s.monto_total, s.monto_gastado, s.estado, s.aprobado_at, s.created_at,
-            u.nombre AS colaborador_nombre,${FIRMA_OFICIO_COLS}, u.email AS colaborador_email,
+            s.monto_total, s.monto_gastado, s.estado, s.aprobado_at, s.created_at, s.cierre_solicitado_at,
+            u.nombre AS colaborador_nombre,${FIRMA_OFICIO_COLS}${ULTIMA_ACTUALIZACION_COL}, u.email AS colaborador_email,
             (SELECT COUNT(*) FROM viaticos_gastos WHERE solicitud_id = s.id) AS gastos_count
      FROM viaticos_solicitudes s
      JOIN users u ON u.id = s.colaborador_id
      WHERE s.eliminado = 0 AND s.estado IN ('aprobado','pagado','en_proceso')
-     ORDER BY s.aprobado_at DESC`
+     ORDER BY (s.cierre_solicitado_at IS NULL), s.cierre_solicitado_at ASC, s.aprobado_at DESC`
   );
 }
 
@@ -165,7 +180,7 @@ async function listarCerradosAdmin() {
   return query(
     `SELECT s.id, s.folio, s.destino, s.fecha_inicio, s.fecha_fin,
             s.monto_total, s.monto_gastado, s.estado, s.created_at,
-            u.nombre AS colaborador_nombre,${FIRMA_OFICIO_COLS}
+            u.nombre AS colaborador_nombre,${FIRMA_OFICIO_COLS}${ULTIMA_ACTUALIZACION_COL}
      FROM viaticos_solicitudes s
      JOIN users u ON u.id = s.colaborador_id
      WHERE s.eliminado = 0 AND s.estado = 'cerrado'
@@ -177,7 +192,7 @@ async function listarRechazadosAdmin() {
   return query(
     `SELECT s.id, s.folio, s.destino, s.fecha_inicio, s.fecha_fin,
             s.monto_total, s.monto_gastado, s.estado, s.motivo_rechazo, s.permite_edicion, s.aprobado_at, s.created_at,
-            u.nombre AS colaborador_nombre,${FIRMA_OFICIO_COLS}, u.email AS colaborador_email
+            u.nombre AS colaborador_nombre,${FIRMA_OFICIO_COLS}${ULTIMA_ACTUALIZACION_COL}, u.email AS colaborador_email
      FROM viaticos_solicitudes s
      JOIN users u ON u.id = s.colaborador_id
      WHERE s.eliminado = 0 AND s.estado = 'rechazado'
@@ -196,8 +211,8 @@ async function listarTodosAdmin(filtros = {}) {
   }
   return query(
     `SELECT s.id, s.folio, s.destino, s.fecha_inicio, s.fecha_fin,
-            s.monto_total, s.monto_gastado, s.estado, s.created_at,
-            u.nombre AS colaborador_nombre,${FIRMA_OFICIO_COLS}, u.email AS colaborador_email
+            s.monto_total, s.monto_gastado, s.estado, s.created_at, s.cierre_solicitado_at,
+            u.nombre AS colaborador_nombre,${FIRMA_OFICIO_COLS}${ULTIMA_ACTUALIZACION_COL}, u.email AS colaborador_email
      FROM viaticos_solicitudes s
      JOIN users u ON u.id = s.colaborador_id
      WHERE ${where.join(' AND ')}
@@ -350,6 +365,19 @@ async function cerrarViaje(id, adminId) {
   console.log(`[cerrarViaje] viático ${sol.folio} (id=${id}) cerrado por admin ${adminId} (estado anterior: ${sol.estado})`);
 }
 
+// El colaborador avisa que su viático ya puede cerrarse. No cambia el estado:
+// solo deja marca para que administración lo cierre.
+async function solicitarCierre(id, userId) {
+  const result = await query(
+    `UPDATE viaticos_solicitudes
+     SET cierre_solicitado_at = NOW(), cierre_solicitado_por = ?
+     WHERE id = ? AND eliminado = 0 AND estado IN ('aprobado','pagado','en_proceso')
+       AND cierre_solicitado_at IS NULL`,
+    [userId, id]
+  );
+  return result.affectedRows > 0;
+}
+
 async function agregarGasto(solicitudId, colaboradorId, data, archivo, xmlPath = null, nombres = {}) {
   return withTx(async (conn) => {
     const sql = colaboradorId
@@ -454,10 +482,11 @@ async function duplicar(id, colaboradorId) {
 }
 
 module.exports = {
+  ULTIMA_ACTUALIZACION_SQL,
   crearSolicitud, listarPorColaborador, listarPendientesAdmin,
   listarActivosAdmin, listarCerradosAdmin, listarRechazadosAdmin, listarTodosAdmin,
   getById, actualizarSharepoint,
-  aprobar, rechazar, editarSolicitud, editarSolicitudAdmin, cerrarViaje, agregarGasto, agregarJustificantes, duplicar,
+  aprobar, rechazar, editarSolicitud, editarSolicitudAdmin, cerrarViaje, solicitarCierre, agregarGasto, agregarJustificantes, duplicar,
   eliminarLogico, eliminarFisico, getArchivos,
   getActivaDeColaborador, getAbiertosDeColaborador,
   LIMITE_VIATICOS_ABIERTOS,

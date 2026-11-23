@@ -1,4 +1,5 @@
 const { query, queryOne } = require('../config/db');
+const { ULTIMA_ACTUALIZACION_SQL } = require('./viaticos.service');
 
 function suma(d) {
   return Number(d.monto_vuelos || 0) + Number(d.monto_hospedaje || 0)
@@ -36,7 +37,8 @@ async function getById(id, { incluirEliminados = false } = {}) {
 async function listarPendientes() {
   return query(`
     SELECT a.id, a.solicitud_id, a.motivo, a.monto_total, a.estado, a.created_at,
-           s.folio AS solicitud_folio, s.destino, s.created_at AS solicitud_created_at, u.nombre AS colaborador_nombre
+           s.folio AS solicitud_folio, s.destino, s.created_at AS solicitud_created_at,
+           ${ULTIMA_ACTUALIZACION_SQL} AS solicitud_actualizado_at, u.nombre AS colaborador_nombre
     FROM viaticos_ajustes a
     JOIN viaticos_solicitudes s ON s.id = a.solicitud_id
     JOIN users u ON u.id = s.colaborador_id

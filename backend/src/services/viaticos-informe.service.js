@@ -1,6 +1,8 @@
 const { query, queryOne } = require('../config/db');
 
 // Datos del "Informe de comisión con gastos y bitácoras" (1 por viático).
+// El "Objetivo de la salida" ES el motivo del viático (viaticos_solicitudes.motivo):
+// se lee de ahí y, al guardarlo desde el informe, se actualiza el motivo.
 
 function parseKilometraje(v) {
   if (!v) return [];
@@ -10,10 +12,12 @@ function parseKilometraje(v) {
 
 async function obtener(solicitudId) {
   const row = await queryOne(
-    `SELECT objetivo, fecha_presentacion, nota, resumen, usa_vehiculo,
-            vehiculo_marca, vehiculo_submarca, vehiculo_modelo, vehiculo_placa,
-            kilometraje, ret_isr, monto_total, updated_at
-     FROM viaticos_informe WHERE solicitud_id = ?`,
+    `SELECT s.motivo AS objetivo, i.fecha_presentacion, i.nota, i.resumen, i.usa_vehiculo,
+            i.vehiculo_marca, i.vehiculo_submarca, i.vehiculo_modelo, i.vehiculo_placa,
+            i.kilometraje, i.ret_isr, i.monto_total, i.updated_at
+     FROM viaticos_informe i
+     JOIN viaticos_solicitudes s ON s.id = i.solicitud_id
+     WHERE i.solicitud_id = ?`,
     [solicitudId]
   );
   if (!row) return null;
@@ -33,6 +37,10 @@ const CAMPOS_ADMIN = ['ret_isr', 'monto_total'];
  * `ret_isr` y `monto_total` únicamente si `esAdmin`.
  */
 async function guardar(solicitudId, data, userId, { esAdmin = false } = {}) {
+  // Objetivo de la salida = motivo del viático
+  if (typeof data.objetivo === 'string' && data.objetivo.trim()) {
+    await query('UPDATE viaticos_solicitudes SET motivo = ? WHERE id = ?', [data.objetivo.trim(), solicitudId]);
+  }
   const permitidos = esAdmin ? [...CAMPOS_COLABORADOR, ...CAMPOS_ADMIN] : CAMPOS_COLABORADOR;
   const campos = permitidos.filter((c) => data[c] !== undefined);
   const valores = campos.map((c) => {

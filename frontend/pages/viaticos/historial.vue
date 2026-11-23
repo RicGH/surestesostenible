@@ -66,7 +66,12 @@
             <td class="font-medium text-ink-800">{{ s.destino }}</td>
             <td class="text-ink-600">{{ s.fecha_inicio }} → {{ s.fecha_fin }}</td>
             <td>${{ Number(s.monto_total).toFixed(2) }}</td>
-            <td><EstadoBadge :estado="s.estado" /></td>
+            <td>
+              <div class="flex flex-col items-start gap-1">
+                <EstadoBadge :estado="s.estado" />
+                <span v-if="s.cierre_solicitado_at && ['aprobado','pagado','en_proceso'].includes(s.estado)" class="badge-green whitespace-nowrap">Cierre solicitado</span>
+              </div>
+            </td>
             <td>
               <div class="flex gap-1 justify-center">
                 <IconButton icon="eye" tooltip="Ver detalle" variant="primary" @click="$router.push(`/viaticos/${s.id}?from=historial`)" />

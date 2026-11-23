@@ -29,7 +29,7 @@
     </div>
 
     <div
-      v-if="puedeCerrar || puedeSubir || puedeAprobar || puedeAbonar || puedeEditar"
+      v-if="puedeCerrar || puedeSubir || puedeAprobar || puedeAbonar || puedeEditar || puedeSolicitarCierre"
       class="sticky top-0 z-30 -mt-6 lg:-mt-8 -mx-6 lg:-mx-8 px-6 lg:px-8 py-3 bg-white/95 backdrop-blur-md border-b border-ink-200 flex items-center justify-between gap-3"
     >
       <div class="flex items-center gap-2 min-w-0 flex-wrap">
@@ -54,6 +54,9 @@
         <button v-if="puedeSubir" class="btn-primary text-sm" @click="abrirSubir">
           <Icon name="upload" size="w-4 h-4" /> Subir comprobante
         </button>
+        <button v-if="puedeSolicitarCierre" class="btn-success text-sm" @click="solicitarCierreModal.abierto = true">
+          <Icon name="send" size="w-4 h-4" /> Solicitar cierre
+        </button>
         <button v-if="puedeCerrar" class="btn-success text-sm" @click="abrirCerrar">
           <Icon name="check" size="w-4 h-4" /> Cerrar viáticos
         </button>
@@ -77,6 +80,27 @@
           </div>
         </div>
         <EstadoBadge :estado="sol.estado" class="!bg-white/15 !text-white !ring-white/20" />
+      </div>
+    </section>
+
+    <section v-if="cierrePendiente" class="card overflow-hidden">
+      <div class="px-5 py-4 border-l-4 border-emerald-500 bg-emerald-50/50 flex items-start gap-3">
+        <div class="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-700 grid place-items-center shrink-0">
+          <Icon name="send" />
+        </div>
+        <div class="flex-1">
+          <h3 class="font-semibold text-emerald-800">Cierre solicitado · listo para cerrar</h3>
+          <p v-if="esColaborador" class="text-sm text-ink-700 mt-0.5">
+            Avisaste a administración el {{ fechaHora(sol.cierre_solicitado_at) }} que este viático ya puede cerrarse.
+            Administración revisará tus comprobantes y lo cerrará.
+          </p>
+          <p v-else class="text-sm text-ink-700 mt-0.5">
+            {{ sol.colaborador_nombre }} indicó el {{ fechaHora(sol.cierre_solicitado_at) }} que este viático ya puede cerrarse.
+          </p>
+          <button v-if="puedeCerrar" class="btn-success text-sm mt-3" @click="abrirCerrar">
+            <Icon name="check" size="w-4 h-4" /> Cerrar viáticos
+          </button>
+        </div>
       </div>
     </section>
 
@@ -350,7 +374,7 @@
       v-if="['aprobado', 'pagado', 'en_proceso', 'cerrado'].includes(sol.estado)"
       :sol="sol"
       :puede-editar="puedeEditarInforme"
-      @actualizado="(inf) => { sol.informe = inf; }"
+      @actualizado="(inf) => { sol.informe = inf; if (inf?.objetivo) sol.motivo = inf.objetivo; }"
     />
 
     <FileViewer
@@ -566,6 +590,25 @@
       </template>
     </Modal>
 
+    <Modal v-if="solicitarCierreModal.abierto" :title="`Solicitar cierre · ${sol.folio}`" @close="solicitarCierreModal.abierto = false">
+      <div class="space-y-3 text-sm text-ink-700">
+        <p>Se avisará a administración, por notificación y por correo, que este viático ya puede cerrarse.</p>
+        <p>El viático <strong>no se cierra todavía</strong>: administración revisará tus comprobantes y lo cerrará.</p>
+        <div class="rounded-lg bg-ink-50 border border-ink-200 p-3 space-y-1">
+          <p>Comprobado: <strong>${{ Number(sol.monto_gastado || 0).toFixed(2) }}</strong> de ${{ Number(sol.monto_total || 0).toFixed(2) }}</p>
+          <p>Comprobantes subidos: <strong>{{ (sol.gastos || []).length }}</strong></p>
+        </div>
+        <p v-if="!(sol.gastos || []).length" class="text-amber-700">Aún no has subido comprobantes. Verifica que no te falte ninguno antes de continuar.</p>
+        <p v-if="solicitarCierreModal.error" class="text-red-600">{{ solicitarCierreModal.error }}</p>
+      </div>
+      <template #footer>
+        <button class="btn-secondary" :disabled="solicitarCierreModal.enviando" @click="solicitarCierreModal.abierto = false">Cancelar</button>
+        <button class="btn-success" :disabled="solicitarCierreModal.enviando" @click="solicitarCierre">
+          {{ solicitarCierreModal.enviando ? 'Enviando...' : 'Solicitar cierre' }}
+        </button>
+      </template>
+    </Modal>
+
     <CerrarViaticoModal
       v-if="cerrarModal.abierto"
       :viatico="sol"
@@ -713,6 +756,7 @@ const ajuste = reactive({
 const visor = reactive({ abierto: false, path: '', title: '', subtitle: '', downloadName: '' });
 
 const cerrarModal = reactive({ abierto: false });
+const solicitarCierreModal = reactive({ abierto: false, enviando: false, error: '' });
 const sharepointModal = reactive({ abierto: false, url: '', guardando: false, error: '' });
 const subirModal = reactive({ abierto: false });
 const rechazoModal = reactive({ abierto: false, motivo: '', permiteEdicion: false, enviando: false, error: '' });
@@ -869,6 +913,28 @@ async function guardarSharepoint() {
   }
 }
 
+async function solicitarCierre() {
+  solicitarCierreModal.enviando = true; solicitarCierreModal.error = '';
+  try {
+    const r = await api.post(`/viaticos/${route.params.id}/solicitar-cierre`);
+    sol.value.cierre_solicitado_at = r.cierre_solicitado_at || new Date().toISOString();
+    solicitarCierreModal.abierto = false;
+    toast.success('Cierre solicitado', 'Se avisó a administración que tu viático ya puede cerrarse.');
+  } catch (e) {
+    solicitarCierreModal.error = e.message;
+  } finally {
+    solicitarCierreModal.enviando = false;
+  }
+}
+
+// "YYYY-MM-DD HH:MM:SS" de la BD viene en UTC sin zona: se marca como UTC para mostrar hora local.
+function fechaHora(v) {
+  if (!v) return '—';
+  const d = new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(v) ? v : `${String(v).replace(' ', 'T')}Z`);
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
 async function alCerrar() {
   cerrarModal.abierto = false;
   await cargar();
@@ -899,6 +965,8 @@ const puedeEditarInforme = computed(() => auth.rol === 'admin' || (auth.rol === 
 const esAdmin = computed(() => auth.rol === 'admin');
 const estaActivo = computed(() => sol.value && ['pagado', 'en_proceso'].includes(sol.value.estado));
 const puedeCerrar = computed(() => sol.value && ['aprobado', 'pagado', 'en_proceso'].includes(sol.value.estado) && (esAdmin.value || auth.rol === 'finanzas'));
+const cierrePendiente = computed(() => !!sol.value?.cierre_solicitado_at && ['aprobado', 'pagado', 'en_proceso'].includes(sol.value.estado));
+const puedeSolicitarCierre = computed(() => esColaborador.value && estaActivo.value && !sol.value?.cierre_solicitado_at);
 const puedeSubir = computed(() => estaActivo.value && (esColaborador.value || esAdmin.value));
 const puedeAprobar = computed(() => sol.value?.estado === 'pendiente' && esAdmin.value);
 const puedeAbonar = computed(() => sol.value?.estado === 'aprobado' && !sol.value?.pago && (auth.rol === 'finanzas' || esAdmin.value));

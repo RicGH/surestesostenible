@@ -27,7 +27,7 @@
     <div class="p-5 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 text-sm">
       <div>
         <p class="text-xs font-medium text-ink-500 uppercase tracking-wide">Objetivo de la salida</p>
-        <p class="mt-1 text-ink-800 whitespace-pre-line">{{ inf?.objetivo || '—' }}</p>
+        <p class="mt-1 text-ink-800 whitespace-pre-line">{{ sol.motivo || '—' }}</p>
       </div>
       <div>
         <p class="text-xs font-medium text-ink-500 uppercase tracking-wide">Fecha de presentación</p>
@@ -89,7 +89,8 @@
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div class="sm:col-span-2">
             <label class="block text-xs font-medium text-ink-600 mb-1">Objetivo de la salida</label>
-            <textarea v-model="form.objetivo" rows="2" maxlength="2000" class="input" placeholder="¿Para qué fue la comisión?" />
+            <textarea v-model="form.objetivo" rows="3" maxlength="5000" class="input" placeholder="¿Para qué fue la comisión?" />
+            <p class="text-[11px] text-ink-400 mt-1">Es el mismo motivo del viático: si lo cambias aquí, también cambia el motivo.</p>
           </div>
           <div>
             <label class="block text-xs font-medium text-ink-600 mb-1">Fecha de presentación</label>
@@ -214,7 +215,7 @@ const comprobado = computed(() => (props.sol.gastos || []).reduce((t, g) => t + 
 
 const faltantes = computed(() => {
   const f = [];
-  if (!inf.value?.objetivo) f.push('objetivo');
+  if (!props.sol.motivo) f.push('objetivo');
   if (!inf.value?.fecha_presentacion) f.push('fecha de presentación');
   if (!inf.value?.resumen) f.push('resumen');
   return f;
@@ -252,7 +253,7 @@ const modal = reactive({ abierto: false, guardando: false, error: '' });
 function abrir() {
   const i = inf.value || {};
   Object.assign(form, {
-    objetivo: i.objetivo || '',
+    objetivo: props.sol.motivo || '',
     fecha_presentacion: i.fecha_presentacion ? String(i.fecha_presentacion).slice(0, 10) : hoyIso(),
     nota: i.nota || '',
     resumen: i.resumen || '',

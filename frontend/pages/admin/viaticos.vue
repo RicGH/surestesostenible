@@ -15,6 +15,11 @@
                        tab === t.id ? 'bg-brand-100 text-brand-700' : 'bg-ink-100 text-ink-600']">
           {{ counts[t.id] || 0 }}
         </span>
+        <span
+          v-if="t.id === 'activos' && listosParaCerrar"
+          class="ml-1 text-xs px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700"
+          :title="`${listosParaCerrar} viático(s) listos para cerrar`"
+        >{{ listosParaCerrar }} por cerrar</span>
       </button>
     </div>
 
@@ -46,7 +51,7 @@
     <section v-if="tab === 'pendientes'">
       <div class="card overflow-hidden">
         <table class="table">
-          <thead><tr><th>Folio</th><th>Colaborador</th><th>Destino</th><th>Fechas</th><th>Avance</th><th>Firmas</th><th>Creado</th><th class="!text-center">Acciones</th></tr></thead>
+          <thead><tr><th>Folio</th><th>Colaborador</th><th>Destino</th><th>Fechas</th><th>Avance</th><th>Firmas</th><th>Creado</th><th>Actualizado</th><th class="!text-center">Acciones</th></tr></thead>
           <tbody>
             <tr v-for="s in pendientesFiltrados" :key="s.id">
               <td class="font-mono text-xs">{{ s.folio }}</td>
@@ -56,6 +61,7 @@
               <td><AvanceCelda :total="s.monto_total" :gastado="s.monto_gastado" /></td>
               <td><FirmasOficioCelda :fila="s" @click="abrirFirmaOficio(s)" /></td>
               <td class="text-ink-600 text-xs whitespace-nowrap">{{ fechaCreacion(s.created_at) }}</td>
+              <td class="text-ink-600 text-xs whitespace-nowrap" title="Última actualización: cambios, comprobantes, ajustes, informe, firmas, cierre">{{ fechaCreacion(s.actualizado_at) }}</td>
               <td>
                 <div class="flex gap-1 justify-center">
                   <IconButton icon="eye" tooltip="Ver detalle" variant="primary" @click="$router.push(`/viaticos/${s.id}?from=admin`)" />
@@ -67,7 +73,7 @@
                 </div>
               </td>
             </tr>
-            <tr v-if="!pendientesFiltrados.length"><td colspan="8" class="py-12 text-center text-ink-400">{{ pendientes.length ? 'Sin coincidencias con los filtros' : 'Sin solicitudes pendientes' }}</td></tr>
+            <tr v-if="!pendientesFiltrados.length"><td colspan="9" class="py-12 text-center text-ink-400">{{ pendientes.length ? 'Sin coincidencias con los filtros' : 'Sin solicitudes pendientes' }}</td></tr>
           </tbody>
         </table>
       </div>
@@ -76,7 +82,7 @@
     <section v-if="tab === 'ajustes'">
       <div class="card overflow-hidden">
         <table class="table">
-          <thead><tr><th>Folio viaje</th><th>Colaborador</th><th>Motivo</th><th>Monto</th><th>Viático creado</th><th class="!text-center">Acciones</th></tr></thead>
+          <thead><tr><th>Folio viaje</th><th>Colaborador</th><th>Motivo</th><th>Monto</th><th>Viático creado</th><th>Actualizado</th><th class="!text-center">Acciones</th></tr></thead>
           <tbody>
             <tr v-for="a in ajustesFiltrados" :key="a.id">
               <td class="font-mono text-xs">{{ a.solicitud_folio }}</td>
@@ -84,6 +90,7 @@
               <td>{{ a.motivo }}</td>
               <td class="font-medium">+${{ Number(a.monto_total).toFixed(2) }}</td>
               <td class="text-ink-600 text-xs whitespace-nowrap">{{ fechaCreacion(a.solicitud_created_at) }}</td>
+              <td class="text-ink-600 text-xs whitespace-nowrap">{{ fechaCreacion(a.solicitud_actualizado_at) }}</td>
               <td>
                 <div class="flex gap-1 justify-center">
                   <IconButton icon="eye" tooltip="Ver viaje" variant="primary" @click="$router.push(`/viaticos/${a.solicitud_id}?from=admin`)" />
@@ -94,7 +101,7 @@
                 </div>
               </td>
             </tr>
-            <tr v-if="!ajustesFiltrados.length"><td colspan="6" class="py-12 text-center text-ink-400">{{ ajustes.length ? 'Sin coincidencias con los filtros' : 'Sin ajustes pendientes' }}</td></tr>
+            <tr v-if="!ajustesFiltrados.length"><td colspan="7" class="py-12 text-center text-ink-400">{{ ajustes.length ? 'Sin coincidencias con los filtros' : 'Sin ajustes pendientes' }}</td></tr>
           </tbody>
         </table>
       </div>
@@ -103,17 +110,27 @@
     <section v-if="tab === 'activos'">
       <div class="card overflow-hidden">
         <table class="table">
-          <thead><tr><th>Folio</th><th>Colaborador</th><th>Destino</th><th>Avance</th><th>Comprobantes</th><th>Estado</th><th>Firmas</th><th>Creado</th><th class="!text-center">Acciones</th></tr></thead>
+          <thead><tr><th>Folio</th><th>Colaborador</th><th>Destino</th><th>Avance</th><th>Comprobantes</th><th>Estado</th><th>Firmas</th><th>Creado</th><th>Actualizado</th><th class="!text-center">Acciones</th></tr></thead>
           <tbody>
-            <tr v-for="s in activosFiltrados" :key="s.id">
+            <tr v-for="s in activosFiltrados" :key="s.id" :class="s.cierre_solicitado_at ? 'bg-emerald-50/60' : ''">
               <td class="font-mono text-xs">{{ s.folio }}</td>
               <td class="font-medium text-ink-800">{{ s.colaborador_nombre }}</td>
               <td>{{ s.destino }}</td>
               <td><AvanceCelda :total="s.monto_total" :gastado="s.monto_gastado" /></td>
               <td><span class="badge-blue">{{ s.gastos_count }}</span></td>
-              <td><EstadoBadge :estado="s.estado" /></td>
+              <td>
+                <div class="flex flex-col items-start gap-1">
+                  <EstadoBadge :estado="s.estado" />
+                  <span
+                    v-if="s.cierre_solicitado_at && ['aprobado','pagado','en_proceso'].includes(s.estado)"
+                    class="badge-green inline-flex items-center gap-1 whitespace-nowrap"
+                    :title="`Cierre solicitado por el colaborador el ${fechaCreacion(s.cierre_solicitado_at)}`"
+                  ><Icon name="send" size="w-3 h-3" /> Listo para cerrar</span>
+                </div>
+              </td>
               <td><FirmasOficioCelda :fila="s" @click="abrirFirmaOficio(s)" /></td>
               <td class="text-ink-600 text-xs whitespace-nowrap">{{ fechaCreacion(s.created_at) }}</td>
+              <td class="text-ink-600 text-xs whitespace-nowrap" title="Última actualización: cambios, comprobantes, ajustes, informe, firmas, cierre">{{ fechaCreacion(s.actualizado_at) }}</td>
               <td>
                 <div class="flex gap-1 justify-center">
                   <IconButton icon="eye" tooltip="Ver comprobantes" variant="primary" @click="$router.push(`/viaticos/${s.id}?from=admin`)" />
@@ -124,7 +141,7 @@
                 </div>
               </td>
             </tr>
-            <tr v-if="!activosFiltrados.length"><td colspan="9" class="py-12 text-center text-ink-400">{{ activos.length ? 'Sin coincidencias con los filtros' : 'Sin viáticos activos' }}</td></tr>
+            <tr v-if="!activosFiltrados.length"><td colspan="10" class="py-12 text-center text-ink-400">{{ activos.length ? 'Sin coincidencias con los filtros' : 'Sin viáticos activos' }}</td></tr>
           </tbody>
         </table>
       </div>
@@ -133,7 +150,7 @@
     <section v-if="tab === 'rechazados'">
       <div class="card overflow-hidden">
         <table class="table">
-          <thead><tr><th>Folio</th><th>Colaborador</th><th>Destino</th><th>Avance</th><th>Motivo</th><th>Edición</th><th>Firmas</th><th>Creado</th><th class="!text-center">Acciones</th></tr></thead>
+          <thead><tr><th>Folio</th><th>Colaborador</th><th>Destino</th><th>Avance</th><th>Motivo</th><th>Edición</th><th>Firmas</th><th>Creado</th><th>Actualizado</th><th class="!text-center">Acciones</th></tr></thead>
           <tbody>
             <tr v-for="s in rechazadosFiltrados" :key="s.id">
               <td class="font-mono text-xs">{{ s.folio }}</td>
@@ -147,6 +164,7 @@
               </td>
               <td><FirmasOficioCelda :fila="s" @click="abrirFirmaOficio(s)" /></td>
               <td class="text-ink-600 text-xs whitespace-nowrap">{{ fechaCreacion(s.created_at) }}</td>
+              <td class="text-ink-600 text-xs whitespace-nowrap" title="Última actualización: cambios, comprobantes, ajustes, informe, firmas, cierre">{{ fechaCreacion(s.actualizado_at) }}</td>
               <td>
                 <div class="flex gap-1 justify-center">
                   <IconButton icon="eye" tooltip="Ver detalle" variant="primary" @click="$router.push(`/viaticos/${s.id}?from=admin`)" />
@@ -156,7 +174,7 @@
                 </div>
               </td>
             </tr>
-            <tr v-if="!rechazadosFiltrados.length"><td colspan="9" class="py-12 text-center text-ink-400">{{ rechazados.length ? 'Sin coincidencias con los filtros' : 'Sin viajes rechazados' }}</td></tr>
+            <tr v-if="!rechazadosFiltrados.length"><td colspan="10" class="py-12 text-center text-ink-400">{{ rechazados.length ? 'Sin coincidencias con los filtros' : 'Sin viajes rechazados' }}</td></tr>
           </tbody>
         </table>
       </div>
@@ -165,7 +183,7 @@
     <section v-if="tab === 'cerrados'">
       <div class="card overflow-hidden">
         <table class="table">
-          <thead><tr><th>Folio</th><th>Colaborador</th><th>Destino</th><th>Avance</th><th>Firmas</th><th>Creado</th><th class="!text-center">Acciones</th></tr></thead>
+          <thead><tr><th>Folio</th><th>Colaborador</th><th>Destino</th><th>Avance</th><th>Firmas</th><th>Creado</th><th>Actualizado</th><th class="!text-center">Acciones</th></tr></thead>
           <tbody>
             <tr v-for="s in cerradosFiltrados" :key="s.id">
               <td class="font-mono text-xs">{{ s.folio }}</td>
@@ -174,6 +192,7 @@
               <td><AvanceCelda :total="s.monto_total" :gastado="s.monto_gastado" /></td>
               <td><FirmasOficioCelda :fila="s" @click="abrirFirmaOficio(s)" /></td>
               <td class="text-ink-600 text-xs whitespace-nowrap">{{ fechaCreacion(s.created_at) }}</td>
+              <td class="text-ink-600 text-xs whitespace-nowrap" title="Última actualización: cambios, comprobantes, ajustes, informe, firmas, cierre">{{ fechaCreacion(s.actualizado_at) }}</td>
               <td>
                 <div class="flex gap-1 justify-center">
                   <IconButton icon="eye" tooltip="Ver detalle" variant="primary" @click="$router.push(`/viaticos/${s.id}?from=admin`)" />
@@ -183,7 +202,7 @@
                 </div>
               </td>
             </tr>
-            <tr v-if="!cerradosFiltrados.length"><td colspan="7" class="py-12 text-center text-ink-400">{{ cerrados.length ? 'Sin coincidencias con los filtros' : 'Sin viajes cerrados' }}</td></tr>
+            <tr v-if="!cerradosFiltrados.length"><td colspan="8" class="py-12 text-center text-ink-400">{{ cerrados.length ? 'Sin coincidencias con los filtros' : 'Sin viajes cerrados' }}</td></tr>
           </tbody>
         </table>
       </div>
@@ -192,7 +211,7 @@
     <section v-if="tab === 'todos'">
       <div class="card overflow-hidden">
         <table class="table">
-          <thead><tr><th>Folio</th><th>Colaborador</th><th>Destino</th><th>Fechas</th><th>Avance</th><th>Estado</th><th>Firmas</th><th>Creado</th><th class="!text-center">Acciones</th></tr></thead>
+          <thead><tr><th>Folio</th><th>Colaborador</th><th>Destino</th><th>Fechas</th><th>Avance</th><th>Estado</th><th>Firmas</th><th>Creado</th><th>Actualizado</th><th class="!text-center">Acciones</th></tr></thead>
           <tbody>
             <tr v-for="s in todosFiltrados" :key="s.id">
               <td class="font-mono text-xs">{{ s.folio }}</td>
@@ -200,9 +219,19 @@
               <td>{{ s.destino }}</td>
               <td class="text-ink-600 text-xs">{{ s.fecha_inicio }} → {{ s.fecha_fin }}</td>
               <td><AvanceCelda :total="s.monto_total" :gastado="s.monto_gastado" /></td>
-              <td><EstadoBadge :estado="s.estado" /></td>
+              <td>
+                <div class="flex flex-col items-start gap-1">
+                  <EstadoBadge :estado="s.estado" />
+                  <span
+                    v-if="s.cierre_solicitado_at && ['aprobado','pagado','en_proceso'].includes(s.estado)"
+                    class="badge-green inline-flex items-center gap-1 whitespace-nowrap"
+                    :title="`Cierre solicitado por el colaborador el ${fechaCreacion(s.cierre_solicitado_at)}`"
+                  ><Icon name="send" size="w-3 h-3" /> Listo para cerrar</span>
+                </div>
+              </td>
               <td><FirmasOficioCelda :fila="s" @click="abrirFirmaOficio(s)" /></td>
               <td class="text-ink-600 text-xs whitespace-nowrap">{{ fechaCreacion(s.created_at) }}</td>
+              <td class="text-ink-600 text-xs whitespace-nowrap" title="Última actualización: cambios, comprobantes, ajustes, informe, firmas, cierre">{{ fechaCreacion(s.actualizado_at) }}</td>
               <td>
                 <div class="flex gap-1 justify-center">
                   <IconButton icon="eye" tooltip="Ver detalle" variant="primary" @click="$router.push(`/viaticos/${s.id}?from=admin`)" />
@@ -212,7 +241,7 @@
                 </div>
               </td>
             </tr>
-            <tr v-if="!todosFiltrados.length"><td colspan="9" class="py-12 text-center text-ink-400">{{ todos.length ? 'Sin coincidencias con los filtros' : 'Sin resultados' }}</td></tr>
+            <tr v-if="!todosFiltrados.length"><td colspan="10" class="py-12 text-center text-ink-400">{{ todos.length ? 'Sin coincidencias con los filtros' : 'Sin resultados' }}</td></tr>
           </tbody>
         </table>
       </div>
@@ -435,7 +464,17 @@
 const api = useApi();
 const auth = useAuth();
 const esAdmin = computed(() => auth.rol === 'admin');
-const tab = ref('pendientes');
+const route = useRoute();
+const router = useRouter();
+// La pestaña se recuerda en la URL (?tab=) y en la sesión del navegador, para que al
+// entrar a un viático y regresar (con "Volver" o con el botón atrás) se quede en la misma.
+const TAB_KEY = 'admin-viaticos-tab';
+function tabsValidas(t) { return ['pendientes', 'ajustes', 'activos', 'rechazados', 'cerrados', 'todos'].includes(t) ? t : null; }
+const tab = ref(tabsValidas(route.query.tab) || tabsValidas(sessionStorage.getItem(TAB_KEY)) || 'pendientes');
+watch(tab, (t) => {
+  sessionStorage.setItem(TAB_KEY, t);
+  if (route.query.tab !== t) router.replace({ query: { ...route.query, tab: t } });
+}, { immediate: true });
 const tabs = [
   { id: 'pendientes', label: 'Pendientes' },
   { id: 'ajustes',    label: 'Ajustes' },
@@ -524,6 +563,9 @@ const counts = computed(() => ({
   cerrados: cerrados.value.length,
   todos: todos.value.length,
 }));
+
+// Viáticos activos que el colaborador ya pidió cerrar
+const listosParaCerrar = computed(() => activos.value.filter((s) => s.cierre_solicitado_at).length);
 
 const modal = reactive({ abierto: false, id: null, folio: '', motivo: '', permiteEdicion: false });
 const modalAjuste = reactive({ abierto: false, id: null, motivo: '' });

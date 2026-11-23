@@ -437,6 +437,38 @@ async function cerrar(req, res) {
   res.json({ ok: true, firma: resultadoFirma });
 }
 
+/**
+ * El colaborador avisa que su viático ya puede cerrarse. El viático NO se
+ * cierra: se marca en el listado de administración y se notifica (campana y
+ * correo) a administración, que es quien lo cierra.
+ */
+async function solicitarCierre(req, res) {
+  const id = Number(req.params.id);
+  const restringir = req.user.rol === 'colaborador' ? req.user.sub : null;
+  const sol = await service.getById(id, restringir);
+  if (!sol) throw new HttpError(404, 'Viático no encontrado');
+  if (!ESTADOS_CERRABLES.includes(sol.estado)) {
+    throw new HttpError(400, `No se puede solicitar el cierre del viático ${sol.folio} porque está en estado "${sol.estado}".`);
+  }
+  if (sol.cierre_solicitado_at) {
+    return res.json({ ok: true, ya_solicitado: true, cierre_solicitado_at: sol.cierre_solicitado_at });
+  }
+
+  await service.solicitarCierre(id, req.user.sub);
+  const comprobado = Number(sol.monto_gastado || 0).toFixed(2);
+  const total = Number(sol.monto_total || 0).toFixed(2);
+  await notifService.crearParaRol('admin', {
+    tipo: 'viaticos_cierre_solicitado',
+    titulo: 'Viático listo para cerrar',
+    mensaje: `${sol.colaborador_nombre} indica que el viático ${sol.folio} (${sol.destino}) ya puede cerrarse. ` +
+      `Comprobado: $${comprobado} de $${total}.`,
+    url: `/viaticos/${id}?from=admin`,
+  });
+
+  const actualizado = await service.getById(id);
+  res.json({ ok: true, cierre_solicitado_at: actualizado?.cierre_solicitado_at || null });
+}
+
 const gastoSchema = z.object({
   monto: z.coerce.number().positive(),
   fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -532,7 +564,8 @@ const numOpcional = z.union([z.coerce.number().nonnegative(), z.literal(''), z.n
 const textoOpcional = (max) => z.string().max(max).optional().nullable();
 
 const informeSchema = z.object({
-  objetivo: textoOpcional(2000),
+  // Objetivo de la salida = motivo del viático (obligatorio, como el motivo)
+  objetivo: z.string().trim().min(5, 'El objetivo de la salida debe tener al menos 5 caracteres').max(5000).optional(),
   fecha_presentacion: z.union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/), z.literal(''), z.null()]).optional(),
   nota: textoOpcional(2000),
   resumen: textoOpcional(10000),
@@ -593,7 +626,7 @@ module.exports = {
   guardarInforme, descargarInformePdf, descargarInformeXlsx,
   crear, listarMios, listarPendientes, listarActivos, listarCerrados,
   listarRechazados, listarTodos, detalle, guardarSharepoint,
-  aprobar, rechazar, editar, duplicar, cerrar, eliminar, subirGasto, subirJustificantes, puedoCrear,
+  aprobar, rechazar, editar, duplicar, cerrar, solicitarCierre, eliminar, subirGasto, subirJustificantes, puedoCrear,
   listarPorPagar, listarPagosHistorial, pagarSolicitud, descargarComprobantePago,
   descargarGasto, descargarGastoXml, descargarJustificante, descargarJustificanteItem, descargarOficio,
   estadoFirmaOficio, enviarFirmaOficio, descargarOficioFirmado,

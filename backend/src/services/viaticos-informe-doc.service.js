@@ -114,10 +114,10 @@ function construirLibro(v) {
   celda('A5:J5', 'DATOS DE LA COMISIÓN', { bold: true, border: { bottom: { style: 'medium' } } });
   alto(5, 16);
 
-  const hObjetivo = altoTexto(inf.objetivo, anchoCols(3, 5), 9, 28.5) / 2;
+  const hObjetivo = altoTexto(v.motivo, anchoCols(3, 5), 9, 28.5) / 2;
   alto(6, hObjetivo); alto(7, hObjetivo);
   etiqueta('A6:B7', 'Objetivo:');
-  celda('C6:E7', inf.objetivo || '', { size: 9 });
+  celda('C6:E7', v.motivo || '', { size: 9 }); // objetivo de la salida = motivo
   etiqueta('F6:H7', 'Fecha de presentación:');
   celda('I6:J7', fechaLarga(inf.fecha_presentacion), { size: 9 });
 
@@ -174,7 +174,7 @@ function construirLibro(v) {
     celda(`C${fila}:E${fila}`, proveedor, op);
     celda(`F${fila}:H${fila}`, concepto, op);
     celda(`I${fila}`, g ? Number(g.monto) : null, { ...op, h: 'right', fmt: MONEDA });
-    celda(`J${fila}`, g ? (v.partida || '') : '', op);
+    celda(`J${fila}`, '', op); // PARTIDA: se deja vacía
   }
   const ultimaGasto = fila - 1;
 
@@ -262,14 +262,25 @@ function construirLibro(v) {
   fila += 2;
 
   // ── Firmas (mismos firmantes que el oficio de comisión) ────
+  // Dos bloques casi simétricos (A:D y G:J). La línea es una cadena de guiones bajos
+  // del mismo largo en ambos, para que las dos líneas midan igual y queden centradas
+  // con su etiqueta y su nombre.
+  const BLOQUES = ['A{f}:D{f}', 'G{f}:J{f}'];
+  const LINEA = '_'.repeat(38);
+  const firmas = [
+    ['ENTREGA', v.recibe_nombre || v.colaborador_nombre || ''],
+    ['AUTORIZA', v.autoriza_nombre || ''],
+  ];
+  const rango = (i, f) => BLOQUES[i].replace(/\{f\}/g, f);
   alto(fila, 16);
-  celda(`A${fila}:C${fila}`, 'ENTREGA', { bold: true, border: false });
-  celda(`E${fila}:I${fila}`, 'AUTORIZA', { bold: true, border: false });
+  firmas.forEach(([etq], i) => celda(rango(i, fila), etq, { bold: true, border: false }));
   fila++;
-  for (let i = 0; i < 4; i++, fila++) alto(fila, 14.25); // espacio para la firma
+  for (let i = 0; i < 3; i++, fila++) alto(fila, 14.25); // espacio para la firma
   alto(fila, 16);
-  celda(`A${fila}:C${fila}`, v.recibe_nombre || v.colaborador_nombre || '', { bold: true, v: 'top', border: { top: fino } });
-  celda(`E${fila}:I${fila}`, v.autoriza_nombre || '', { bold: true, v: 'top', border: { top: fino } });
+  firmas.forEach((_, i) => celda(rango(i, fila), LINEA, { v: 'bottom', wrap: false, border: false }));
+  fila++;
+  alto(fila, 16);
+  firmas.forEach(([, nombre], i) => celda(rango(i, fila), nombre, { bold: true, v: 'top', border: false }));
 
   ws.pageSetup.printArea = `A1:J${fila}`;
   return wb;
