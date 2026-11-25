@@ -336,6 +336,7 @@
         <tbody>
           <tr v-for="g in sol.gastos" :key="g.id">
             <td>
+              <div v-if="g.archivo || g.xml_path" class="flex items-center gap-2">
               <Thumbnail
                 v-if="g.archivo"
                 :path="`/viaticos/${sol.id}/gastos/${g.id}/archivo`"
@@ -344,12 +345,13 @@
                 @open="abrirVisor({ path: `/viaticos/${sol.id}/gastos/${g.id}/archivo`, title: 'Comprobante de gasto', subtitle: `${g.nombre_emisor || g.concepto || ''} · $${Number(g.monto).toFixed(2)}`, downloadName: nombreArchivoGasto(g) })"
               />
               <Thumbnail
-                v-else-if="g.xml_path"
+                v-if="g.xml_path"
                 :path="`/viaticos/${sol.id}/gastos/${g.id}/xml`"
                 :filename="g.xml_path"
                 tooltip="Ver XML (CFDI)"
                 @open="abrirVisor({ path: `/viaticos/${sol.id}/gastos/${g.id}/xml`, title: 'XML del CFDI', subtitle: `${g.nombre_emisor || g.concepto || ''} · $${Number(g.monto).toFixed(2)}`, downloadName: nombreXmlGasto(g) })"
               />
+              </div>
               <span v-else class="text-ink-300 text-xs">—</span>
             </td>
             <td>{{ g.fecha }}</td>
@@ -425,8 +427,12 @@
               <label class="block text-xs font-medium text-ink-600 mb-1">Monto <span class="text-red-500">*</span></label>
               <div class="relative">
                 <span class="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400 text-sm">$</span>
-                <input v-model.number="gasto.monto" type="number" step="0.01" min="0" :max="disponible" required class="input pl-7" placeholder="0.00" />
+                <input v-model.number="gasto.monto" type="number" step="0.01" min="0" :max="disponible" required class="input pl-7" :class="excedeSaldo ? 'border-red-400' : ''" placeholder="0.00" />
               </div>
+              <p v-if="excedeSaldo" class="text-[11px] text-red-600 mt-1">
+                Excede el saldo disponible (${{ disponible.toFixed(2) }}).
+                <button type="button" class="font-semibold underline" @click="subirModal.abierto = false; abrirAjuste()">Solicita un ajuste</button>
+              </p>
             </div>
             <div>
               <label class="block text-xs font-medium text-ink-600 mb-1">Fecha de comprobante <span class="text-red-500">*</span></label>
@@ -484,7 +490,7 @@
       </div>
       <template #footer>
         <button class="btn-secondary" :disabled="subiendo" @click="cerrarSubir">Cancelar</button>
-        <button form="subir-comprobante-form" type="submit" class="btn-primary" :disabled="subiendo || (!archivoGasto && !xmlGasto) || !gasto.categoria || disponible <= 0">
+        <button form="subir-comprobante-form" type="submit" class="btn-primary" :disabled="subiendo || (!archivoGasto && !xmlGasto) || !gasto.categoria || disponible <= 0 || excedeSaldo">
           <Icon name="upload" size="w-4 h-4" /> {{ subiendo ? `Subiendo... ${progreso}%` : 'Subir comprobante' }}
         </button>
       </template>
@@ -977,6 +983,7 @@ const puedeEditar = computed(() => {
   return s.estado === 'pendiente' || (s.estado === 'rechazado' && s.permite_edicion);
 });
 const disponible = computed(() => sol.value ? Number(sol.value.monto_total) - Number(sol.value.monto_gastado) : 0);
+const excedeSaldo = computed(() => Number(gasto.monto) > disponible.value + 0.001);
 const necesitaAjuste = computed(() => disponible.value <= 0);
 const comprobantesLabel = computed(() => {
   const gastos = sol.value?.gastos || [];
@@ -1142,10 +1149,41 @@ function parsearCfdi(texto) {
   };
 }
 
+const RE_COMPROBANTE = /\.(jpe?g|png|pdf)$/i;
+const RE_XML = /\.xml$/i;
+
+// Si el archivo cae en la caja equivocada (p. ej. el XML en "Archivo del
+// comprobante"), se mueve a la que le corresponde en vez de fallar al subir.
+watch(archivoGasto, (file) => {
+  if (!file || RE_COMPROBANTE.test(file.name)) return;
+  archivoGasto.value = null;
+  if (RE_XML.test(file.name)) {
+    xmlGasto.value = file;
+    toast.info('XML detectado', 'Se colocó en la sección "XML del CFDI"');
+    return;
+  }
+  toast.error('Archivo no permitido', 'El comprobante debe ser PDF, JPG o PNG');
+});
+
+function recortar(texto, max) {
+  return texto.length > max ? `${texto.slice(0, max - 1)}…` : texto;
+}
+
 watch(xmlGasto, async (file, anterior) => {
   errorXml.value = '';
   if (!file) {
     if (anterior) gasto.folio_fiscal = ''; // se quitó el XML: el folio venía de él
+    return;
+  }
+  if (!RE_XML.test(file.name)) {
+    xmlGasto.value = null;
+    if (RE_COMPROBANTE.test(file.name) && !archivoGasto.value) {
+      archivoGasto.value = file;
+      toast.info('Comprobante detectado', 'Se colocó en la sección "Archivo del comprobante"');
+    } else {
+      errorXml.value = 'El CFDI debe ser un archivo .xml';
+      toast.error('Archivo no permitido', errorXml.value);
+    }
     return;
   }
   try {
@@ -1154,10 +1192,15 @@ watch(xmlGasto, async (file, anterior) => {
     if (cfdi.total) gasto.monto = Number(cfdi.total);
     if (cfdi.fecha) gasto.fecha = cfdi.fecha.slice(0, 10);
     if (cfdi.rfc) gasto.rfc_emisor = cfdi.rfc.toUpperCase();
-    if (cfdi.nombre) { gasto.razon_social = cfdi.nombre; gasto.nombre_emisor = cfdi.nombre; }
-    if (cfdi.concepto) gasto.concepto = cfdi.concepto;
+    if (cfdi.nombre) { gasto.razon_social = recortar(cfdi.nombre, 255); gasto.nombre_emisor = recortar(cfdi.nombre, 200); }
+    // Facturas con muchos conceptos (restaurantes, hoteles) superan el límite
+    if (cfdi.concepto) gasto.concepto = recortar(cfdi.concepto, 255);
     if (cfdi.uuid) gasto.folio_fiscal = cfdi.uuid.toUpperCase();
-    toast.success('XML leído', 'Se llenaron los datos del comprobante');
+    if (excedeSaldo.value) {
+      toast.error('El total del XML excede el saldo', `Total $${Number(gasto.monto).toFixed(2)} · saldo disponible $${disponible.value.toFixed(2)}. Solicita un ajuste para poder subirlo.`);
+    } else {
+      toast.success('XML leído', 'Se llenaron los datos del comprobante');
+    }
   } catch (e) {
     errorXml.value = e.message;
     xmlGasto.value = null;

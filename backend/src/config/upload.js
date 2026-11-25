@@ -27,7 +27,12 @@ const uploadGastos = multer({
     const okArchivo = file.fieldname === 'archivo' && /\.(jpe?g|png|pdf)$/i.test(file.originalname);
     const okXml = file.fieldname === 'xml' && /\.xml$/i.test(file.originalname);
     const ok = okArchivo || okXml;
-    cb(ok ? null : new Error('El comprobante debe ser imagen o PDF, y el CFDI debe ser XML'), ok);
+    if (ok) return cb(null, true);
+    const err = new Error(file.fieldname === 'xml'
+      ? 'El CFDI debe ser un archivo .xml'
+      : 'El archivo del comprobante debe ser PDF, JPG o PNG (el XML va en "XML del CFDI")');
+    err.status = 400;
+    cb(err, false);
   },
 });
 

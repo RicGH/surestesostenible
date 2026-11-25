@@ -476,9 +476,10 @@ const gastoSchema = z.object({
     errorMap: () => ({ message: 'Selecciona el tipo de gasto (vuelos, hospedaje, alimentos, transporte u otros)' }),
   }),
   rfc_emisor: z.string().min(12).max(13).optional().or(z.literal('')),
-  razon_social: z.string().max(255).optional(),
-  nombre_emisor: z.string().max(200).optional(),
-  concepto: z.string().max(255).optional(),
+  // Se recortan en vez de rechazar: los CFDI con muchos conceptos rebasan el límite
+  razon_social: z.string().transform((s) => s.slice(0, 255)).optional(),
+  nombre_emisor: z.string().transform((s) => s.slice(0, 200)).optional(),
+  concepto: z.string().transform((s) => s.slice(0, 255)).optional(),
   // "Fact. o rec. núm.": si se sube el XML se toma el UUID del timbre fiscal
   folio_fiscal: z.string().trim().max(64).optional(),
 });
